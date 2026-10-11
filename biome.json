@@ -1,0 +1,7 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
+  "extends": ["./packages/biome-config/base.json"],
+  "files": {
+    "ignoreUnknown": true
+  }
+}

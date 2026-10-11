@@ -1,0 +1,16 @@
+{
+  "name": "@repo/biome-config",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "biome check ."
+  },
+  "exports": {
+    "./base": "./base.json",
+    "./nextjs": "./nextjs.json",
+    "./react-vite": "./react-vite.json"
+  },
+  "peerDependencies": {
+    "@biomejs/biome": "catalog:"
+  }
+}

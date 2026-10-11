@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "website",
+  "main": "server/index.ts",
+  "compatibility_date": "2026-04-01",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    // Browser navigations that match no asset (e.g. /writing/my-post) get index.html and the
+    // client router takes over. With compatibility_date >= 2025-04-01 these never run the
+    // Worker script. /api/* always goes to the Worker, even when opened in the address bar.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "dev": {
+    "port": 3005
+  },
+  "vars": {
+    "ENVIRONMENT": "production"
+  }
+  // Custom domain (paulclarke.au) is added via the Cloudflare dashboard under
+  // Workers & Pages → website → Settings → Domains & Routes after first deploy.
+}

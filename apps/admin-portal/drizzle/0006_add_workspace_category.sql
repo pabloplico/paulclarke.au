@@ -1,0 +1,1 @@
+ALTER TABLE "admin_workspaces" ADD COLUMN "category" varchar(100);

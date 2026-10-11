@@ -1,0 +1,39 @@
+# Patterns are anchored to the build-context root (the repo root), so
+# nested folders need a `**/` prefix to be excluded in every app.
+
+# Dependencies and build output
+**/node_modules/
+.pnpm-store/
+**/.turbo/
+**/.next/
+!.next/cache
+**/dist/
+**/build/
+**/.wrangler
+*.log
+.DS_Store
+
+# Secrets and env files
+**/.env
+**/.env.*
+**/.dev.vars
+*-firebase-adminsdk-*.json
+
+# Local data that must never ship in an image
+backups/
+uploads/
+**/uploads/
+
+# Tooling, docs and test artefacts
+.git
+.vscode
+.idea
+*.md
+!README.md
+AGENTS.md
+CLAUDE.md
+docs/
+**/test-results/
+**/e2e/.auth/
+.claude/
+.playwright-mcp/

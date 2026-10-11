@@ -1,0 +1,46 @@
+{
+  "name": "paulclarke.au",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint lint:root",
+    "lint:fix": "biome check --write --unsafe . && turbo run lint",
+    "format": "biome format --write . && prettier --write \"**/*.{md,svelte}\"",
+    "format:check": "biome format . && prettier --check \"**/*.{md,svelte}\"",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "check-types": "turbo run check-types",
+    "lint:root": "biome check *.json .claude"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@repo/prettier-config": "workspace:*",
+    "prettier": "catalog:",
+    "prettier-plugin-tailwindcss": "catalog:",
+    "turbo": "^2.8.10",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "esbuild",
+      "sharp",
+      "workerd"
+    ],
+    "peerDependencyRules": {
+      "ignoreMissing": [],
+      "allowedVersions": {
+        "@opentelemetry/sdk-logs": ">=0.200.0",
+        "@opentelemetry/resources": ">=2.0.0",
+        "@opentelemetry/sdk-metrics": ">=2.0.0",
+        "@opentelemetry/sdk-trace-base": ">=2.0.0",
+        "@opentelemetry/instrumentation": ">=0.200.0"
+      }
+    }
+  }
+}

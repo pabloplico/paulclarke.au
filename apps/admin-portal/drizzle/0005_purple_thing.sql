@@ -1,0 +1,1 @@
+ALTER TABLE "admin_inbox_items" ADD COLUMN "qualityFlags" jsonb;

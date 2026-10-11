@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: apps/website/Dockerfile.dev
+    container_name: website-dev
+    ports:
+      - '3004:3004'
+      - '3005:3005'
+    volumes:
+      - ../../packages:/app/packages
+      - .:/app/apps/website
+      - /app/node_modules
+      - /app/apps/website/node_modules
+    env_file:
+      - ../../.env.docker
+    environment:
+      - NODE_ENV=development

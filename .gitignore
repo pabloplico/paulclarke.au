@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.docker.example
+.dev.vars
+!.dev.vars.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test & coverage
+coverage/
+test-results/
+playwright-report/
+
+# Uploads
+uploads/
+
+# Deployment
+.vercel/
+.wrangler/
+
+# Generated source files
+**/server/posts.generated.ts
+
+# Docker volumes
+docker/data/
+
+# Research documents (PDFs, summaries)
+docs/
+
+# Playwright MCP screenshots
+.playwright-mcp/
+
+# Database backups (root only; apps/admin-portal has backups route folders that are source)
+/backups/
+
+# Firebase service account keys
+*-firebase-adminsdk-*.json
