@@ -29,6 +29,30 @@ describe('runStartupChecks', () => {
     expect(() => runStartupChecks()).toThrow('CF_ACCESS_TEAM_DOMAIN');
   });
 
+  it('refuses demo mode when the AI provider, model and key don’t line up', () => {
+    env({
+      DEMO_MODE: 'true',
+      CF_ACCESS_TEAM_DOMAIN: 'https://t.cloudflareaccess.com',
+      CF_ACCESS_AUD: 'aud',
+      AI_PROVIDER: 'openai',
+      AI_MODEL: 'gpt-4.1-nano',
+      OPENAI_API_KEY: undefined,
+    });
+    expect(() => runStartupChecks()).toThrow(
+      'AI configuration: AI_PROVIDER=openai needs OPENAI_API_KEY.'
+    );
+  });
+
+  it('only warns about the AI config in development', () => {
+    env({
+      DEMO_MODE: undefined,
+      NODE_ENV: 'development',
+      AI_PROVIDER: 'gemini',
+      AI_MODEL: 'claude-sonnet-4-6',
+    });
+    expect(() => runStartupChecks()).not.toThrow();
+  });
+
   it('refuses demo mode with AUTH_ENABLED=false', () => {
     env({
       DEMO_MODE: 'true',
@@ -45,6 +69,9 @@ describe('runStartupChecks', () => {
       AUTH_ENABLED: undefined,
       CF_ACCESS_TEAM_DOMAIN: 'https://t.cloudflareaccess.com',
       CF_ACCESS_AUD: 'aud',
+      AI_PROVIDER: 'openai',
+      AI_MODEL: 'gpt-4.1-nano',
+      OPENAI_API_KEY: 'sk-test',
     });
     expect(() => runStartupChecks()).not.toThrow();
   });

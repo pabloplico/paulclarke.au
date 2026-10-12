@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import type { EmbeddingModel, LanguageModel } from 'ai';
 import { type AppConfig, config } from '@/lib/config';
+import { isDemoMode } from '@/lib/demo';
 
 let logged = false;
 
@@ -12,11 +13,14 @@ function createOllamaProvider(baseUrl: string) {
 }
 
 /**
- * Returns the AI language model based on config + available API keys.
- * Pass a config from loadConfig() for DB-saved overrides;
- * otherwise falls back to the static module-level config.
+ * The raw provider model for a config: no spend or token limits. App code
+ * uses getModel() in lib/ai/models.ts, which wraps this in the AI guard;
+ * tests that fake the provider mock this module so the guard still runs.
+ *
+ * Pass a config from loadConfig() for DB-saved overrides; otherwise the
+ * static module-level config is used.
  */
-export function getModel(cfg?: AppConfig): LanguageModel {
+export function createLanguageModel(cfg?: AppConfig): LanguageModel {
   const ai = (cfg ?? config).ai;
   const { provider, model, fallbackProvider, fallbackModel } = ai;
 
@@ -62,6 +66,12 @@ export function getModel(cfg?: AppConfig): LanguageModel {
     return createOllamaProvider(ai.ollamaRemoteUrl)(model);
   }
 
+  // Demo mode never falls back silently: the start-up check guarantees the
+  // key exists, so reaching here means something changed under it
+  if (isDemoMode()) {
+    throw new Error(`AI provider ${provider} has no API key; demo mode does not fall back`);
+  }
+
   // Fallback
   if (!logged) {
     console.log(
@@ -72,7 +82,7 @@ export function getModel(cfg?: AppConfig): LanguageModel {
   return openai(fallbackModel);
 }
 
-/** Embedding model — always OpenAI (Anthropic has no embedding API). */
-export function getEmbeddingModel(cfg?: AppConfig): EmbeddingModel {
+/** Embedding model, always OpenAI (Anthropic has no embedding API). Unguarded; see getEmbeddingModel(). */
+export function createEmbeddingModel(cfg?: AppConfig): EmbeddingModel {
   return openai.embedding((cfg ?? config).ai.embedding.model);
 }

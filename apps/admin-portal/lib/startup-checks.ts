@@ -1,3 +1,5 @@
+import { aiConfigProblems } from '@/lib/ai/config-check';
+import { dailyBudgets, maxOutputTokens } from '@/lib/ai/guard';
 import { assertAccessConfig, devAccessIdentity } from '@/lib/auth/access';
 import { isDemoMode } from '@/lib/demo';
 
@@ -17,5 +19,18 @@ export function runStartupChecks(): void {
       );
     }
     assertAccessConfig();
+  }
+
+  // Throws on malformed values (e.g. AI_DAILY_BUDGET_USD=abc)
+  dailyBudgets();
+  maxOutputTokens();
+
+  // Provider, model and key must line up. In demo mode or production that's
+  // fatal; in development it's a warning, so a half-set-up laptop still boots
+  const problems = aiConfigProblems();
+  if (problems.length) {
+    const message = `AI configuration: ${problems.join(' ')}`;
+    if (isDemoMode() || process.env.NODE_ENV === 'production') throw new Error(message);
+    console.warn(`[startup] ${message}`);
   }
 }

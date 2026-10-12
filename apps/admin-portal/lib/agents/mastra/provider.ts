@@ -2,6 +2,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import type { EmbeddingModel, LanguageModel } from 'ai';
+import { guardEmbeddingModel, guardLanguageModel } from '@/lib/ai/guard';
 import type { AIProvider } from '@/lib/config';
 
 const AI_PROVIDER = (process.env.AI_PROVIDER ?? 'openai') as AIProvider;
@@ -16,6 +17,11 @@ function createOllamaProvider(baseUrl: string) {
  * Called by workers after loadResearchSettings() provides the override.
  */
 export function getModel(override?: { provider: AIProvider; model: string }): LanguageModel {
+  // Same AI guard as the rest of the app: token cap, spend caps, attribution
+  return guardLanguageModel(createModel(override));
+}
+
+function createModel(override?: { provider: AIProvider; model: string }): LanguageModel {
   const provider = override?.provider ?? AI_PROVIDER;
   const model = override?.model ?? AI_MODEL;
 
@@ -38,5 +44,5 @@ export function getModel(override?: { provider: AIProvider; model: string }): La
 
 /** Embedding model — always OpenAI text-embedding-3-small (same as admin-portal). */
 export function getEmbeddingModel(): EmbeddingModel {
-  return openai.embedding('text-embedding-3-small');
+  return guardEmbeddingModel(openai.embedding('text-embedding-3-small'));
 }

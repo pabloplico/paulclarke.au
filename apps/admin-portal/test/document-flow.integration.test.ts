@@ -37,33 +37,39 @@ process.env.UPLOADS_DIR = uploadsDir;
 
 const ids = vi.hoisted(() => ({ userId: 0, workspaceId: 0, sectionId: 0 }));
 
-vi.mock('@/lib/ai/models', async () => {
+// Fake the raw providers, not lib/ai/models, so the AI guard still runs.
+// Real model ids, so the guard prices the fake usage
+vi.mock('@/lib/ai/providers', async () => {
   const { createFakeChatModel, createFakeEmbeddingModel } = await import('./fake-ai');
-  const chat = createFakeChatModel({
-    suggestions: () => [
-      {
-        workspaceId: ids.workspaceId,
-        sectionId: ids.sectionId,
-        confidence: 0.9,
-        action: 'append',
-        suggestedContent: 'Keep the cold room between 1 and 5 °C.',
-        reasoning: 'Food safety procedure',
-        chunkRefs: [0],
-      },
-    ],
-  });
-  const embedding = createFakeEmbeddingModel();
-  return { getModel: () => chat, getEmbeddingModel: () => embedding };
+  const chat = createFakeChatModel(
+    {
+      suggestions: () => [
+        {
+          workspaceId: ids.workspaceId,
+          sectionId: ids.sectionId,
+          confidence: 0.9,
+          action: 'append',
+          suggestedContent: 'Keep the cold room between 1 and 5 °C.',
+          reasoning: 'Food safety procedure',
+          chunkRefs: [0],
+        },
+      ],
+    },
+    'gpt-4.1-nano'
+  );
+  const embedding = createFakeEmbeddingModel('text-embedding-3-small');
+  return { createLanguageModel: () => chat, createEmbeddingModel: () => embedding };
 });
 
-vi.mock('@/lib/auth/server', () => ({
-  requireAuthApi: async () => ({
+vi.mock('@/lib/auth/server', () => {
+  const user = async () => ({
     id: ids.userId,
     email: 'flow@example.com',
     name: 'Flow',
     role: 'member',
-  }),
-}));
+  });
+  return { requireAuthApi: user, getCurrentUser: user };
+});
 
 const { db } = await import('@/lib/db');
 const schema = await import('@/lib/db/schema');
@@ -175,6 +181,13 @@ describe(`inbox flow (${onDevDrivers ? 'Postgres + BullMQ' : 'PGlite + in-proces
         sectionTitle: 'Food safety',
       }),
     ]);
+  });
+
+  it('counted the AI spend against the uploader (guard + worker attribution)', async () => {
+    const { spendLedger } = await import('@/lib/ai/usage-logger');
+    const spent = spendLedger().spentToday(ids.userId);
+    expect(spent.user).toBeGreaterThan(0);
+    expect(spent.user).toBeCloseTo(spent.total);
   });
 
   it('finds the right passage by meaning', async () => {
