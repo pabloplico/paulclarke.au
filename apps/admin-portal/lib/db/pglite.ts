@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite-pgvector';
 import { drizzle } from 'drizzle-orm/pglite';
@@ -27,6 +27,8 @@ export function getPglite(): PGlite {
     const dataDir = process.env.PGLITE_DATA_DIR || undefined;
     const snapshot = process.env.PGLITE_SNAPSHOT;
     const isNew = !dataDir || !existsSync(join(dataDir, 'PG_VERSION'));
+    // PGlite creates the data directory itself, but not missing parents
+    if (dataDir) mkdirSync(dirname(dataDir), { recursive: true });
     // Options go in the first argument: new PGlite(undefined, opts) silently ignores them
     g._pglite = new PGlite({
       dataDir,

@@ -64,3 +64,6 @@ docs/
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runs
+
+# Local PGlite database and uploads for admin-portal dev:lite
+.pglite/
