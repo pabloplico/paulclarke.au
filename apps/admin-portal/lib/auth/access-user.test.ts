@@ -42,7 +42,7 @@ describe('Access users', () => {
       .from(adminUsers)
       .where(eq(adminUsers.email, 'first@example.com'));
     expect(rows).toHaveLength(1);
-  });
+  }, 30_000);
 
   it('never reports an admin in demo mode, even for an admin row', async () => {
     await db

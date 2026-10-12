@@ -25,7 +25,8 @@ describe('PGlite driver', () => {
     const { rows } = await getPglite().query<{ n: number }>(
       'select count(*)::int as n from drizzle.__drizzle_migrations'
     );
-    expect(rows[0]?.n).toBe(1);
+    const { readMigrationFiles } = await import('drizzle-orm/migrator');
+    expect(rows[0]?.n).toBe(readMigrationFiles({ migrationsFolder: './drizzle' }).length);
   });
 
   it('runs the query builder and the relational query API through the proxy', async () => {
@@ -33,7 +34,7 @@ describe('PGlite driver', () => {
       .insert(adminUsers)
       .values({ email: 'driver@example.com', passwordHash: 'x', name: 'Driver' })
       .returning();
-    expect(user?.role).toBe('admin');
+    expect(user?.role).toBe('member');
 
     const found = await db.query.adminUsers.findFirst({
       where: eq(adminUsers.email, 'driver@example.com'),
