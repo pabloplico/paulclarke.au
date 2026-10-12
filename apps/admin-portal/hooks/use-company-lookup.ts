@@ -1,29 +1,39 @@
 'use client';
 
 import { useCallback } from 'react';
+import { useFeatureEnabled } from '@/components/demo/demo-features';
 import type { AddressPrediction, CompanySuggestion } from '@/lib/external-apis/types';
 
 export function useCompanyLookup(
   updateFields: (fields: Record<string, string | Record<string, unknown>>) => void
 ) {
+  // Company, address and ABN lookups are paid third-party APIs; off in the demo,
+  // where every lookup behaves as "no match" without a request
+  const lookupEnabled = useFeatureEnabled('companyLookup');
+  const lookupFetch = useCallback(
+    (url: string) =>
+      lookupEnabled ? fetch(url) : Promise.resolve(new Response(null, { status: 404 })),
+    [lookupEnabled]
+  );
+
   const fetchCompanySuggestions = useCallback(
     async (query: string): Promise<CompanySuggestion[]> => {
-      const res = await fetch(`/api/lookup/company?q=${encodeURIComponent(query)}`);
+      const res = await lookupFetch(`/api/lookup/company?q=${encodeURIComponent(query)}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.suggestions || [];
     },
-    []
+    [lookupFetch]
   );
 
   const fetchAddressPredictions = useCallback(
     async (query: string): Promise<AddressPrediction[]> => {
-      const res = await fetch(`/api/lookup/address?q=${encodeURIComponent(query)}`);
+      const res = await lookupFetch(`/api/lookup/address?q=${encodeURIComponent(query)}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.predictions || [];
     },
-    []
+    [lookupFetch]
   );
 
   const handleCompanySelect = useCallback(
@@ -52,7 +62,7 @@ export function useCompanyLookup(
       // If we have a placeId but no detailed info, fetch place details
       if (suggestion.placeId && !suggestion.phone && !suggestion.website) {
         try {
-          const res = await fetch(
+          const res = await lookupFetch(
             `/api/lookup/place-details?placeId=${encodeURIComponent(suggestion.placeId)}`
           );
           if (res.ok) {
@@ -68,13 +78,13 @@ export function useCompanyLookup(
         }
       }
     },
-    [updateFields]
+    [updateFields, lookupFetch]
   );
 
   const handleAddressSelect = useCallback(
     async (prediction: AddressPrediction) => {
       try {
-        const res = await fetch(
+        const res = await lookupFetch(
           `/api/lookup/place-details?placeId=${encodeURIComponent(prediction.placeId)}`
         );
         if (res.ok) {
@@ -86,12 +96,12 @@ export function useCompanyLookup(
         updateFields({ address: prediction.description });
       }
     },
-    [updateFields]
+    [updateFields, lookupFetch]
   );
 
   const lookupAbn = useCallback(
     async (abn: string) => {
-      const res = await fetch(`/api/lookup/abn?abn=${encodeURIComponent(abn)}`);
+      const res = await lookupFetch(`/api/lookup/abn?abn=${encodeURIComponent(abn)}`);
       if (!res.ok) return null;
       const result: CompanySuggestion = await res.json();
 
@@ -110,7 +120,7 @@ export function useCompanyLookup(
       updateFields(fields);
       return result;
     },
-    [updateFields]
+    [updateFields, lookupFetch]
   );
 
   return {

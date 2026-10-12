@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { VersionDiff } from '@/app/(authenticated)/workspaces/[slug]/sections/version-diff';
+import { useFeatureEnabled } from '@/components/demo/demo-features';
 import type { ContentAuditFinding, GapFinding } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import {
@@ -161,6 +162,8 @@ interface GapAnalysisViewProps {
 }
 
 export function GapAnalysisView({ workspaces, contentAuditReport }: GapAnalysisViewProps) {
+  // The public content audit fetches from another service; off in the demo
+  const contentAuditEnabled = useFeatureEnabled('contentAudit');
   const [workspaceData, setWorkspaceData] = useState(workspaces);
   const [analysing, setAnalysing] = useState(false);
   const [auditReport, setAuditReport] = useState<ContentAuditReport | null>(
@@ -739,191 +742,193 @@ export function GapAnalysisView({ workspaces, contentAuditReport }: GapAnalysisV
       </div>
 
       {/* ── Public Content Audit ─────────────────────────────────────────── */}
-      <div className="shrink-0">
-        <div className="flex items-center justify-between pb-3">
-          <div className="flex items-center gap-3">
-            <FileText size={16} className="text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Public Content</h2>
-            {auditHealth && (
-              <span
-                className={cn(
-                  'w-2 h-2 rounded-full',
-                  auditHealth === 'green' && 'bg-green-400',
-                  auditHealth === 'yellow' && 'bg-yellow-400',
-                  auditHealth === 'red' && 'bg-red-400'
-                )}
-              />
-            )}
-            {auditReport && (
-              <span className="text-xs text-muted-foreground">
-                {auditFindings.length} {auditFindings.length === 1 ? 'finding' : 'findings'}
-                {' · '}Last audited{' '}
-                {new Date(auditReport.createdAt).toLocaleDateString('en-AU', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            )}
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleRunContentAudit}
-            disabled={auditing}
-            className="h-8 text-xs"
-          >
-            {auditing ? (
-              <>
-                <Loader2 size={14} className="mr-1.5 animate-spin" />
-                Auditing...
-              </>
-            ) : (
-              <>
-                <ScanSearch size={14} className="mr-1.5" />
-                Run Content Audit
-              </>
-            )}
-          </Button>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-0 min-h-[160px] max-h-[320px]">
-          {/* Audit findings list */}
-          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin border border-border rounded-lg">
-            {!auditReport ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 py-8">
-                <FileText size={24} className="opacity-40" />
-                <p className="text-xs">
-                  Run a content audit to check blog posts against insights data
-                </p>
-              </div>
-            ) : auditFindings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 py-8">
-                <CheckCircle2 size={24} className="text-green-400 opacity-60" />
-                <p className="text-xs">All public content is consistent</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/50">
-                {auditFindings.map((finding, i) => {
-                  const sevStyle =
-                    SEVERITY_STYLES[finding.severity as Severity] ?? SEVERITY_STYLES.low;
-                  const typeStyle =
-                    AUDIT_TYPE_STYLES[finding.type as keyof typeof AUDIT_TYPE_STYLES] ??
-                    AUDIT_TYPE_STYLES.missing_coverage;
-                  const isSelected = selectedAuditIndex === i;
-                  return (
-                    <button
-                      key={`audit-${finding.postSlug}-${finding.type}-${i}`}
-                      type="button"
-                      onClick={() => setSelectedAuditIndex(isSelected ? null : i)}
-                      className={cn(
-                        'flex items-center gap-3 w-full text-left py-2.5 px-4 transition-colors cursor-pointer',
-                        isSelected
-                          ? 'bg-white/[0.04] border-l-2 border-l-primary'
-                          : 'hover:bg-white/[0.02] border-l-2 border-l-transparent'
-                      )}
-                    >
-                      <span
-                        className={cn('w-2 h-2 rounded-full shrink-0', sevStyle.dot)}
-                        title={sevStyle.label}
-                      />
-                      <Badge className={`text-[9px] px-1.5 py-0 shrink-0 ${typeStyle.className}`}>
-                        {typeStyle.label}
-                      </Badge>
-                      {finding.postSlug && (
-                        <span className="text-xs font-medium w-36 truncate shrink-0">
-                          {finding.postSlug}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground/60 flex-1 truncate">
-                        {finding.issue}
-                      </span>
-                      <Badge className={`text-[9px] px-1.5 py-0 shrink-0 ${sevStyle.className}`}>
-                        {sevStyle.label}
-                      </Badge>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Audit detail pane */}
-          {selectedAuditFinding && (
-            <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-border flex flex-col overflow-y-auto scrollbar-thin">
-              <div className="px-5 py-3 border-b border-border">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      className={`text-[9px] px-1.5 py-0 ${
-                        (
-                          AUDIT_TYPE_STYLES[
-                            selectedAuditFinding.type as keyof typeof AUDIT_TYPE_STYLES
-                          ] ?? AUDIT_TYPE_STYLES.missing_coverage
-                        ).className
-                      }`}
-                    >
-                      {
-                        (
-                          AUDIT_TYPE_STYLES[
-                            selectedAuditFinding.type as keyof typeof AUDIT_TYPE_STYLES
-                          ] ?? AUDIT_TYPE_STYLES.missing_coverage
-                        ).label
-                      }
-                    </Badge>
-                    <Badge
-                      className={`text-[9px] px-1.5 py-0 ${
-                        SEVERITY_STYLES[selectedAuditFinding.severity as Severity]?.className ??
-                        SEVERITY_STYLES.low.className
-                      }`}
-                    >
-                      {selectedAuditFinding.severity}
-                    </Badge>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAuditIndex(null)}
-                    className="p-1 rounded hover:bg-white/5 text-muted-foreground transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                  {selectedAuditFinding.postSlug && (
-                    <span>Post: {selectedAuditFinding.postSlug}</span>
+      {contentAuditEnabled && (
+        <div className="shrink-0">
+          <div className="flex items-center justify-between pb-3">
+            <div className="flex items-center gap-3">
+              <FileText size={16} className="text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Public Content</h2>
+              {auditHealth && (
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full',
+                    auditHealth === 'green' && 'bg-green-400',
+                    auditHealth === 'yellow' && 'bg-yellow-400',
+                    auditHealth === 'red' && 'bg-red-400'
                   )}
-                  {selectedAuditFinding.insightCategory && (
-                    <span>Category: {selectedAuditFinding.insightCategory}</span>
-                  )}
-                </div>
-              </div>
-              <div className="px-5 py-3 space-y-3 flex-1">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
-                    Claim
-                  </p>
-                  <p className="text-xs leading-relaxed">{selectedAuditFinding.claim}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
-                    Issue
-                  </p>
-                  <p className="text-xs leading-relaxed">{selectedAuditFinding.issue}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
-                    Suggestion
-                  </p>
-                  <p className="text-xs leading-relaxed text-muted-foreground italic">
-                    {selectedAuditFinding.suggestion}
-                  </p>
-                </div>
-              </div>
+                />
+              )}
+              {auditReport && (
+                <span className="text-xs text-muted-foreground">
+                  {auditFindings.length} {auditFindings.length === 1 ? 'finding' : 'findings'}
+                  {' · '}Last audited{' '}
+                  {new Date(auditReport.createdAt).toLocaleDateString('en-AU', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
             </div>
-          )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRunContentAudit}
+              disabled={auditing}
+              className="h-8 text-xs"
+            >
+              {auditing ? (
+                <>
+                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  Auditing...
+                </>
+              ) : (
+                <>
+                  <ScanSearch size={14} className="mr-1.5" />
+                  Run Content Audit
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-0 min-h-[160px] max-h-[320px]">
+            {/* Audit findings list */}
+            <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin border border-border rounded-lg">
+              {!auditReport ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 py-8">
+                  <FileText size={24} className="opacity-40" />
+                  <p className="text-xs">
+                    Run a content audit to check blog posts against insights data
+                  </p>
+                </div>
+              ) : auditFindings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 py-8">
+                  <CheckCircle2 size={24} className="text-green-400 opacity-60" />
+                  <p className="text-xs">All public content is consistent</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/50">
+                  {auditFindings.map((finding, i) => {
+                    const sevStyle =
+                      SEVERITY_STYLES[finding.severity as Severity] ?? SEVERITY_STYLES.low;
+                    const typeStyle =
+                      AUDIT_TYPE_STYLES[finding.type as keyof typeof AUDIT_TYPE_STYLES] ??
+                      AUDIT_TYPE_STYLES.missing_coverage;
+                    const isSelected = selectedAuditIndex === i;
+                    return (
+                      <button
+                        key={`audit-${finding.postSlug}-${finding.type}-${i}`}
+                        type="button"
+                        onClick={() => setSelectedAuditIndex(isSelected ? null : i)}
+                        className={cn(
+                          'flex items-center gap-3 w-full text-left py-2.5 px-4 transition-colors cursor-pointer',
+                          isSelected
+                            ? 'bg-white/[0.04] border-l-2 border-l-primary'
+                            : 'hover:bg-white/[0.02] border-l-2 border-l-transparent'
+                        )}
+                      >
+                        <span
+                          className={cn('w-2 h-2 rounded-full shrink-0', sevStyle.dot)}
+                          title={sevStyle.label}
+                        />
+                        <Badge className={`text-[9px] px-1.5 py-0 shrink-0 ${typeStyle.className}`}>
+                          {typeStyle.label}
+                        </Badge>
+                        {finding.postSlug && (
+                          <span className="text-xs font-medium w-36 truncate shrink-0">
+                            {finding.postSlug}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground/60 flex-1 truncate">
+                          {finding.issue}
+                        </span>
+                        <Badge className={`text-[9px] px-1.5 py-0 shrink-0 ${sevStyle.className}`}>
+                          {sevStyle.label}
+                        </Badge>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Audit detail pane */}
+            {selectedAuditFinding && (
+              <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-border flex flex-col overflow-y-auto scrollbar-thin">
+                <div className="px-5 py-3 border-b border-border">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`text-[9px] px-1.5 py-0 ${
+                          (
+                            AUDIT_TYPE_STYLES[
+                              selectedAuditFinding.type as keyof typeof AUDIT_TYPE_STYLES
+                            ] ?? AUDIT_TYPE_STYLES.missing_coverage
+                          ).className
+                        }`}
+                      >
+                        {
+                          (
+                            AUDIT_TYPE_STYLES[
+                              selectedAuditFinding.type as keyof typeof AUDIT_TYPE_STYLES
+                            ] ?? AUDIT_TYPE_STYLES.missing_coverage
+                          ).label
+                        }
+                      </Badge>
+                      <Badge
+                        className={`text-[9px] px-1.5 py-0 ${
+                          SEVERITY_STYLES[selectedAuditFinding.severity as Severity]?.className ??
+                          SEVERITY_STYLES.low.className
+                        }`}
+                      >
+                        {selectedAuditFinding.severity}
+                      </Badge>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAuditIndex(null)}
+                      className="p-1 rounded hover:bg-white/5 text-muted-foreground transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                    {selectedAuditFinding.postSlug && (
+                      <span>Post: {selectedAuditFinding.postSlug}</span>
+                    )}
+                    {selectedAuditFinding.insightCategory && (
+                      <span>Category: {selectedAuditFinding.insightCategory}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="px-5 py-3 space-y-3 flex-1">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
+                      Claim
+                    </p>
+                    <p className="text-xs leading-relaxed">{selectedAuditFinding.claim}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
+                      Issue
+                    </p>
+                    <p className="text-xs leading-relaxed">{selectedAuditFinding.issue}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 mb-1">
+                      Suggestion
+                    </p>
+                    <p className="text-xs leading-relaxed text-muted-foreground italic">
+                      {selectedAuditFinding.suggestion}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

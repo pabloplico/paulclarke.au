@@ -3,6 +3,7 @@
 import { HelpCircle, LogOut, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useDemoMode } from '@/components/demo/demo-features';
 import { useHeaderSlot } from './header-context';
 import { SearchBar } from './search-bar';
 
@@ -44,7 +45,14 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
   const title = resolveTitle(pathname);
   const { slot } = useHeaderSlot();
 
+  const demoMode = useDemoMode();
+
   async function handleLogout() {
+    if (demoMode) {
+      // Demo visitors are signed in by Cloudflare Access, which owns the session
+      window.location.href = '/cdn-cgi/access/logout';
+      return;
+    }
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }

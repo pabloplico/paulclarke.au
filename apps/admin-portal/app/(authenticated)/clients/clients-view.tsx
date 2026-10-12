@@ -7,6 +7,7 @@ import { toast } from '@repo/ui/sonner';
 import { Plus, Search, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
+import { useFeatureEnabled } from '@/components/demo/demo-features';
 import { AddClientForm } from './add-client-dialog';
 import { OutreachPanel } from './outreach-panel';
 
@@ -65,6 +66,8 @@ interface ClientsViewProps {
 }
 
 export function ClientsView({ initialClients }: ClientsViewProps) {
+  // AI outreach drafts are off in the demo
+  const outreachEnabled = useFeatureEnabled('outreach');
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -285,7 +288,7 @@ export function ClientsView({ initialClients }: ClientsViewProps) {
       )}
 
       {/* Outreach panel */}
-      <OutreachPanel selectedClients={selectedClients} />
+      {outreachEnabled && <OutreachPanel selectedClients={selectedClients} />}
     </div>
   );
 }

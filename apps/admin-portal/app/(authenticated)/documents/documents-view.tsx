@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFeatureEnabled } from '@/components/demo/demo-features';
 import { formatProcessingError } from '@/lib/document-processing/format-error';
 import type { KnowledgeBaseWithStats } from '@/lib/types';
 import { ConfirmDialog } from './confirm-dialog';
@@ -163,6 +164,9 @@ export function DocumentsView({ initialDocuments, knowledgeBases }: DocumentsVie
     },
     [setFilter, fetchDocuments, statusFilter]
   );
+
+  // Re-running the AI pipeline on every document is off in the demo
+  const reprocessAllEnabled = useFeatureEnabled('bulkReprocess');
 
   const executeReprocessAll = useCallback(async () => {
     setReprocessing(true);
@@ -358,14 +362,16 @@ export function DocumentsView({ initialDocuments, knowledgeBases }: DocumentsVie
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={handleReprocessAll} disabled={reprocessing}>
-            {reprocessing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCw className="h-4 w-4" />
-            )}
-            Reprocess All
-          </Button>
+          {reprocessAllEnabled && (
+            <Button size="sm" variant="ghost" onClick={handleReprocessAll} disabled={reprocessing}>
+              {reprocessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCw className="h-4 w-4" />
+              )}
+              Reprocess All
+            </Button>
+          )}
           <Button size="sm" onClick={toggleUpload}>
             <Plus className="h-4 w-4" />
             Upload

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFeatureEnabled } from '@/components/demo/demo-features';
 import { useHeaderSlot } from '@/components/layout/header-context';
 import { FindingsPanel } from '@/components/research/findings-panel';
 import { ResearchToolbar } from '@/components/research/research-toolbar';
@@ -101,7 +102,9 @@ export function WorkspaceView({
   const gapPanelRef = useRef<GapPanelHandle>(null);
 
   // Research workspace state
-  const isResearch = workspace.category === 'research';
+  // Research agents are switched off in the demo
+  const researchEnabled = useFeatureEnabled('research');
+  const isResearch = workspace.category === 'research' && researchEnabled;
   const [showFindings, setShowFindings] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [sourceCount, setSourceCount] = useState(0);

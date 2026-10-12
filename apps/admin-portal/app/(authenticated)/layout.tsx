@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm';
+import { DemoFeaturesProvider } from '@/components/demo/demo-features';
 import { Shell } from '@/components/layout/Shell';
 import { getCurrentUser } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminKnowledgeBases, adminWorkspaces } from '@/lib/db/schema';
+import { demoClientState } from '@/lib/demo';
 import { TypographyProvider } from '@/lib/workspaces/typography';
 
 export const dynamic = 'force-dynamic';
@@ -35,10 +37,12 @@ export default async function AuthenticatedLayout({
   ]);
 
   return (
-    <TypographyProvider>
-      <Shell userRole={user?.role} workspaces={workspaces} knowledgeBases={knowledgeBases}>
-        {children}
-      </Shell>
-    </TypographyProvider>
+    <DemoFeaturesProvider {...demoClientState()}>
+      <TypographyProvider>
+        <Shell userRole={user?.role} workspaces={workspaces} knowledgeBases={knowledgeBases}>
+          {children}
+        </Shell>
+      </TypographyProvider>
+    </DemoFeaturesProvider>
   );
 }
