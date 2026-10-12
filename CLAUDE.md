@@ -121,6 +121,7 @@ docker compose exec app bash -c "cd apps/admin-portal && pnpm db:check-fresh"
 ```bash
 docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline"          # dry run
 docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline --apply"  # record it
+docker compose exec app bash -c "cd apps/admin-portal && pnpm db:migrate"                # then later migrations
 ```
 
 ### After adding dependencies

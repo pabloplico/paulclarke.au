@@ -17,7 +17,8 @@ export const adminUsers = pgTable('admin_users', {
   email: varchar({ length: 255 }).notNull().unique(),
   passwordHash: text().notNull(),
   name: varchar({ length: 255 }).notNull(),
-  role: varchar({ length: 20 }).notNull().default('admin'),
+  // admin | member. New accounts are members; admins come only from scripts/seed-admin-user.ts
+  role: varchar({ length: 20 }).notNull().default('member'),
   lastLoginAt: timestamp(),
   createdAt: timestamp().defaultNow().notNull(),
   updatedAt: timestamp().defaultNow().notNull(),
