@@ -24,7 +24,7 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {
-    command: `pnpm build && pnpm exec wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    command: `pnpm exec nx run website:build && pnpm exec wrangler dev --port ${PORT} --ip 127.0.0.1`,
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 180_000,

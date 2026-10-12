@@ -6,12 +6,12 @@
   "scripts": {
     "prebuild:posts": "node scripts/build-posts.mjs",
     "dev": "pnpm prebuild:posts && concurrently -n vite,worker -c cyan,green \"vite --host=0.0.0.0\" \"wrangler dev --ip 0.0.0.0\"",
-    "build": "pnpm prebuild:posts && vite build",
-    "deploy": "pnpm build && wrangler deploy",
-    "deploy:dry-run": "pnpm build && wrangler deploy --dry-run",
+    "build": "vite build",
+    "deploy": "nx run website:build && wrangler deploy",
+    "deploy:dry-run": "nx run website:build && wrangler deploy --dry-run",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "check-types": "pnpm prebuild:posts && tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

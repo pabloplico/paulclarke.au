@@ -2,58 +2,87 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "neverConnectToCloud": true,
   "analytics": false,
+  "namedInputs": {
+    "sharedGlobals": [{ "runtime": "node --version" }],
+    "default": ["{projectRoot}/**/*", "!{projectRoot}/next-env.d.ts", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.test.ts",
+      "!{projectRoot}/**/*.test.tsx",
+      "!{projectRoot}/**/*.spec.ts",
+      "!{projectRoot}/e2e/**/*",
+      "!{projectRoot}/playwright.config.ts",
+      "!{projectRoot}/vitest.config.ts",
+      "!{projectRoot}/biome.json"
+    ],
+    "biome": [
+      "{workspaceRoot}/biome.json",
+      "{workspaceRoot}/packages/biome-config/base.json",
+      { "externalDependencies": ["@biomejs/biome"] }
+    ]
+  },
   "targetDefaults": {
-    "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["{projectRoot}/**/*", "{projectRoot}/.env*"],
-      "outputs": [
-        "{projectRoot}/.next/**",
-        "!{projectRoot}/.next/cache/**",
-        "{projectRoot}/dist/**",
-        "{projectRoot}/build/**"
+    "prebuild:posts": {
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/content/posts/**/*",
+        "{projectRoot}/scripts/build-posts.mjs",
+        "sharedGlobals"
       ],
-      "cache": true
+      "outputs": ["{projectRoot}/server/posts.generated.ts"]
     },
+    "build": [
+      {
+        "cache": true,
+        "dependsOn": ["^build"],
+        "inputs": ["production", "^production"],
+        "outputs": [
+          "{projectRoot}/dist",
+          "{projectRoot}/.next/!(cache)/**/*",
+          "{projectRoot}/.next/!(cache)"
+        ]
+      },
+      {
+        "filter": { "projects": ["website"] },
+        "cache": true,
+        "dependsOn": ["^build", "prebuild:posts"],
+        "inputs": ["production", "^production"],
+        "outputs": ["{projectRoot}/dist"]
+      }
+    ],
+    "check-types": [
+      {
+        "cache": true,
+        "dependsOn": ["^check-types"],
+        "inputs": ["default", "^production"]
+      },
+      {
+        "filter": { "projects": ["website"] },
+        "cache": true,
+        "dependsOn": ["^check-types", "prebuild:posts"],
+        "inputs": ["default", "^production"]
+      }
+    ],
     "lint": {
+      "cache": true,
       "dependsOn": ["^lint"],
-      "inputs": ["{projectRoot}/**/*", "{projectRoot}/biome.json", "{projectRoot}/biome.jsonc"],
-      "cache": true
+      "inputs": ["default", "biome"]
     },
-    "format": {
-      "cache": false
-    },
-    "format:check": {
-      "dependsOn": ["^format:check"],
-      "inputs": [
-        "{projectRoot}/**/*",
-        "{projectRoot}/prettier.config.*",
-        "{projectRoot}/.prettierrc*",
-        "{projectRoot}/biome.json",
-        "{projectRoot}/biome.jsonc",
-        "{projectRoot}/../../packages/prettier-config/**",
-        "{projectRoot}/../../packages/biome-config/**"
-      ],
-      "cache": true
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"],
-      "inputs": [
-        "{projectRoot}/**/*",
-        "{projectRoot}/tsconfig.json",
-        "{projectRoot}/tsconfig.*.json"
-      ],
-      "cache": true
+    "lint:root": {
+      "cache": true,
+      "inputs": ["{workspaceRoot}/*.json", "{workspaceRoot}/.claude/**/*", "biome"]
     },
     "test": {
-      "inputs": ["{projectRoot}/**/*", "{projectRoot}/**/*.test.ts", "{projectRoot}/**/*.test.tsx"],
-      "cache": true
+      "cache": true,
+      "inputs": ["default", "^production"]
     },
     "test:e2e": {
-      "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     },
     "dev": {
-      "cache": false
+      "cache": false,
+      "continuous": true
     }
   }
 }
