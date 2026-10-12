@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocumentChunks, adminDocuments, adminKbDocuments } from '@/lib/db/schema';
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 

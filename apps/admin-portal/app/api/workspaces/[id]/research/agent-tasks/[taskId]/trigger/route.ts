@@ -1,6 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { triggerAnalysisTask, triggerResearchTask } from '@/lib/agents/queue/trigger';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentRuns, adminAgentTasks } from '@/lib/db/schema';
@@ -12,6 +13,7 @@ const COOLDOWN_MS = 60_000; // 1 minute cooldown between triggers
 export async function POST(_request: Request, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace, user } = resolved;
 
   const { taskId } = await params;

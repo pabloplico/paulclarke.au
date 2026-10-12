@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { triggerIngestionTask } from '@/lib/agents/queue/trigger';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentTasks } from '@/lib/db/schema';
@@ -12,6 +13,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(request: Request, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace, user } = resolved;
 
   const formData = await request.formData();

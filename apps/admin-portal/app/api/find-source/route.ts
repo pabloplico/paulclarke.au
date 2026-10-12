@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
 import { generateEmbedding } from '@/lib/rag/embeddings';
@@ -6,6 +7,7 @@ import { searchAllDocuments } from '@/lib/rag/search';
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const parsed = await safeParseJson(request);
   if (parsed.error) return parsed.error;
   const body = parsed.data as { text: string };

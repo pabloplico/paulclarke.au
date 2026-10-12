@@ -1,5 +1,6 @@
 import { and, eq, notInArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocumentChunks, adminDocuments, adminInboxItems } from '@/lib/db/schema';
@@ -16,6 +17,7 @@ const PROCESSING_STATUSES = [
 
 export async function POST() {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
 
   // Find all documents that aren't currently processing
   const eligible = await db

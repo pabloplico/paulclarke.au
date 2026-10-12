@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
+// The AI allowance (rate limit, budget) has its own tests
+vi.mock('@/lib/ai/allowance', () => ({ requireAiAllowance: async () => {} }));
+
 vi.mock('@/lib/auth/server', () => ({
   requireAuthApi: vi.fn(() => Promise.resolve({ id: 1, email: 'u@example.com', role: 'admin' })),
 }));

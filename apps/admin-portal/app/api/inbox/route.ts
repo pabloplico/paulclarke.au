@@ -1,5 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const contentType = request.headers.get('content-type') ?? '';
 
   // Handle file uploads

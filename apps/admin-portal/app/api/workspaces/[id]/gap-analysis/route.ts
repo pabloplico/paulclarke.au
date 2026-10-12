@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
@@ -90,6 +91,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 export async function POST(_request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace } = resolved;
 
   // Load all sections with latest content

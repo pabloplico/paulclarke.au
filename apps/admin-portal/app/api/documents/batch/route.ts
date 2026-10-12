@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { and, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
@@ -14,6 +15,7 @@ import { queueRouting } from '@/lib/workspace-routing/queue';
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const parsed = await safeParseJson(request);
   if (parsed.error) return parsed.error;
   const body = parsed.data as { action: string; documentIds: number[] };

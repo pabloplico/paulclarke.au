@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { resolveWorkspaceSectionParams } from '@/lib/api/resolve-params';
 import { loadConfig } from '@/lib/config.server';
@@ -29,6 +30,7 @@ const suggestedRuleSchema = z.object({
 export async function POST(_request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceSectionParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace, section } = resolved;
 
   // Load latest content

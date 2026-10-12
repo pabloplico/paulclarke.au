@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminFeeds } from '@/lib/db/schema';
@@ -9,6 +10,7 @@ import type { FeedConfig } from '@/lib/feeds/types';
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const { id } = await params;
   const feedId = Number.parseInt(id, 10);
 

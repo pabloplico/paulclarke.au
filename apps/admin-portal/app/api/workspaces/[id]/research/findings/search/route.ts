@@ -2,6 +2,7 @@ import { embed } from 'ai';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getEmbeddingModel } from '@/lib/agents/mastra/provider';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { db } from '@/lib/db';
@@ -12,6 +13,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(request: Request, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace } = resolved;
 
   const parsed = await safeParseJson(request);

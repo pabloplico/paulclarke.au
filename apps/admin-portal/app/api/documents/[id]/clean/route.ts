@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
@@ -11,6 +12,7 @@ import { cleanText } from '@/lib/document-processing/cleaner';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const { id } = await params;
   const documentId = Number(id);
 

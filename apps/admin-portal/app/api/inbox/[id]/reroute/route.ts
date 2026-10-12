@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocumentChunks, adminDocuments, adminInboxItems } from '@/lib/db/schema';
@@ -10,6 +11,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: NextRequest, { params }: Params) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const { id } = await params;
 
   const [item] = await db
