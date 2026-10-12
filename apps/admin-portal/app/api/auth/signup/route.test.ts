@@ -22,8 +22,8 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/auth/rate-limiter', () => ({
   ipLimiter: {
-    check: vi.fn(() => ({ allowed: true, retryAfterSeconds: 0 })),
-    record: vi.fn(),
+    check: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
+    record: vi.fn(async () => {}),
   },
   getClientIp: vi.fn(() => '127.0.0.1'),
 }));
@@ -240,7 +240,7 @@ describe('POST /api/auth/signup', () => {
 
   it('returns 429 when IP rate limited', async () => {
     const { ipLimiter } = await import('@/lib/auth/rate-limiter');
-    vi.mocked(ipLimiter.check).mockReturnValue({ allowed: false, retryAfterSeconds: 60 });
+    vi.mocked(ipLimiter.check).mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
     const POST = await getHandler();
     const response = await POST(
       makeRequest({ name: 'X', email: 'a@test.com', password: 'password1' })

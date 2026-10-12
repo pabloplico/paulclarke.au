@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { dbDriver, queueDriver, redisEnabled } from './drivers';
+import { dbDriver, queueDriver, rateLimitDriver, redisEnabled } from './drivers';
 
-const saved = { DB_DRIVER: process.env.DB_DRIVER, QUEUE_DRIVER: process.env.QUEUE_DRIVER };
+const saved = {
+  DB_DRIVER: process.env.DB_DRIVER,
+  QUEUE_DRIVER: process.env.QUEUE_DRIVER,
+  RATE_LIMIT_DRIVER: process.env.RATE_LIMIT_DRIVER,
+};
 
 afterEach(() => {
   for (const [key, value] of Object.entries(saved)) {
@@ -32,5 +36,15 @@ describe('drivers', () => {
     expect(() => dbDriver()).toThrow('DB_DRIVER=sqlite is not supported');
     process.env.QUEUE_DRIVER = 'Memory';
     expect(() => queueDriver()).toThrow('QUEUE_DRIVER=Memory is not supported');
+  });
+
+  it('counts rate limits in memory unless told to use Redis, which needs Redis on', () => {
+    delete process.env.QUEUE_DRIVER;
+    delete process.env.RATE_LIMIT_DRIVER;
+    expect(rateLimitDriver()).toBe('memory');
+    process.env.RATE_LIMIT_DRIVER = 'redis';
+    expect(rateLimitDriver()).toBe('redis');
+    process.env.QUEUE_DRIVER = 'memory';
+    expect(() => rateLimitDriver()).toThrow('RATE_LIMIT_DRIVER=redis needs Redis');
   });
 });
