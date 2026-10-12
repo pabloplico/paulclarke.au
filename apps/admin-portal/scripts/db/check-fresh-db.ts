@@ -5,7 +5,9 @@
  *   pnpm db:check-fresh --driver postgres # DATABASE_URL, which must be an empty database
  *
  * Checks: lib/db/schema hasn't drifted from the latest migration snapshot,
- * the migrations apply, every table and column in the schema exists, pgvector
+ * the migrations apply, the database they build matches the schema exactly
+ * (drizzle-kit introspects it and finds nothing to change: tables, columns,
+ * types, indexes and foreign keys), every table and column exists, pgvector
  * works (insert a 1536-d embedding, order by cosine distance), and running the
  * migrations a second time is a no-op.
  *
@@ -22,6 +24,8 @@ type Query = (sql: string, params?: unknown[]) => Promise<Record<string, unknown
 interface Target {
   query: Query;
   migrate: () => Promise<void>;
+  /** The SQL `drizzle-kit push` would run to make this database match the schema. */
+  pushStatements: () => Promise<string[]>;
   close: () => Promise<void>;
 }
 
@@ -40,6 +44,7 @@ async function pgliteTarget(): Promise<Target> {
   return {
     query: async (sql, params) => (await pg.query<Record<string, unknown>>(sql, params)).rows,
     migrate: () => migrate(db, { migrationsFolder: './drizzle' }),
+    pushStatements: () => pushStatements(db),
     close: () => pg.close(),
   };
 }
@@ -55,8 +60,24 @@ async function postgresTarget(): Promise<Target> {
   return {
     query: (sql, params) => client.unsafe(sql, params as never[]),
     migrate: () => migrate(db, { migrationsFolder: './drizzle' }),
+    // pushSchema reads `.rows` from execute(), which is PGlite's result shape;
+    // postgres-js returns the rows array itself
+    pushStatements: () =>
+      pushStatements({
+        execute: async (query: Parameters<typeof db.execute>[0]) => ({
+          rows: await db.execute(query),
+        }),
+      }),
     close: () => client.end(),
   };
+}
+
+/** Introspects the database and diffs it with the schema. Never applies anything. */
+async function pushStatements(db: unknown): Promise<string[]> {
+  const { pushSchema } = await import('drizzle-kit/api');
+  // biome-ignore lint/suspicious/noExplicitAny: drizzle-kit types the pg-core base class
+  const { statementsToExecute } = await pushSchema(schema, db as any);
+  return statementsToExecute;
 }
 
 function check(ok: boolean, message: string) {
@@ -102,6 +123,10 @@ async function main() {
     const started = performance.now();
     await target.migrate();
     check(true, `migrations applied in ${(performance.now() - started).toFixed(0)} ms`);
+
+    const differences = await target.pushStatements();
+    if (differences.length) console.error(differences.join('\n'));
+    check(differences.length === 0, 'the migrated database matches lib/db/schema exactly');
 
     const expected = expectedTables();
     const { missing, extra } = compareTables(expected, await actualTables(target.query));
