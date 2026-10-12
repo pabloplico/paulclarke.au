@@ -57,6 +57,17 @@ docker compose exec app <command> # Run commands
 
 The dev container uses `node:22-slim` (not Alpine) because `workerd`, the Cloudflare Workers runtime that backs `wrangler dev`, ships glibc-only binaries that fail to spawn on musl libc.
 
+### Without Docker
+
+Both apps run on the host with nothing else installed or running:
+
+```bash
+pnpm nx run website:dev               # generates the blog posts, then Vite (3004) + wrangler dev (3005)
+pnpm nx run admin-portal:dev:lite     # Next.js on 3001: PGlite + in-process jobs, sign-in off
+```
+
+`dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `QUEUE_DRIVER=memory`, `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
+
 ### Admin Portal Dev
 
 ```bash
@@ -146,6 +157,8 @@ Key vars (see `.env.docker.example` for full list):
 - `DB_DRIVER` — `postgres` (default, `DATABASE_URL`) or `pglite` (embedded Postgres in the Node process; in memory, or in `PGLITE_DATA_DIR`; `PGLITE_SNAPSHOT` seeds a new database from a `dumpDataDir()` tarball)
 - `QUEUE_DRIVER` — `bullmq` (default, `REDIS_URL`) or `memory` (in-process queues; nothing connects to Redis, and the Redis-only workers for feeds, backups and research agents don't start)
 - `RATE_LIMIT_DRIVER` — `memory` (default, per process) or `redis` (shared; needs `QUEUE_DRIVER=bullmq`)
+- `DEMO_MODE`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `DEV_ACCESS_IDENTITY` — demo mode and Cloudflare Access (see Demo mode below)
+- `AI_MAX_OUTPUT_TOKENS`, `AI_DAILY_BUDGET_USD`, `AI_USER_DAILY_BUDGET_USD`, `AI_USER_REQUESTS`, `AI_USER_WINDOW_MINUTES` — AI cost controls (see `.env.docker.example`)
 
 ### Services
 
@@ -196,7 +209,9 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 ### Admin Portal Key Systems
 
-- **Auth** — JWT-based session auth with bcryptjs password hashing. Middleware protects all routes except `/login`, `/signup`, and `/api/auth/*`. Tables: `admin_users`, `admin_sessions`. All major tables have `userId` foreign key. Default role is `admin` (member roles planned). Auth helpers in `lib/auth/` — `requireAuth()` for pages, `requireAuthApi()` for API routes.
+- **Auth** — JWT-based session auth with bcryptjs password hashing. Middleware protects all routes except `/login`, `/signup`, and `/api/auth/*`. Tables: `admin_users`, `admin_sessions`. All major tables have `userId` foreign key. New accounts are `member`s; the only admin comes from `pnpm db:seed-admin` (needs `ADMIN_EMAIL`; no default password). Global settings and backups need an admin. Auth helpers in `lib/auth/` — `requireAuth()` for pages, `requireAuthApi()` for API routes.
+- **Demo mode** — `DEMO_MODE=true`, read at request time. `lib/demo.ts` lists every page and API route as `core` or a switched-off feature (a test fails if a route is missing), and the middleware returns 404 for switched-off ones and 403 for settings changes. The only way in is Cloudflare Access: the middleware verifies the `Cf-Access-Jwt-Assertion` JWT (`lib/auth/access.ts`; never the plain email header) and each verified email gets a `member` user. `DEV_ACCESS_IDENTITY` stands in for Access locally and is refused in production. Start-up checks (`lib/startup-checks.ts`) stop the process on bad config.
+- **AI cost controls** — every model goes through `lib/ai/guard.ts` (via `getModel`/`getEmbeddingModel`): `maxOutputTokens` cap, daily spend caps in total and per user (priced from `lib/ai/pricing.ts`), and in demo mode no unattributed calls. Every API route that starts AI work calls `requireAiAllowance(user)` (per-user rate limit + budget); `lib/ai/allowance-coverage.test.ts` enforces it from the import graph. Tests fake models by mocking `@/lib/ai/providers`, so the guard still runs.
 - **Onboarding** — New users get a "Getting Started" workspace seeded on signup (`lib/onboarding/seed-default-workspace.ts`) with example sections for each template type. Guide page at `/guide` explains all features.
 - **Workspaces** — Structured knowledge base with typed sections (prose, cards, table, checklist, kv-pairs). Version history per section. Tables prefixed `admin_*`. Pages live under `app/(authenticated)/` route group.
 - **Inbox** — File upload drop zone → document processing pipeline (PDF/DOCX/CSV/MD parsing, chunking, embedding) → AI-powered workspace routing via BullMQ workers.

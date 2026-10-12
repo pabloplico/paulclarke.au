@@ -2,7 +2,7 @@
 
 | Layer         | Tool                                                                | Website                                                              | Admin portal                          |
 | ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 961 tests (node)                      |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1042 tests (node)                     |
 | E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 19 spec files, needs Postgres + Redis |
 | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                               |
 | Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)              |
@@ -91,6 +91,20 @@ The integration test fakes only the AI models and the signed-in user. `test/fake
 FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… TEST_REDIS_URL=redis://… \
   pnpm --filter admin-portal exec vitest run test/document-flow.integration.test.ts
 ```
+
+### Demo mode and cost controls
+
+| File                                | What it covers                                                                                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/demo.test.ts`                  | Walks `app/` and fails if any page or API route isn't classified as core or a switched-off feature; segment matching; which routes the demo switches off and keeps                                |
+| `lib/auth/access.test.ts`           | Cloudflare Access JWT verification with locally signed tokens: valid, plus wrong audience, wrong issuer, expired, unknown key, `alg: none`, HS256 key confusion, no email, the plain email header |
+| `middleware.test.ts`                | Demo mode: 401 without a verified token, 404 for switched-off routes, 403 for settings changes, 500 on missing config; the dev bypass is blocked in production                                    |
+| `lib/auth/access-user.test.ts`      | Simultaneous first visits create one member; demo mode never reports an admin                                                                                                                     |
+| `lib/ai/guard.test.ts`              | `maxOutputTokens` cap, spend priced and recorded per user, per-user and total daily caps, unattributed calls refused in demo mode, streams and embeddings counted                                 |
+| `lib/ai/allowance-coverage.test.ts` | From the import graph: every API route that can start AI work calls `requireAiAllowance`                                                                                                          |
+| `lib/ai/config-check.test.ts`       | Provider, model family and key line up; demo mode needs OpenAI and a priced model                                                                                                                 |
+| `lib/startup-checks.test.ts`        | The configurations that stop the server at start-up                                                                                                                                               |
+| `app/api/inbox/route.test.ts`       | Demo uploads: URLs refused, PDFs refused, Markdown accepted, oversized bodies refused before they are read                                                                                        |
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
