@@ -9,9 +9,6 @@ build/
 out/
 *.tsbuildinfo
 
-# Turbo
-.turbo/
-
 # Environment files
 .env
 .env.*

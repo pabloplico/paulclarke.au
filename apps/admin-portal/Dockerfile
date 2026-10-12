@@ -15,7 +15,7 @@ WORKDIR /app
 
 # --- Dependencies ---
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml nx.json ./
 COPY .npmrc* ./
 COPY apps/admin-portal/package.json ./apps/admin-portal/
 COPY packages/biome-config/package.json ./packages/biome-config/
@@ -30,11 +30,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps ./apps
 COPY --from=deps /app/packages ./packages
 # Copy only what the admin-portal build needs (not the whole repo)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml nx.json ./
 COPY packages ./packages
 COPY apps/admin-portal ./apps/admin-portal
-RUN pnpm turbo run build --filter="@repo/*"
-RUN pnpm turbo run build --filter="admin-portal"
+# NX builds admin-portal after anything it depends on (dependsOn ^build).
+# No daemon in a one-off build, and never Nx Cloud.
+RUN NX_DAEMON=false NX_NO_CLOUD=true pnpm exec nx run admin-portal:build
 
 # --- Production ---
 FROM node:22-alpine AS runner

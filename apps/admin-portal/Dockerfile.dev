@@ -13,7 +13,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml nx.json ./
 COPY .npmrc* ./
 COPY apps/admin-portal/package.json ./apps/admin-portal/
 COPY packages/biome-config/package.json ./packages/biome-config/
