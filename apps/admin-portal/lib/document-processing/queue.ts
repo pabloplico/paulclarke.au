@@ -1,31 +1,25 @@
-import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
 import { config } from '@/lib/config';
+import { createJobQueue } from '@/lib/queue';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+export type DocumentJob = { documentId: number };
 
-export const documentQueue = new Queue('document-processing', {
-  connection,
-  defaultJobOptions: {
-    attempts: config.queue.documentProcessing.attempts,
-    backoff: { type: 'exponential', delay: config.queue.documentProcessing.backoffDelay },
-    removeOnComplete: { count: config.queue.documentProcessing.removeOnComplete },
-    removeOnFail: { count: config.queue.documentProcessing.removeOnFail },
-  },
+const cfg = config.queue.documentProcessing;
+
+export const documentQueue = createJobQueue<DocumentJob>('document-processing', {
+  attempts: cfg.attempts,
+  backoffDelayMs: cfg.backoffDelay,
+  removeOnComplete: cfg.removeOnComplete,
+  removeOnFail: cfg.removeOnFail,
 });
 
 /**
  * Enqueue a document for processing through the ingestion pipeline.
- * Pass force=true when reprocessing to avoid BullMQ job ID collision.
+ * Pass force=true to queue it even while a job for it is unfinished (reprocessing).
  */
 export async function queueDocument(documentId: number, force = false): Promise<void> {
   await documentQueue.add(
     'process-document',
     { documentId },
-    {
-      jobId: force ? `doc-${documentId}-${Date.now()}` : `doc-${documentId}`,
-    }
+    { jobId: force ? `doc-${documentId}-${Date.now()}` : `doc-${documentId}` }
   );
 }

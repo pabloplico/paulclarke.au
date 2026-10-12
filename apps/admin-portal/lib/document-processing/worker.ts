@@ -1,12 +1,10 @@
-import type { Job } from 'bullmq';
-import { Worker } from 'bullmq';
 import { eq } from 'drizzle-orm';
-import IORedis from 'ioredis';
 import { config } from '@/lib/config';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
 import type { QualityFlag } from '@/lib/db/schema';
 import { adminDocumentChunks, adminDocuments, adminInboxItems } from '@/lib/db/schema';
+import type { JobContext } from '@/lib/queue';
 import { chunkText } from '@/lib/rag/chunker';
 import { generateEmbeddings } from '@/lib/rag/embeddings';
 import { storage } from '@/lib/storage';
@@ -21,11 +19,8 @@ import {
   checkCleaningQuality,
   checkExtractionQuality,
 } from './quality-gates';
+import { type DocumentJob, documentQueue } from './queue';
 import { fetchUrlContent } from './url-fetcher';
-
-type DocumentJob = {
-  documentId: number;
-};
 
 async function updateDocumentStatus(
   documentId: number,
@@ -38,7 +33,7 @@ async function updateDocumentStatus(
     .where(eq(adminDocuments.id, documentId));
 }
 
-async function processDocument(job: Job<DocumentJob>): Promise<void> {
+export async function processDocument(job: JobContext<DocumentJob>): Promise<void> {
   const { documentId } = job.data;
   const qualityFlags: QualityFlag[] = [];
 
@@ -277,52 +272,34 @@ async function processDocument(job: Job<DocumentJob>): Promise<void> {
 
 // ── Start worker ─────────────────────────────────────────────────────────────
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+/** Wraps processDocument with error recording and the retry/discard policy. */
+export async function handleDocumentJob(job: JobContext<DocumentJob>): Promise<void> {
+  try {
+    await processDocument(job);
+    console.log(`[document-worker] Document ${job.data.documentId} processed successfully`);
+  } catch (error) {
+    const isPermanent = error instanceof PermanentProcessingError;
+    const code = error instanceof ProcessingError ? error.code : 'UNKNOWN';
+    const stage = error instanceof ProcessingError ? error.stage : undefined;
+    const message = error instanceof Error ? error.message : 'Unknown processing error';
 
-const worker = new Worker<DocumentJob>(
-  'document-processing',
-  async (job) => {
-    try {
-      await processDocument(job);
-    } catch (error) {
-      const isPermanent = error instanceof PermanentProcessingError;
-      const code = error instanceof ProcessingError ? error.code : 'UNKNOWN';
-      const stage = error instanceof ProcessingError ? error.stage : undefined;
-      const message = error instanceof Error ? error.message : 'Unknown processing error';
+    console.error(`[document-worker] Document ${job.data.documentId} failed:`, message);
 
-      console.error(`[document-worker] Document ${job.data.documentId} failed:`, message);
+    // Store structured error info
+    await updateDocumentStatus(job.data.documentId, 'error', {
+      processingError: JSON.stringify({ code, message, permanent: isPermanent, stage }),
+    });
 
-      // Store structured error info
-      await updateDocumentStatus(job.data.documentId, 'error', {
-        processingError: JSON.stringify({ code, message, permanent: isPermanent, stage }),
-      });
-
-      if (isPermanent) {
-        // Skip remaining retries — this error will not resolve on retry
-        job.discard();
-        return;
-      }
-
-      throw error; // Re-throw so BullMQ handles retries
+    if (isPermanent) {
+      // Skip remaining retries — this error will not resolve on retry
+      job.discard();
+      return;
     }
-  },
-  {
-    connection,
-    concurrency: config.queue.documentProcessing.concurrency,
+
+    throw error; // Re-throw so the queue handles retries
   }
-);
+}
 
-worker.on('completed', (job) => {
-  console.log(`[document-worker] Document ${job.data.documentId} processed successfully`);
+documentQueue.process(handleDocumentJob, {
+  concurrency: config.queue.documentProcessing.concurrency,
 });
-
-worker.on('failed', (job, err) => {
-  console.error(
-    `[document-worker] Document ${job?.data.documentId} failed permanently:`,
-    err.message
-  );
-});
-
-export { worker };

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
-const capturedProcessor = vi.hoisted(() => ({ current: null as unknown }));
+const capturedProcessor = vi.hoisted(() => ({ current: null as unknown, opts: null as unknown }));
 
 const mockDbUpdate = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) }));
 const mockDbDelete = vi.fn(() => ({ where: vi.fn() }));
@@ -14,15 +14,16 @@ const mockDbSelect = vi.fn(() => ({
   })),
 }));
 
-vi.mock('bullmq', () => ({
-  Worker: vi.fn((_name: string, processor: unknown) => {
-    capturedProcessor.current = processor;
-    return { on: vi.fn() };
-  }),
-}));
-
-vi.mock('ioredis', () => ({
-  default: vi.fn(),
+// The queue seam: capture the processor the worker registers
+vi.mock('@/lib/queue', () => ({
+  createJobQueue: vi.fn((name: string) => ({
+    name,
+    add: vi.fn(),
+    process: vi.fn((handler: unknown, opts: unknown) => {
+      capturedProcessor.current = handler;
+      capturedProcessor.opts = opts;
+    }),
+  })),
 }));
 
 vi.mock('@/lib/config', () => ({
@@ -252,13 +253,10 @@ describe('document processing worker', () => {
     vi.resetModules();
     await import('./worker');
 
-    const { Worker } = await import('bullmq');
-    expect(Worker).toHaveBeenCalledWith(
-      'document-processing',
-      expect.any(Function),
-      expect.objectContaining({ concurrency: 1 })
-    );
-    expect(capturedProcessor.current).toBeDefined();
+    const { createJobQueue } = await import('@/lib/queue');
+    expect(createJobQueue).toHaveBeenCalledWith('document-processing', expect.any(Object));
+    expect(capturedProcessor.current).toEqual(expect.any(Function));
+    expect(capturedProcessor.opts).toEqual({ concurrency: 1 });
   });
 
   it('processes a file-source document through all stages', async () => {
