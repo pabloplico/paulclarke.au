@@ -68,6 +68,38 @@ jobs:
       - name: Build
         run: pnpm exec nx "$NX_RUN" -t build
 
+  admin-db:
+    name: Admin DB (fresh PGlite from migrations)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Set base and head for nx affected
+        if: github.event_name == 'pull_request'
+        uses: nrwl/nx-set-shas@v5
+
+      # Checks the schema hasn't drifted from the migrations, builds an
+      # in-memory PGlite database from drizzle/, then smoke-tests it (tables,
+      # pgvector search, a cascade delete). No Postgres service needed
+      - name: Build and check a fresh database
+        run: pnpm exec nx "$NX_RUN" -t db:check-fresh
+
   website-e2e:
     name: Website E2E (Playwright + axe)
     runs-on: ubuntu-24.04
