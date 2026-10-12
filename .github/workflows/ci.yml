@@ -16,18 +16,27 @@ concurrency:
 
 env:
   NEXT_TELEMETRY_DISABLED: 1
-  TURBO_TELEMETRY_DISABLED: 1
+  # Local caching only: never connect to Nx Cloud
+  NX_NO_CLOUD: true
+  # Print every task's output in the job log, not just a summary
+  NX_DEFAULT_OUTPUT_STYLE: static
+  # PRs check only the projects they affect; pushes to main check everything
+  NX_RUN: ${{ github.event_name == 'pull_request' && 'affected' || 'run-many' }}
 
 jobs:
   check:
     name: Lint, type-check, test and build
-    runs-on: ubuntu-latest
+    # Pinned so a runner image change can't break CI unexpectedly
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # nx affected needs the history back to the merge base with main
+          fetch-depth: 0
+          filter: tree:0
 
       # Version comes from "packageManager" in the root package.json
       - uses: pnpm/action-setup@v6
@@ -40,28 +49,36 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Sets NX_BASE/NX_HEAD to the PR's merge base with main. On pull_request
+      # events it only runs git merge-base, so the read-only token is enough
+      - name: Set base and head for nx affected
+        if: github.event_name == 'pull_request'
+        uses: nrwl/nx-set-shas@v5
+
       - name: Lint
-        run: pnpm lint
+        run: pnpm exec nx "$NX_RUN" -t lint lint:root
 
       - name: Type-check
-        run: pnpm check-types
+        run: pnpm exec nx "$NX_RUN" -t check-types
 
       - name: Unit tests
-        run: pnpm test
+        run: pnpm exec nx "$NX_RUN" -t test
 
       # Admin-portal E2E is skipped for now: it needs Postgres and Redis
       - name: Build
-        run: pnpm build
+        run: pnpm exec nx "$NX_RUN" -t build
 
   website-e2e:
     name: Website E2E (Playwright + axe)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
 
       - uses: pnpm/action-setup@v6
 
@@ -73,12 +90,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Set base and head for nx affected
+        if: github.event_name == 'pull_request'
+        uses: nrwl/nx-set-shas@v5
+
       - name: Install Chromium
         run: pnpm --filter website exec playwright install --with-deps chromium
 
-      # Playwright builds the site and serves it with wrangler dev (no database or secrets)
+      # Playwright builds the site and serves it with wrangler dev (no database
+      # or secrets). On a PR that doesn't affect the website, this does nothing
       - name: Run E2E tests
-        run: pnpm --filter website test:e2e
+        run: pnpm exec nx "$NX_RUN" -t test:e2e --exclude='*,!website'
 
       - name: Upload Playwright report
         if: failure()
