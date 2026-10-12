@@ -5,6 +5,10 @@ import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocumentChunks, adminDocuments, adminKbDocuments } from '@/lib/db/schema';
 import { queueDocument } from '@/lib/document-processing/queue';
+import {
+  rejectOversizedDemoRequest,
+  validateFileUpload,
+} from '@/lib/document-processing/upload-validation';
 import { storage } from '@/lib/storage';
 
 function parseUserTags(raw: string): string[] | null {
@@ -99,12 +103,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  const oversized = rejectOversizedDemoRequest(request);
+  if (oversized) return oversized;
   await requireAiAllowance(user);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 
   if (!file) {
     return NextResponse.json({ error: 'File is required' }, { status: 400 });
+  }
+
+  // Same size and type rules as the inbox (this route had none)
+  const validation = validateFileUpload(file);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

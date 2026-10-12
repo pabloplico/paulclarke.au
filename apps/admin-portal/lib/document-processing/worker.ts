@@ -5,6 +5,7 @@ import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
 import type { QualityFlag } from '@/lib/db/schema';
 import { adminDocumentChunks, adminDocuments, adminInboxItems } from '@/lib/db/schema';
+import { isDemoMode } from '@/lib/demo';
 import type { JobContext } from '@/lib/queue';
 import { chunkText } from '@/lib/rag/chunker';
 import { generateEmbeddings } from '@/lib/rag/embeddings';
@@ -54,6 +55,15 @@ export async function processDocument(job: JobContext<DocumentJob>): Promise<voi
 
   // ── Stage 1: Extract text ──────────────────────────────────────────────
   let rawText: string;
+
+  if (doc.source === 'url' && isDemoMode()) {
+    // Defence in depth: the inbox already refuses URLs in the demo
+    throw new PermanentProcessingError(
+      'Fetching web pages is switched off in the demo',
+      'URL_DISABLED',
+      'extract'
+    );
+  }
 
   if (doc.source === 'url' && doc.sourceUrl) {
     // URL source: fetch page content

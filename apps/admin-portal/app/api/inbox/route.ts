@@ -5,8 +5,12 @@ import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocuments, adminInboxItems } from '@/lib/db/schema';
+import { isDemoMode } from '@/lib/demo';
 import { queueDocument } from '@/lib/document-processing/queue';
-import { validateFileUpload } from '@/lib/document-processing/upload-validation';
+import {
+  rejectOversizedDemoRequest,
+  validateFileUpload,
+} from '@/lib/document-processing/upload-validation';
 import { storage } from '@/lib/storage';
 
 export async function GET(request: Request) {
@@ -41,6 +45,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  const oversized = rejectOversizedDemoRequest(request);
+  if (oversized) return oversized;
   await requireAiAllowance(user);
   const contentType = request.headers.get('content-type') ?? '';
 
@@ -109,6 +115,14 @@ export async function POST(request: Request) {
 
   if (!type || !title?.trim()) {
     return NextResponse.json({ error: 'Type and title are required' }, { status: 400 });
+  }
+
+  // Fetching visitor-supplied URLs from the server is off in the demo (SSRF)
+  if (type === 'url' && isDemoMode()) {
+    return NextResponse.json(
+      { error: 'Adding web pages is switched off in the demo' },
+      { status: 403 }
+    );
   }
 
   if (type === 'url' && !content?.trim()) {
