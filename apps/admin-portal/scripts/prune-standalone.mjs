@@ -39,7 +39,10 @@ function walk(dir) {
         if (!path.includes(join('.next', 'server'))) leftovers.push(path);
       }
       walk(path);
-    } else if (/\.(sql|dump)(\.gz)?$/.test(name) && !path.includes(join('apps', 'admin-portal', 'drizzle'))) {
+    } else if (
+      /\.(sql|dump)(\.gz)?$/.test(name) &&
+      !path.includes(join('apps', 'admin-portal', 'drizzle'))
+    ) {
       leftovers.push(path);
     }
   }
