@@ -1,5 +1,5 @@
 {
-  "id": "2902036a-0346-497b-b5a7-244aa7a7f307",
+  "id": "ce5d5564-b558-41c2-ad91-572c5de9ba47",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -4648,8 +4648,8 @@
         }
       },
       "foreignKeys": {
-        "admin_section_dependencies_sectionId_admin_workspace_sections_id_fk": {
-          "name": "admin_section_dependencies_sectionId_admin_workspace_sections_id_fk",
+        "admin_section_dep_section_fk": {
+          "name": "admin_section_dep_section_fk",
           "tableFrom": "admin_section_dependencies",
           "tableTo": "admin_workspace_sections",
           "columnsFrom": [
@@ -4661,8 +4661,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "admin_section_dependencies_dependsOnSectionId_admin_workspace_sections_id_fk": {
-          "name": "admin_section_dependencies_dependsOnSectionId_admin_workspace_sections_id_fk",
+        "admin_section_dep_target_fk": {
+          "name": "admin_section_dep_target_fk",
           "tableFrom": "admin_section_dependencies",
           "tableTo": "admin_workspace_sections",
           "columnsFrom": [
@@ -5128,8 +5128,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "admin_workspace_sections_parentSectionId_admin_workspace_sections_id_fk": {
-          "name": "admin_workspace_sections_parentSectionId_admin_workspace_sections_id_fk",
+        "admin_ws_section_parent_fk": {
+          "name": "admin_ws_section_parent_fk",
           "tableFrom": "admin_workspace_sections",
           "tableTo": "admin_workspace_sections",
           "columnsFrom": [
