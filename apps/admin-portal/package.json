@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "db:seed-admin": "npx tsx scripts/seed-admin-user.ts",
     "db:check-fresh": "tsx scripts/db/check-fresh-db.ts",
+    "db:mark-baseline": "tsx scripts/db/mark-baseline-applied.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",
