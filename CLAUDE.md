@@ -142,6 +142,9 @@ Key vars (see `.env.docker.example` for full list):
 - `AI_MODEL` — Model ID (e.g. `claude-sonnet-4-6`, `gpt-4o`, `gpt-5.2`)
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — API keys for chosen provider
 - `AUTH_SECRET` — JWT signing secret for session auth (required for login/signup to work; if unset, middleware skips auth)
+- `DB_DRIVER` — `postgres` (default, `DATABASE_URL`) or `pglite` (embedded Postgres in the Node process; in memory, or in `PGLITE_DATA_DIR`; `PGLITE_SNAPSHOT` seeds a new database from a `dumpDataDir()` tarball)
+- `QUEUE_DRIVER` — `bullmq` (default, `REDIS_URL`) or `memory` (in-process queues; nothing connects to Redis, and the Redis-only workers for feeds, backups and research agents don't start)
+- `RATE_LIMIT_DRIVER` — `memory` (default, per process) or `redis` (shared; needs `QUEUE_DRIVER=bullmq`)
 
 ### Services
 
@@ -203,8 +206,8 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 ### Infrastructure
 
-- **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal.
-- **Queue**: BullMQ + Redis for document processing and workspace routing workers (admin-portal only).
+- **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal. `DB_DRIVER=pglite` swaps in PGlite (Postgres compiled to WASM, with pgvector) for the single-instance demo; `lib/db/index.ts` is the one place the client is created, lazily, so `next build` never connects.
+- **Queue**: BullMQ + Redis for the admin-portal workers. Document processing and workspace routing sit behind the `JobQueue` interface (`lib/queue/`), with an in-process implementation for `QUEUE_DRIVER=memory`; feeds, backups and the research agents stay on BullMQ (repeatable jobs, pub/sub). `lib/redis.ts` is the only place that opens Redis connections, on first use, and it throws when Redis is off.
 - **AI**: Vercel AI SDK (`ai@^6`, 6.0.x installed) with configurable provider (Anthropic, OpenAI, Gemini or Ollama) for admin-portal. Mastra (`@mastra/core`) drives the research agents.
 - **Storage**: Local filesystem (`./uploads/`) via `StorageProvider` abstraction (admin-portal only).
 - **Cloudflare Workers**: Website deployed as a single Worker with the Static Assets binding. No backend services — contact uses `mailto:`, assessment results download as PDF via `window.print()`.
