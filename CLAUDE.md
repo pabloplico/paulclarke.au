@@ -15,7 +15,7 @@ The website is a single Worker that serves the Vite SPA via the Static Assets bi
 
 ```bash
 cd apps/website
-pnpm deploy            # vite build + wrangler deploy
+pnpm deploy            # nx run website:build (posts + vite build), then wrangler deploy
 pnpm deploy:dry-run    # build + bundle without uploading
 ```
 
@@ -82,13 +82,21 @@ Examples (from `apps/admin-portal/`):
 # Build
 docker compose exec app pnpm build
 
-# Lint — Turbo runs `biome check .` in every package, plus `lint:root`
+# Lint — NX runs `biome check .` in every package, plus `lint:root`
 # for root-level config files (the container's working dir is the root)
 docker compose exec app pnpm lint
 docker compose exec app pnpm lint:fix    # biome check --write --unsafe .
 
-# Type checking — Turbo runs `tsc --noEmit` in admin-portal, website and @repo/ui
+# Type checking — NX runs `tsc --noEmit` in admin-portal, website and @repo/ui
+# (the website's check-types depends on prebuild:posts, which NX runs first)
 docker compose exec app pnpm check-types
+
+# One target in one project, and NX inspection commands
+docker compose exec app pnpm exec nx run website:build
+docker compose exec app pnpm exec nx show project website       # targets, inputs, outputs
+docker compose exec app pnpm exec nx show projects --affected --base=main
+docker compose exec app pnpm exec nx run-many -t test --skip-nx-cache
+docker compose exec app pnpm exec nx reset                      # clear the cache
 
 # Unit tests (Vitest in admin-portal and website)
 docker compose exec app pnpm test
@@ -140,7 +148,15 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 ## Architecture
 
-**Monorepo** with pnpm workspaces + Turborepo.
+**Monorepo** with pnpm workspaces + NX (23.3.0, pinned exactly).
+
+### NX
+
+- **No NX plugins.** Every target is the package's own `package.json` script. `nx.json` holds the task graph: `namedInputs` (`default`, `production` = default minus tests/specs/e2e/test configs, `sharedGlobals` = Node version, `biome`) and `targetDefaults` with explicit `inputs`, `outputs` and `dependsOn`. A new tool config that affects a task's result must be added to its inputs there.
+- **Root scripts** (`pnpm lint`, `check-types`, `test`, `build`, `test:e2e`, `dev`) call `nx run-many -t …`. The root `package.json` is itself a project (`paulclarke.au`) that only exposes `lint:root` (`nx.includedScripts`), so root scripts can't recurse.
+- **Website posts:** `prebuild:posts` is its own cached target (output `server/posts.generated.ts`); the website's `build` and `check-types` depend on it via `targetDefaults` entries filtered to `website`. The `website` scripts `build`/`check-types` no longer run it themselves, so build through NX (`nx run website:build`), as `deploy` and the Playwright `webServer` do. `dev` still runs it inline.
+- **Cache:** local only. `neverConnectToCloud: true` and `analytics: false` in `nx.json`; CI sets `NX_NO_CLOUD=true`. NX 23 keeps the cache in `~/.nx/<repo-id>/cache`, shared by every checkout and worktree of the repo; `nx reset` clears it. Script targets hash all external dependencies, so any lockfile change invalidates every task.
+- **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`. Runners are pinned to `ubuntu-24.04`.
 
 ### Apps
 

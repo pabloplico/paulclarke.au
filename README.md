@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/pabloplico/paulclarke.au/actions/workflows/ci.yml/badge.svg)](https://github.com/pabloplico/paulclarke.au/actions/workflows/ci.yml)
 
-A pnpm + Turborepo monorepo with two apps:
+A pnpm + NX monorepo with two apps:
 
 - **My developer portfolio** (`apps/website`): projects, an AI readiness assessment demo, writing and contact. A React SPA plus a small Hono API, deployed as one Cloudflare Worker.
 - **A document workspace platform** (`apps/admin-portal`): upload documents, have them parsed and routed into structured workspaces, and edit sections with AI, previewing each change as a diff. Next.js with Postgres, Redis job queues and the Vercel AI SDK.
@@ -37,44 +37,50 @@ graph LR
 
 Apps import shared code by package name (`@repo/ui/button`), never by relative path across packages. The `ui` package is consumed as TypeScript source and compiled by each app's bundler, so there is no separate build step for it.
 
-### Turborepo task graph
+### NX task graph
 
-Each package declares its own `lint`, `check-types`, `test` and `build` scripts. `turbo.json` says how the tasks relate, and Turborepo runs them in dependency order, in parallel where it can, caching results by their inputs.
+Each package declares its own `lint`, `check-types`, `test` and `build` scripts, and NX runs them as targets. `nx.json` says how the targets relate and what each one reads and writes. NX runs them in dependency order, in parallel where it can, and caches the results by their inputs.
 
 ```mermaid
 graph TD
   subgraph "pnpm check-types"
-    uiTypes["@repo/ui#check-types"] --> webTypes["website#check-types"]
-    uiTypes --> adminTypes["admin-portal#check-types"]
+    posts["website:prebuild:posts<br/>(content/posts → server/posts.generated.ts)"]
+    uiTypes["@repo/ui:check-types"] --> webTypes["website:check-types"]
+    posts --> webTypes
+    uiTypes --> adminTypes["admin-portal:check-types"]
+  end
+  subgraph "pnpm build"
+    posts2["website:prebuild:posts"] --> webBuild["website:build"]
+    adminBuild["admin-portal:build"]
   end
   subgraph "pnpm lint"
-    lintPkgs["every package#lint<br/>(biome check .)"]
-    lintRoot["//#lint:root<br/>(root config files)"]
-  end
-  subgraph "pnpm build / test:e2e"
-    webBuild["website#build"]
-    adminBuild["admin-portal#build"]
-    e2e["website#test:e2e"] -.->|"^build"| webBuild
+    lintPkgs["every package:lint<br/>(biome check ., after ^lint)"]
+    lintRoot["paulclarke.au:lint:root<br/>(root config files)"]
   end
 ```
 
 - `check-types` depends on `^check-types` (the `^` means "in my dependencies first"), so `@repo/ui` is checked before the apps that import it.
-- `//#lint:root` is a root-package task that covers config files belonging to no package.
-- A second run with no changes is served from Turbo's cache.
+- The website's `build` and `check-types` both depend on `prebuild:posts`. It turns the Markdown posts into a TypeScript module that the Worker imports, and it's cached, so it only re-runs when a post or the script changes.
+- `lint:root` belongs to the root project and covers config files that no package owns.
+- `pnpm test` and `pnpm test:e2e` have no task dependencies.
 
-### Parallels with NX
+### Why NX and what changed
 
-The concepts map almost one to one. Migrating this repo to NX is planned.
+The repo moved from Turborepo to NX in its first pull request. The task graph, the script names and the developer commands are unchanged; NX now runs them.
 
-| Turborepo (here)                         | NX equivalent                                            |
-| ---------------------------------------- | -------------------------------------------------------- |
-| Package `scripts` + `turbo.json` `tasks` | Project `targets` + `targetDefaults`                     |
-| `"dependsOn": ["^build"]`                | `"dependsOn": ["^build"]` (same syntax)                  |
-| `inputs` / `outputs` for caching         | `inputs` / `outputs`, named inputs                       |
-| `turbo run test --filter=website`        | `nx run website:test` / `nx run-many -t test -p website` |
-| `--affected`                             | `nx affected -t test`                                    |
-| pnpm workspaces for linking              | pnpm workspaces (or NX's own project graph)              |
-| (none)                                   | Generators, module-boundary lint rules, project graph UI |
+- **Why:** NX treats the workspace as a project graph, not just a list of packages. That gives `nx affected` (CI checks only what a change can break), `nx graph` to see the structure, and room to grow into generators and module-boundary rules.
+- **No plugins yet.** Each target is the package's own `package.json` script, so the migration changed the task runner and nothing else. Caching therefore relies on explicit `inputs` and `outputs` in `nx.json` rather than on plugin inference. A `production` input excludes tests and specs, so editing a test doesn't invalidate a build.
+- **Local cache only.** Nx Cloud is turned off (`neverConnectToCloud`), and CI uses no remote cache.
+- **CI:** pull requests run `nx affected` against their merge base with `main`; pushes to `main` run everything.
+
+| Task                       | Command                                             |
+| -------------------------- | --------------------------------------------------- |
+| One target in one project  | `pnpm exec nx run website:test`                     |
+| What a target reads/writes | `pnpm exec nx show project website`                 |
+| What a change affects      | `pnpm exec nx show projects --affected --base=main` |
+| The project graph          | `pnpm exec nx graph`                                |
+| Ignore the cache           | `pnpm exec nx run-many -t test --skip-nx-cache`     |
+| Clear the cache            | `pnpm exec nx reset`                                |
 
 ## Getting started
 
@@ -95,7 +101,7 @@ The website needs no environment variables or secrets. Admin-portal settings are
 
 ## Common commands
 
-Run from the repo root. Turborepo runs each task in every package that defines it.
+Run from the repo root. NX runs each task in every project that defines it, and serves unchanged results from its cache.
 
 ```bash
 pnpm lint           # Biome in every package + root config files
@@ -120,7 +126,7 @@ CI runs it all except admin-portal E2E, which needs Postgres and Redis. See [TES
 
 ```bash
 cd apps/website
-pnpm deploy           # vite build + wrangler deploy
+pnpm deploy           # nx run website:build (posts + vite build), then wrangler deploy
 pnpm deploy:dry-run   # build and bundle without uploading
 ```
 
@@ -147,7 +153,10 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 - **Trade-off:** it relies on the visitor having a mail client, so the confirmation screen also shows the address to copy.
 - **Same thinking elsewhere:** the assessment's "Download as PDF" uses the browser's print dialog and a print stylesheet instead of a PDF service.
 
-**Turborepo now, NX next.** Turborepo was the quickest way to get cached, dependency-aware tasks over pnpm workspaces. It's one small `turbo.json` and package scripts that still work without it. NX adds generators, module-boundary rules and a richer project graph, which pays off as the repo grows. The concepts map closely (table above), so moving is mostly configuration.
+**NX over Turborepo, without plugins (for now).** Turborepo got the repo cached, dependency-aware tasks quickly. NX adds `nx affected` for CI and a project graph, and the concepts map closely, so the move was mostly configuration (see "Why NX and what changed").
+
+- **Why no plugins yet:** NX plugins (`@nx/vite`, `@nx/next`, `@nx/playwright`) can infer targets from tool configs, but they replace the package scripts and bring their own dependencies. Keeping the scripts meant the migration changed only the task runner: each target is still a plain script you can read in `package.json`. The one exception is the website's posts step, now its own target that `build` and `check-types` depend on.
+- **Cost:** cache inputs and outputs are written by hand in `nx.json`, so a new tool's config file has to be added there. Plugins are the natural next step.
 
 **Allow-list `COPY` in Docker.** The admin image used `COPY . .`. `.dockerignore` patterns only match from the repo root, so nested `node_modules`, `.next`, `uploads`, local database dumps and a service-account key were all in the build context: over 720 MB, and the build failed reading a root-owned folder.
 
