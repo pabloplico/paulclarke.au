@@ -2,23 +2,28 @@
   "name": "paulclarke.au",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint lint:root",
-    "lint:fix": "biome check --write --unsafe . && turbo run lint",
+    "build": "nx run-many -t build",
+    "dev": "nx run-many -t dev",
+    "lint": "nx run-many -t lint lint:root",
+    "lint:fix": "biome check --write --unsafe . && nx run-many -t lint",
     "format": "biome format --write . && prettier --write \"**/*.{md,svelte}\"",
     "format:check": "biome format . && prettier --check \"**/*.{md,svelte}\"",
-    "test": "turbo run test",
-    "test:e2e": "turbo run test:e2e",
-    "check-types": "turbo run check-types",
+    "test": "nx run-many -t test",
+    "test:e2e": "nx run-many -t test:e2e",
+    "check-types": "nx run-many -t check-types",
     "lint:root": "biome check *.json .claude"
+  },
+  "nx": {
+    "includedScripts": [
+      "lint:root"
+    ]
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@repo/prettier-config": "workspace:*",
+    "nx": "23.3.0",
     "prettier": "catalog:",
     "prettier-plugin-tailwindcss": "catalog:",
-    "turbo": "^2.8.10",
     "typescript": "catalog:"
   },
   "packageManager": "pnpm@10.28.0",

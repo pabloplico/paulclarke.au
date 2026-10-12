@@ -100,8 +100,8 @@ export const PROJECTS: Project[] = [
     id: 'this-site',
     title: 'This site',
     summary:
-      'A pnpm monorepo with shared UI and config packages, CI on every pull request, and deployment to Cloudflare Workers. Migrating from Turborepo to NX is next.',
-    stack: ['pnpm workspaces', 'Turborepo', 'GitHub Actions', 'Cloudflare Workers'],
+      'A pnpm + NX monorepo with shared UI and config packages, cached tasks, CI that checks only what a pull request affects, and deployment to Cloudflare Workers.',
+    stack: ['pnpm workspaces', 'NX', 'GitHub Actions', 'Cloudflare Workers'],
     links: [{ label: 'Code', href: 'https://github.com/pabloplico/paulclarke.au' }],
     image: null,
     variant: 'short',

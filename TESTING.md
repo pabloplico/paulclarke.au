@@ -2,7 +2,7 @@
 
 | Layer         | Tool                                                                | Website                                                              | Admin portal                          |
 | ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 51 tests (jsdom + Testing Library)                                   | 919 tests (node)                      |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 919 tests (node)                      |
 | E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 19 spec files, needs Postgres + Redis |
 | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                               |
 | Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)              |
@@ -12,11 +12,11 @@ CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on e
 ## Quick start
 
 ```bash
-pnpm test                               # all unit tests, via Turborepo
+pnpm test                               # all unit tests, via NX
 pnpm --filter website test              # website unit tests only
 pnpm --filter website test:e2e          # website E2E + axe (builds, then serves with wrangler dev)
 pnpm --filter admin-portal test:e2e     # admin E2E (needs the admin dev stack running)
-pnpm exec turbo run test --force        # skip the Turbo cache
+pnpm exec nx run-many -t test --skip-nx-cache   # ignore the NX cache
 ```
 
 ## Website
