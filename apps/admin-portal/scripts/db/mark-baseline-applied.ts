@@ -44,7 +44,7 @@ async function main() {
     }
     if (missing.length) {
       throw new Error(
-        `The database is missing parts of the schema, so it doesn't match the baseline:\n  ${missing.join('\n  ')}\nBring it up to date first (for example with drizzle-kit push), then run this again.`
+        `The database is missing parts of the schema, so it doesn't match the baseline:\n  ${missing.join('\n  ')}\nAdd the missing parts by hand, then run this again. To see the DDL, run drizzle-kit push --verbose but answer no: don't confirm it or use --force, because push also drops tables that aren't in the schema.`
       );
     }
     console.log('Every schema table and column exists.');
