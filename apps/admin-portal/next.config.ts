@@ -22,7 +22,17 @@ const nextConfig: NextConfig = {
     .filter(Boolean),
   poweredByHeader: false,
   output: 'standalone',
-  serverExternalPackages: ['postgres', 'bullmq', 'ioredis', 'pdf-parse', '@mastra/core'],
+  // DB_DRIVER=pglite runs drizzle/ at start-up, so the migrations ship with the server
+  outputFileTracingIncludes: { '/*': ['./drizzle/**/*'] },
+  serverExternalPackages: [
+    '@electric-sql/pglite',
+    '@electric-sql/pglite-pgvector',
+    'postgres',
+    'bullmq',
+    'ioredis',
+    'pdf-parse',
+    '@mastra/core',
+  ],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
