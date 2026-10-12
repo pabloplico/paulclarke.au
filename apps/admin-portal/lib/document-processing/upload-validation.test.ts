@@ -180,7 +180,7 @@ describe('demo uploads', () => {
       ['notes.txt', 'text/plain'],
       ['sales.csv', 'text/csv'],
       ['notes.md', ''],
-    ]) {
+    ] as const) {
       expect(validateFileUpload(makeFile(name, 2 * 1024 * 1024, type)).valid, name).toBe(true);
     }
   });
