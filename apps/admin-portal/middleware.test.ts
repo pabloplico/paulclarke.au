@@ -86,6 +86,31 @@ describe('middleware in demo mode', () => {
     expect((await call('/api/settings', { method: 'PATCH', token: validToken })).status).toBe(403);
   });
 
+  it('refuses state-changing requests from other sites, including sibling subdomains', async () => {
+    for (const site of ['cross-site', 'same-site']) {
+      const response = await call('/api/inbox', {
+        method: 'POST',
+        token: validToken,
+        headers: { 'sec-fetch-site': site },
+      });
+      expect(response.status, site).toBe(403);
+    }
+  });
+
+  it('allows the app’s own requests, and reads from anywhere', async () => {
+    const own = await call('/api/inbox', {
+      method: 'POST',
+      token: validToken,
+      headers: { 'sec-fetch-site': 'same-origin' },
+    });
+    expect(passedThrough(own)).toBe(true);
+    const linkedRead = await call('/workspaces', {
+      token: validToken,
+      headers: { 'sec-fetch-site': 'cross-site' },
+    });
+    expect(passedThrough(linkedRead)).toBe(true);
+  });
+
   it('fails closed (500) when the Access config is missing', async () => {
     delete process.env.CF_ACCESS_AUD;
     expect((await call('/api/inbox', { token: validToken })).status).toBe(500);

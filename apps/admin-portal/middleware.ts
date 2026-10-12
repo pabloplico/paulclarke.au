@@ -78,6 +78,21 @@ async function demoMiddleware(request: NextRequest) {
       : new NextResponse('Sign in through Cloudflare Access to use this demo.', { status: 401 });
   }
 
+  // A visitor's browser sends the Access cookie with requests from any site,
+  // so another page could make it POST here and spend their AI budget.
+  // Browsers say where a request came from in Sec-Fetch-Site; anything that
+  // changes state must come from this app's own pages. (A request without
+  // the header, e.g. curl, still needs the signed Access token above.)
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if (
+    request.method !== 'GET' &&
+    request.method !== 'HEAD' &&
+    fetchSite !== null &&
+    fetchSite !== 'same-origin'
+  ) {
+    return NextResponse.json({ error: 'Cross-site request refused' }, { status: 403 });
+  }
+
   if (isDemoRouteDisabled(pathname)) {
     return isApi
       ? NextResponse.json({ error: 'Not found' }, { status: 404 })
