@@ -62,3 +62,8 @@ docs/
 
 # Firebase service account keys
 *-firebase-adminsdk-*.json
+
+# Nx
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs

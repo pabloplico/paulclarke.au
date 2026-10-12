@@ -1,0 +1,59 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "neverConnectToCloud": true,
+  "analytics": false,
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["{projectRoot}/**/*", "{projectRoot}/.env*"],
+      "outputs": [
+        "{projectRoot}/.next/**",
+        "!{projectRoot}/.next/cache/**",
+        "{projectRoot}/dist/**",
+        "{projectRoot}/build/**"
+      ],
+      "cache": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "inputs": ["{projectRoot}/**/*", "{projectRoot}/biome.json", "{projectRoot}/biome.jsonc"],
+      "cache": true
+    },
+    "format": {
+      "cache": false
+    },
+    "format:check": {
+      "dependsOn": ["^format:check"],
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{projectRoot}/prettier.config.*",
+        "{projectRoot}/.prettierrc*",
+        "{projectRoot}/biome.json",
+        "{projectRoot}/biome.jsonc",
+        "{projectRoot}/../../packages/prettier-config/**",
+        "{projectRoot}/../../packages/biome-config/**"
+      ],
+      "cache": true
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"],
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.*.json"
+      ],
+      "cache": true
+    },
+    "test": {
+      "inputs": ["{projectRoot}/**/*", "{projectRoot}/**/*.test.ts", "{projectRoot}/**/*.test.tsx"],
+      "cache": true
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "dev": {
+      "cache": false
+    }
+  }
+}
