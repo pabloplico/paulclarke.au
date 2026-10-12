@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // DB_DRIVER=pglite runs drizzle/ at start-up, so the migrations ship with the server
   outputFileTracingIncludes: { '/*': ['./drizzle/**/*'] },
+  // Never ship data. lib/db/backup.ts and the storage layer resolve these
+  // folders at runtime, so the file tracer copies whatever is in them
+  // (real pg_dump files, users' uploads) into .next/standalone
+  outputFileTracingExcludes: { '/*': ['../../backups/**/*', './uploads/**/*'] },
   serverExternalPackages: [
     '@electric-sql/pglite',
     '@electric-sql/pglite-pgvector',
