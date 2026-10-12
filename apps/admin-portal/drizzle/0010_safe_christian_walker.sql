@@ -1,3 +1,0 @@
-ALTER TABLE "admin_workspace_sections" ADD COLUMN "parentSectionId" integer;--> statement-breakpoint
-ALTER TABLE "admin_workspace_sections" ADD CONSTRAINT "admin_workspace_sections_parentSectionId_admin_workspace_sections_id_fk" FOREIGN KEY ("parentSectionId") REFERENCES "public"."admin_workspace_sections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "admin_ws_section_parent_idx" ON "admin_workspace_sections" USING btree ("parentSectionId");
