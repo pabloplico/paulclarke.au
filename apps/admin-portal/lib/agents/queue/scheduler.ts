@@ -1,8 +1,8 @@
 import { isNotNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { adminAgentTasks } from '@/lib/db/schema';
-import { analysisQueue } from './analysis-queue';
-import { researchQueue } from './research-queue';
+import { getAnalysisQueue } from './analysis-queue';
+import { getResearchQueue } from './research-queue';
 
 /**
  * Sync CRON schedules from admin_agent_tasks to BullMQ repeatable jobs.
@@ -10,7 +10,7 @@ import { researchQueue } from './research-queue';
  */
 export async function syncSchedules(): Promise<void> {
   // Remove existing repeatable jobs
-  for (const queue of [researchQueue, analysisQueue]) {
+  for (const queue of [getResearchQueue(), getAnalysisQueue()]) {
     const existing = await queue.getRepeatableJobs();
     for (const job of existing) {
       await queue.removeRepeatableByKey(job.key);
@@ -26,7 +26,7 @@ export async function syncSchedules(): Promise<void> {
   for (const task of tasks) {
     if (!task.cronSchedule || task.status === 'paused') continue;
 
-    const queue = task.agentType === 'analysis' ? analysisQueue : researchQueue;
+    const queue = task.agentType === 'analysis' ? getAnalysisQueue() : getResearchQueue();
     await queue.add(
       task.agentType,
       { taskId: task.id, userId: task.userId },

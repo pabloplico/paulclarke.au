@@ -1,53 +1,60 @@
 import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import { getRedis } from '@/lib/redis';
 import { createBackup, pruneOldBackups } from './backup';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+let started: Worker | null = null;
 
-const queue = new Queue('db-backup', { connection });
+/**
+ * Schedules the twice-daily backup and starts its worker. Called from
+ * instrumentation, and only when Redis is on.
+ */
+export function startBackupWorker(): Worker {
+  if (started) return started;
+  const connection = getRedis('Database backups');
+  const queue = new Queue('db-backup', { connection });
 
-// Schedule backups twice daily at 8 AM and 8 PM
-queue.upsertJobScheduler(
-  'db-backup-schedule',
-  {
-    pattern: '0 8,20 * * *',
-  },
-  {
-    name: 'scheduled-backup',
-  }
-);
-
-const worker = new Worker(
-  'db-backup',
-  async (job) => {
-    console.log(`[backup-worker] Starting database backup (job ${job.id})...`);
-
-    const backup = await createBackup();
-    console.log(
-      `[backup-worker] Backup complete: ${backup.filename} (${(backup.size / 1024 / 1024).toFixed(1)} MB)`
-    );
-
-    const pruned = await pruneOldBackups();
-    if (pruned > 0) {
-      console.log(`[backup-worker] Pruned ${pruned} old backup(s)`);
+  // Schedule backups twice daily at 8 AM and 8 PM
+  void queue.upsertJobScheduler(
+    'db-backup-schedule',
+    {
+      pattern: '0 8,20 * * *',
+    },
+    {
+      name: 'scheduled-backup',
     }
+  );
 
-    return backup;
-  },
-  {
-    connection,
-    concurrency: 1,
-  }
-);
+  const worker = new Worker(
+    'db-backup',
+    async (job) => {
+      console.log(`[backup-worker] Starting database backup (job ${job.id})...`);
 
-worker.on('completed', (job) => {
-  console.log(`[backup-worker] Job ${job.id} completed successfully`);
-});
+      const backup = await createBackup();
+      console.log(
+        `[backup-worker] Backup complete: ${backup.filename} (${(backup.size / 1024 / 1024).toFixed(1)} MB)`
+      );
 
-worker.on('failed', (job, err) => {
-  console.error(`[backup-worker] Job ${job?.id} failed:`, err.message);
-});
+      const pruned = await pruneOldBackups();
+      if (pruned > 0) {
+        console.log(`[backup-worker] Pruned ${pruned} old backup(s)`);
+      }
 
-export { queue, worker };
+      return backup;
+    },
+    {
+      connection,
+      concurrency: 1,
+    }
+  );
+
+  worker.on('completed', (job) => {
+    console.log(`[backup-worker] Job ${job.id} completed successfully`);
+  });
+
+  worker.on('failed', (job, err) => {
+    console.error(`[backup-worker] Job ${job?.id} failed:`, err.message);
+  });
+
+  started = worker;
+  return worker;
+}

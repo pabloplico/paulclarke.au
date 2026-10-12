@@ -1,9 +1,10 @@
 import { and, eq } from 'drizzle-orm';
-import IORedis from 'ioredis';
 import { runLogChannel } from '@/lib/agents/queue/log-channel';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentRuns, adminAgentTasks } from '@/lib/db/schema';
+import { redisEnabled } from '@/lib/drivers';
+import { createDedicatedRedis } from '@/lib/redis';
 
 type Params = { params: Promise<{ id: string; runId: string }> };
 
@@ -32,10 +33,14 @@ export async function GET(_request: Request, { params }: Params) {
     return new Response('Run not found', { status: 404 });
   }
 
+  // Live logs travel over Redis pub/sub. Without Redis the run's log is still
+  // saved on the run record, but there's nothing to stream
+  if (!redisEnabled()) {
+    return Response.json({ error: 'Live logs need Redis (QUEUE_DRIVER=bullmq)' }, { status: 503 });
+  }
+
   // Dedicated subscriber connection (Redis pub/sub requires its own connection)
-  const subscriber = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-  });
+  const subscriber = createDedicatedRedis('Live agent logs');
 
   const encoder = new TextEncoder();
   const channel = runLogChannel(runIdNum);

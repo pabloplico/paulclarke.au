@@ -19,7 +19,10 @@ export async function register() {
   }
 
   // Redis only: these use repeatable jobs (backups, feeds, agent schedules)
-  await import('./lib/db/backup-worker');
-  await import('./lib/feeds/worker');
-  await import('./lib/agents/queue/init');
+  const { startBackupWorker } = await import('./lib/db/backup-worker');
+  const { startFeedWorker } = await import('./lib/feeds/worker');
+  const { startAgentQueues } = await import('./lib/agents/queue/init');
+  startBackupWorker();
+  startFeedWorker();
+  startAgentQueues();
 }

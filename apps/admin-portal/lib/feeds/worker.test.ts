@@ -73,10 +73,10 @@ vi.mock('./ingest', () => ({
 }));
 
 vi.mock('./queue', () => ({
-  feedQueue: {
+  getFeedQueue: () => ({
     upsertJobScheduler: mockUpsertJobScheduler,
     on: vi.fn(),
-  },
+  }),
 }));
 
 vi.mock('@/lib/config', () => ({
@@ -138,9 +138,9 @@ beforeEach(() => {
 describe('feeds worker', () => {
   // ── TC-008-WORKER-01 — Registers BullMQ worker and scheduler on import ───
 
-  it('TC-008-WORKER-01: registers BullMQ Worker and upsertJobScheduler on import', async () => {
+  it('TC-008-WORKER-01: registers BullMQ Worker and upsertJobScheduler on start', async () => {
     vi.resetModules();
-    await import('./worker');
+    (await import('./worker')).startFeedWorker();
 
     const { Worker } = await import('bullmq');
     expect(Worker).toHaveBeenCalledWith(
@@ -168,7 +168,7 @@ describe('feeds worker', () => {
       })),
     }));
 
-    await import('./worker');
+    (await import('./worker')).startFeedWorker();
     const processor = capturedProcessor.current!;
 
     const result = await processor(makeJob());
@@ -195,7 +195,7 @@ describe('feeds worker', () => {
       })),
     }));
 
-    await import('./worker');
+    (await import('./worker')).startFeedWorker();
 
     const { fetchFeed } = await import('./fetcher');
     const { ingestFeedItems } = await import('./ingest');
@@ -239,7 +239,7 @@ describe('feeds worker', () => {
       })),
     }));
 
-    await import('./worker');
+    (await import('./worker')).startFeedWorker();
 
     const { fetchFeed } = await import('./fetcher');
     const { ingestFeedItems } = await import('./ingest');

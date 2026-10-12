@@ -1,15 +1,28 @@
 import { eq, sql } from 'drizzle-orm';
-import IORedis from 'ioredis';
 import { db } from '@/lib/db';
 import { adminAgentRuns } from '@/lib/db/schema';
+import { redisEnabled } from '@/lib/drivers';
 import { logger } from '@/lib/logger';
+import { getRedis } from '@/lib/redis';
 import { runLogChannel } from './log-channel';
 
 const log = logger.child({ module: 'run-logger' });
 
-const publisher = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+/**
+ * Publishes to the run's live-log channel. Without Redis (QUEUE_DRIVER=memory)
+ * there's no live stream: the log is still saved to the database.
+ */
+async function publish(runId: number, payload: unknown): Promise<void> {
+  if (!redisEnabled()) return;
+  await getRedis('Live agent logs')
+    .publish(runLogChannel(runId), JSON.stringify(payload))
+    .catch((err: unknown) =>
+      log.warn('Redis publish failed', {
+        runId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+}
 
 /** Append a log entry to the DB and publish to Redis for live SSE. */
 export async function publishRunLog(runId: number, message: string, level = 'info'): Promise<void> {
@@ -34,13 +47,8 @@ export async function publishRunLog(runId: number, message: string, level = 'inf
       })
     );
 
-  // Publish to Redis for live SSE subscribers
-  await publisher.publish(runLogChannel(runId), JSON.stringify(entry)).catch((err: unknown) =>
-    log.warn('Redis publish failed', {
-      runId,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  );
+  // Publish for live SSE subscribers
+  await publish(runId, entry);
 }
 
 /** Append a tool call entry to the DB and publish to Redis. */
@@ -73,24 +81,12 @@ export async function publishToolCall(
       })
     );
 
-  await publisher.publish(runLogChannel(runId), JSON.stringify(entry)).catch((err: unknown) =>
-    log.warn('Redis publish failed', {
-      runId,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  );
+  await publish(runId, entry);
 }
 
 export async function publishRunComplete(
   runId: number,
   status: 'completed' | 'failed'
 ): Promise<void> {
-  await publisher
-    .publish(runLogChannel(runId), JSON.stringify({ done: true, status }))
-    .catch((err: unknown) =>
-      log.warn('Redis publish failed', {
-        runId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    );
+  await publish(runId, { done: true, status });
 }
