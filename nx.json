@@ -76,6 +76,15 @@
       "cache": true,
       "inputs": ["default", "^production"]
     },
+    "db:check-fresh": {
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/drizzle/**/*",
+        "{projectRoot}/lib/db/schema/**/*",
+        "{projectRoot}/scripts/db/**/*",
+        "sharedGlobals"
+      ]
+    },
     "test:e2e": {
       "cache": false,
       "dependsOn": ["^build"]

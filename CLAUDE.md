@@ -111,6 +111,16 @@ docker compose exec app pnpm test:e2e
 docker compose exec app bash -c "cd apps/admin-portal && pnpm db:generate"
 docker compose exec app bash -c "cd apps/admin-portal && pnpm db:migrate"
 docker compose exec app bash -c "cd apps/admin-portal && pnpm db:studio"
+# Build a fresh in-memory PGlite database from drizzle/ and smoke-test it (also
+# fails if the schema has drifted from the latest migration). CI runs this
+docker compose exec app bash -c "cd apps/admin-portal && pnpm db:check-fresh"
+```
+
+**Migrations** start from one baseline (`drizzle/0000_baseline.sql`, generated from `lib/db/schema`), which replaced a history that couldn't build a fresh database. A database built before the baseline (with `drizzle-kit push` or the old migrations) needs the baseline recorded once, or `db:migrate` fails with "already exists". `db:mark-baseline` is non-destructive: it refuses unless every schema table and column exists, never drops anything, and with `--apply` only inserts one row into `drizzle.__drizzle_migrations`:
+
+```bash
+docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline"          # dry run
+docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline --apply"  # record it
 ```
 
 ### After adding dependencies

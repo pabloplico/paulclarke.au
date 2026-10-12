@@ -59,7 +59,9 @@ export const adminWorkspaceSections = pgTable(
     index('admin_ws_section_parent_idx').on(table.parentSectionId),
     index('admin_ws_section_ws_parent_idx').on(table.workspaceId, table.parentSectionId),
     uniqueIndex('admin_ws_section_slug_unique').on(table.workspaceId, table.slug),
+    // Named because the generated name is over Postgres's 63-character limit
     foreignKey({
+      name: 'admin_ws_section_parent_fk',
       columns: [table.parentSectionId],
       foreignColumns: [table.id],
     }).onDelete('cascade'),
@@ -128,12 +130,8 @@ export const adminSectionDependencies = pgTable(
   'admin_section_dependencies',
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    sectionId: integer()
-      .notNull()
-      .references(() => adminWorkspaceSections.id, { onDelete: 'cascade' }),
-    dependsOnSectionId: integer()
-      .notNull()
-      .references(() => adminWorkspaceSections.id, { onDelete: 'cascade' }),
+    sectionId: integer().notNull(),
+    dependsOnSectionId: integer().notNull(),
     relationType: varchar({ length: 30 }).notNull(),
     description: text(),
     createdAt: timestamp().defaultNow().notNull(),
@@ -142,6 +140,17 @@ export const adminSectionDependencies = pgTable(
     uniqueIndex('admin_section_dep_unique').on(table.sectionId, table.dependsOnSectionId),
     index('admin_section_dep_section_idx').on(table.sectionId),
     index('admin_section_dep_target_idx').on(table.dependsOnSectionId),
+    // Named because the generated names are over Postgres's 63-character limit
+    foreignKey({
+      name: 'admin_section_dep_section_fk',
+      columns: [table.sectionId],
+      foreignColumns: [adminWorkspaceSections.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'admin_section_dep_target_fk',
+      columns: [table.dependsOnSectionId],
+      foreignColumns: [adminWorkspaceSections.id],
+    }).onDelete('cascade'),
   ]
 );
 
