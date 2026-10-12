@@ -1,12 +1,12 @@
 import { and, eq } from 'drizzle-orm';
 import IORedis from 'ioredis';
+import { runLogChannel } from '@/lib/agents/queue/log-channel';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentRuns, adminAgentTasks } from '@/lib/db/schema';
 
 type Params = { params: Promise<{ id: string; runId: string }> };
 
-const LOG_CHANNEL_PREFIX = 'mr-run-log:';
 const SSE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max
 const HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 seconds
 
@@ -38,7 +38,7 @@ export async function GET(_request: Request, { params }: Params) {
   });
 
   const encoder = new TextEncoder();
-  const channel = `${LOG_CHANNEL_PREFIX}${runIdNum}`;
+  const channel = runLogChannel(runIdNum);
   let timeout: ReturnType<typeof setTimeout>;
   let heartbeat: ReturnType<typeof setInterval>;
 

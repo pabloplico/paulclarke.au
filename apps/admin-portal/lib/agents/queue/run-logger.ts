@@ -3,14 +3,13 @@ import IORedis from 'ioredis';
 import { db } from '@/lib/db';
 import { adminAgentRuns } from '@/lib/db/schema';
 import { logger } from '@/lib/logger';
+import { runLogChannel } from './log-channel';
 
 const log = logger.child({ module: 'run-logger' });
 
 const publisher = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
 });
-
-const LOG_CHANNEL_PREFIX = 'agent-run-log:';
 
 /** Append a log entry to the DB and publish to Redis for live SSE. */
 export async function publishRunLog(runId: number, message: string, level = 'info'): Promise<void> {
@@ -36,14 +35,12 @@ export async function publishRunLog(runId: number, message: string, level = 'inf
     );
 
   // Publish to Redis for live SSE subscribers
-  await publisher
-    .publish(`${LOG_CHANNEL_PREFIX}${runId}`, JSON.stringify(entry))
-    .catch((err: unknown) =>
-      log.warn('Redis publish failed', {
-        runId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    );
+  await publisher.publish(runLogChannel(runId), JSON.stringify(entry)).catch((err: unknown) =>
+    log.warn('Redis publish failed', {
+      runId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  );
 }
 
 /** Append a tool call entry to the DB and publish to Redis. */
@@ -76,14 +73,12 @@ export async function publishToolCall(
       })
     );
 
-  await publisher
-    .publish(`${LOG_CHANNEL_PREFIX}${runId}`, JSON.stringify(entry))
-    .catch((err: unknown) =>
-      log.warn('Redis publish failed', {
-        runId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    );
+  await publisher.publish(runLogChannel(runId), JSON.stringify(entry)).catch((err: unknown) =>
+    log.warn('Redis publish failed', {
+      runId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  );
 }
 
 export async function publishRunComplete(
@@ -91,7 +86,7 @@ export async function publishRunComplete(
   status: 'completed' | 'failed'
 ): Promise<void> {
   await publisher
-    .publish(`${LOG_CHANNEL_PREFIX}${runId}`, JSON.stringify({ done: true, status }))
+    .publish(runLogChannel(runId), JSON.stringify({ done: true, status }))
     .catch((err: unknown) =>
       log.warn('Redis publish failed', {
         runId,
