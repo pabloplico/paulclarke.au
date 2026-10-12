@@ -2,22 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
-// Capture the BullMQ processor registered at module scope in worker.ts
-const capturedProcessor = vi.hoisted(() => ({ current: null as unknown }));
+// Capture the processor worker.ts registers at module scope
+const capturedProcessor = vi.hoisted(() => ({ current: null as unknown, opts: null as unknown }));
 
 // DB mock chains — hoisted because worker.ts imports db at module scope
 const mockDbUpdate = vi.hoisted(() => vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })));
 const mockDbSelect = vi.hoisted(() => vi.fn());
 
-vi.mock('bullmq', () => ({
-  Worker: vi.fn((_name: string, processor: unknown) => {
-    capturedProcessor.current = processor;
-    return { on: vi.fn() };
-  }),
-}));
-
-vi.mock('ioredis', () => ({
-  default: vi.fn(),
+// The queue seam: capture the processor the worker registers
+vi.mock('@/lib/queue', () => ({
+  createJobQueue: vi.fn((name: string) => ({
+    name,
+    add: vi.fn(),
+    process: vi.fn((handler: unknown, opts: unknown) => {
+      capturedProcessor.current = handler;
+      capturedProcessor.opts = opts;
+    }),
+  })),
 }));
 
 vi.mock('@/lib/config', () => ({
@@ -377,17 +378,14 @@ describe('processRouting (worker)', () => {
     expect(buildWorkspaceMap).toHaveBeenCalledWith(undefined);
   });
 
-  it('registers a BullMQ Worker on import with correct queue name', async () => {
+  it('registers a processor on the workspace-routing queue on import', async () => {
     vi.resetModules();
 
     await import('./worker');
 
-    const { Worker } = await import('bullmq');
-    expect(Worker).toHaveBeenCalledWith(
-      'workspace-routing',
-      expect.any(Function),
-      expect.objectContaining({ concurrency: 1 })
-    );
-    expect(capturedProcessor.current).toBeDefined();
+    const { createJobQueue } = await import('@/lib/queue');
+    expect(createJobQueue).toHaveBeenCalledWith('workspace-routing', expect.any(Object));
+    expect(capturedProcessor.current).toEqual(expect.any(Function));
+    expect(capturedProcessor.opts).toEqual({ concurrency: 1 });
   });
 });

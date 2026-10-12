@@ -2,15 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
-// Must be hoisted because routingQueue is instantiated at module scope in queue.ts
+// Must be hoisted because routingQueue is created at module scope in queue.ts
 const mockQueueAdd = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
-vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => ({ add: mockQueueAdd })),
-}));
-
-vi.mock('ioredis', () => ({
-  default: vi.fn(),
+vi.mock('@/lib/queue', () => ({
+  createJobQueue: vi.fn(() => ({ add: mockQueueAdd })),
 }));
 
 vi.mock('@/lib/config', () => ({
@@ -73,18 +69,15 @@ describe('queueRouting', () => {
     );
   });
 
-  it('instantiates Queue with correct queue name on import', async () => {
+  it('creates the workspace-routing queue with the configured retry policy', async () => {
     await getModule();
 
-    const { Queue } = await import('bullmq');
-    expect(Queue).toHaveBeenCalledWith(
-      'workspace-routing',
-      expect.objectContaining({
-        defaultJobOptions: expect.objectContaining({
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-        }),
-      })
-    );
+    const { createJobQueue } = await import('@/lib/queue');
+    expect(createJobQueue).toHaveBeenCalledWith('workspace-routing', {
+      attempts: 3,
+      backoffDelayMs: 5000,
+      removeOnComplete: 100,
+      removeOnFail: 50,
+    });
   });
 });

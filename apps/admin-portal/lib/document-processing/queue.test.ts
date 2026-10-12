@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockAdd = vi.fn();
+const mockAdd = vi.hoisted(() => vi.fn());
 
-vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => ({ add: mockAdd })),
-}));
-
-vi.mock('ioredis', () => ({
-  default: vi.fn(),
+vi.mock('@/lib/queue', () => ({
+  createJobQueue: vi.fn(() => ({ add: mockAdd })),
 }));
 
 vi.mock('@/lib/config', () => ({

@@ -48,11 +48,11 @@ export async function POST(_request: Request, { params }: Params) {
 
   // Attempt to remove the BullMQ job (best-effort)
   try {
-    const { researchQueue } = await import('@/lib/agents/queue/research-queue');
-    const { ingestionQueue } = await import('@/lib/agents/queue/ingestion-queue');
-    const { analysisQueue } = await import('@/lib/agents/queue/analysis-queue');
+    const { getResearchQueue } = await import('@/lib/agents/queue/research-queue');
+    const { getIngestionQueue } = await import('@/lib/agents/queue/ingestion-queue');
+    const { getAnalysisQueue } = await import('@/lib/agents/queue/analysis-queue');
 
-    for (const queue of [researchQueue, ingestionQueue, analysisQueue]) {
+    for (const queue of [getResearchQueue(), getIngestionQueue(), getAnalysisQueue()]) {
       const jobs = await queue.getJobs(['active', 'waiting', 'delayed']);
       for (const job of jobs) {
         if (job.data?.taskId === result.run.taskId) {

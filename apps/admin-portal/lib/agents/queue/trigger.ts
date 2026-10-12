@@ -1,9 +1,9 @@
-import { analysisQueue } from './analysis-queue';
-import { ingestionQueue } from './ingestion-queue';
-import { researchQueue } from './research-queue';
+import { getAnalysisQueue } from './analysis-queue';
+import { getIngestionQueue } from './ingestion-queue';
+import { getResearchQueue } from './research-queue';
 
 export async function triggerResearchTask(taskId: number, userId: number): Promise<string> {
-  const job = await researchQueue.add(
+  const job = await getResearchQueue().add(
     'research',
     { taskId, userId },
     { jobId: `research-${taskId}-${Date.now()}` }
@@ -18,7 +18,7 @@ export async function triggerIngestionTask(
   fileType: 'pdf' | 'csv',
   workspaceId: number
 ): Promise<string> {
-  const job = await ingestionQueue.add(
+  const job = await getIngestionQueue().add(
     'ingest',
     { taskId, userId, filePath, fileType, workspaceId },
     { jobId: `ingest-${taskId}-${Date.now()}` }
@@ -27,7 +27,7 @@ export async function triggerIngestionTask(
 }
 
 export async function triggerAnalysisTask(taskId: number, userId: number): Promise<string> {
-  const job = await analysisQueue.add(
+  const job = await getAnalysisQueue().add(
     'analysis',
     { taskId, userId },
     { jobId: `analysis-${taskId}-${Date.now()}` }

@@ -9,7 +9,7 @@ import { adminUsers } from '@/lib/db/schema';
 export async function POST(request: Request) {
   // --- Rate limit by IP ---
   const ip = getClientIp(request);
-  const ipCheck = ipLimiter.check(ip);
+  const ipCheck = await ipLimiter.check(ip);
   if (!ipCheck.allowed) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       }
     );
   }
-  ipLimiter.record(ip);
+  await ipLimiter.record(ip);
 
   const body = await request.json();
   const { email, password } = body as { email?: string; password?: string };
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   // --- Rate limit by email (failed attempts) ---
   const emailKey = `email:${email.toLowerCase()}`;
-  const emailCheck = emailLimiter.check(emailKey);
+  const emailCheck = await emailLimiter.check(emailKey);
   if (!emailCheck.allowed) {
     return NextResponse.json(
       { error: 'Too many failed login attempts. Please try again later.' },
@@ -48,18 +48,18 @@ export async function POST(request: Request) {
 
   const user = await getUserByEmail(email);
   if (!user) {
-    emailLimiter.record(emailKey);
+    await emailLimiter.record(emailKey);
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
   const valid = await verifyPassword(user.passwordHash, password);
   if (!valid) {
-    emailLimiter.record(emailKey);
+    await emailLimiter.record(emailKey);
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
   // Success — reset per-email limiter
-  emailLimiter.reset(emailKey);
+  await emailLimiter.reset(emailKey);
 
   // Update last login
   await db.update(adminUsers).set({ lastLoginAt: new Date() }).where(eq(adminUsers.id, user.id));

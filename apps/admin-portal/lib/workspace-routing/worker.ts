@@ -1,14 +1,13 @@
-import type { Job } from 'bullmq';
-import { Worker } from 'bullmq';
 import { eq } from 'drizzle-orm';
-import IORedis from 'ioredis';
 import { config } from '@/lib/config';
 import { db } from '@/lib/db';
 import { adminDocuments, adminInboxItems } from '@/lib/db/schema';
+import type { JobContext } from '@/lib/queue';
+import { routingQueue } from './queue';
 import { buildWorkspaceMap, routeMaterial } from './router';
 import type { RoutingJobData } from './types';
 
-async function processRouting(job: Job<RoutingJobData>): Promise<void> {
+async function processRouting(job: JobContext<RoutingJobData>): Promise<void> {
   const { inboxItemId } = job.data;
 
   const [item] = await db.select().from(adminInboxItems).where(eq(adminInboxItems.id, inboxItemId));
@@ -84,46 +83,26 @@ async function processRouting(job: Job<RoutingJobData>): Promise<void> {
 
 // ── Start worker ─────────────────────────────────────────────────────────────
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+/** Wraps processRouting with error recording; a thrown error is retried by the queue. */
+export async function handleRoutingJob(job: JobContext<RoutingJobData>): Promise<void> {
+  try {
+    await processRouting(job);
+    console.log(`[routing-worker] Inbox item ${job.data.inboxItemId} routed successfully`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown routing error';
+    console.error(`[routing-worker] Inbox item ${job.data.inboxItemId} failed:`, message);
 
-const worker = new Worker<RoutingJobData>(
-  'workspace-routing',
-  async (job) => {
-    try {
-      await processRouting(job);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown routing error';
-      console.error(`[routing-worker] Inbox item ${job.data.inboxItemId} failed:`, message);
+    await db
+      .update(adminInboxItems)
+      .set({
+        status: 'failed',
+        processingError: message,
+        processedAt: new Date(),
+      })
+      .where(eq(adminInboxItems.id, job.data.inboxItemId));
 
-      await db
-        .update(adminInboxItems)
-        .set({
-          status: 'failed',
-          processingError: message,
-          processedAt: new Date(),
-        })
-        .where(eq(adminInboxItems.id, job.data.inboxItemId));
-
-      throw error;
-    }
-  },
-  {
-    connection,
-    concurrency: config.queue.routing.concurrency,
+    throw error;
   }
-);
+}
 
-worker.on('completed', (job) => {
-  console.log(`[routing-worker] Inbox item ${job.data.inboxItemId} routed successfully`);
-});
-
-worker.on('failed', (job, err) => {
-  console.error(
-    `[routing-worker] Inbox item ${job?.data.inboxItemId} failed permanently:`,
-    err.message
-  );
-});
-
-export { worker };
+routingQueue.process(handleRoutingJob, { concurrency: config.queue.routing.concurrency });

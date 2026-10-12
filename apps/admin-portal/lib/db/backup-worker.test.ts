@@ -41,9 +41,9 @@ beforeEach(() => {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('backup-worker', () => {
-  it('TC-009-WORKER-01 — Worker and scheduler registered on import (happy path)', async () => {
+  it('TC-009-WORKER-01 — Worker and scheduler registered on start (happy path)', async () => {
     vi.resetModules();
-    await import('./backup-worker');
+    (await import('./backup-worker')).startBackupWorker();
 
     const { Queue, Worker } = await import('bullmq');
 
@@ -80,7 +80,7 @@ describe('backup-worker', () => {
     vi.mocked(createBackup).mockResolvedValue(backupInfo);
     vi.mocked(pruneOldBackups).mockResolvedValue(0);
 
-    await import('./backup-worker');
+    (await import('./backup-worker')).startBackupWorker();
     const processor = capturedProcessor.current!;
 
     const result = await processor({ id: 'job-1' });
@@ -102,7 +102,7 @@ describe('backup-worker', () => {
     const { createBackup, pruneOldBackups } = await import('./backup');
     vi.mocked(createBackup).mockRejectedValue(new Error('pg_dump failed'));
 
-    await import('./backup-worker');
+    (await import('./backup-worker')).startBackupWorker();
     const processor = capturedProcessor.current!;
 
     await expect(processor({ id: 'job-2' })).rejects.toThrow('pg_dump failed');
@@ -123,7 +123,7 @@ describe('backup-worker', () => {
     vi.mocked(createBackup).mockResolvedValue(backupInfo);
     vi.mocked(pruneOldBackups).mockRejectedValue(new Error('unlink failed'));
 
-    await import('./backup-worker');
+    (await import('./backup-worker')).startBackupWorker();
     const processor = capturedProcessor.current!;
 
     await expect(processor({ id: 'job-3' })).rejects.toThrow('unlink failed');

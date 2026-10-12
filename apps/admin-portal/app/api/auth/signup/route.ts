@@ -9,7 +9,7 @@ import { seedDefaultWorkspace } from '@/lib/onboarding/seed-default-workspace';
 export async function POST(request: Request) {
   // --- Rate limit by IP ---
   const ip = getClientIp(request);
-  const ipCheck = ipLimiter.check(ip);
+  const ipCheck = await ipLimiter.check(ip);
   if (!ipCheck.allowed) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       }
     );
   }
-  ipLimiter.record(ip);
+  await ipLimiter.record(ip);
 
   const body = await request.json();
   const { email, password, name } = body as { email?: string; password?: string; name?: string };

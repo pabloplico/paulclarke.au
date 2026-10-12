@@ -22,13 +22,13 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/auth/rate-limiter', () => ({
   ipLimiter: {
-    check: vi.fn(() => ({ allowed: true, retryAfterSeconds: 0 })),
-    record: vi.fn(),
+    check: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
+    record: vi.fn(async () => {}),
   },
   emailLimiter: {
-    check: vi.fn(() => ({ allowed: true, retryAfterSeconds: 0 })),
-    record: vi.fn(),
-    reset: vi.fn(),
+    check: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
+    record: vi.fn(async () => {}),
+    reset: vi.fn(async () => {}),
   },
   getClientIp: vi.fn(() => '127.0.0.1'),
 }));
@@ -82,8 +82,8 @@ beforeEach(async () => {
   mockCreateSession.mockResolvedValue('mock-jwt-token');
   // Reset rate limiters to allowed state (clearAllMocks does not reset mockReturnValue)
   const { ipLimiter, emailLimiter } = await import('@/lib/auth/rate-limiter');
-  vi.mocked(ipLimiter.check).mockReturnValue({ allowed: true, retryAfterSeconds: 0 });
-  vi.mocked(emailLimiter.check).mockReturnValue({ allowed: true, retryAfterSeconds: 0 });
+  vi.mocked(ipLimiter.check).mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+  vi.mocked(emailLimiter.check).mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ describe('POST /api/auth/login', () => {
 
   it('returns 429 when IP rate limited', async () => {
     const { ipLimiter } = await import('@/lib/auth/rate-limiter');
-    vi.mocked(ipLimiter.check).mockReturnValue({ allowed: false, retryAfterSeconds: 60 });
+    vi.mocked(ipLimiter.check).mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
     const POST = await getHandler();
     const response = await POST(makeRequest({ email: 'test@test.com', password: 'password1' }));
     expect(response.status).toBe(429);
@@ -186,7 +186,7 @@ describe('POST /api/auth/login', () => {
 
   it('returns 429 when email rate limited', async () => {
     const { emailLimiter } = await import('@/lib/auth/rate-limiter');
-    vi.mocked(emailLimiter.check).mockReturnValue({ allowed: false, retryAfterSeconds: 30 });
+    vi.mocked(emailLimiter.check).mockResolvedValue({ allowed: false, retryAfterSeconds: 30 });
     const POST = await getHandler();
     const response = await POST(makeRequest({ email: 'test@test.com', password: 'password1' }));
     expect(response.status).toBe(429);
