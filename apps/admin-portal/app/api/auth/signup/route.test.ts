@@ -85,7 +85,7 @@ function makeRequest(body: Record<string, unknown>): Request {
   });
 }
 
-const createdUser = { id: 1, email: 'alice@test.com', name: 'Alice', role: 'admin' };
+const createdUser = { id: 1, email: 'alice@test.com', name: 'Alice', role: 'member' };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -188,7 +188,13 @@ describe('POST /api/auth/signup', () => {
     expect(body.id).toBe(1);
     expect(body.email).toBe('alice@test.com');
     expect(body.name).toBe('Alice');
-    expect(body.role).toBe('admin');
+    expect(body.role).toBe('member');
+  });
+
+  it('creates the account as a member, never an admin', async () => {
+    const POST = await getHandler();
+    await POST(makeRequest({ name: 'Alice', email: 'alice@test.com', password: 'password1' }));
+    expect(capturedInsertValues?.role).toBe('member');
   });
 
   it('sets session cookie on successful signup', async () => {

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { validateFileUpload } from './upload-validation';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { rejectOversizedDemoRequest, validateFileUpload } from './upload-validation';
 
 vi.mock('./parsers', () => ({
   supportedMimeTypes: [
@@ -161,5 +161,79 @@ describe('validateFileUpload', () => {
     expect(result).toMatchObject({ valid: false, status: 413 });
 
     configModule.config.upload = original;
+  });
+});
+
+describe('demo uploads', () => {
+  const saved = process.env.DEMO_MODE;
+  beforeEach(() => {
+    process.env.DEMO_MODE = 'true';
+  });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.DEMO_MODE;
+    else process.env.DEMO_MODE = saved;
+  });
+
+  it('accepts Markdown, plain text and CSV up to 2 MB', () => {
+    for (const [name, type] of [
+      ['notes.md', 'text/markdown'],
+      ['notes.txt', 'text/plain'],
+      ['sales.csv', 'text/csv'],
+      ['notes.md', ''],
+    ] as const) {
+      expect(validateFileUpload(makeFile(name, 2 * 1024 * 1024, type)).valid, name).toBe(true);
+    }
+  });
+
+  it('refuses PDF and DOCX, even ones the full app accepts', () => {
+    expect(validateFileUpload(makeFile('a.pdf', 1000, 'application/pdf'))).toMatchObject({
+      valid: false,
+      status: 400,
+    });
+    const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    expect(validateFileUpload(makeFile('a.docx', 1000, docx)).valid).toBe(false);
+  });
+
+  it('needs both an allowed extension and a text type', () => {
+    expect(validateFileUpload(makeFile('a.md', 1000, 'application/pdf')).valid).toBe(false);
+    expect(validateFileUpload(makeFile('a.pdf', 1000, 'text/plain')).valid).toBe(false);
+  });
+
+  it('refuses anything over 2 MB', () => {
+    expect(
+      validateFileUpload(makeFile('big.txt', 2 * 1024 * 1024 + 1, 'text/plain'))
+    ).toMatchObject({
+      valid: false,
+      status: 413,
+    });
+  });
+});
+
+describe('rejectOversizedDemoRequest', () => {
+  const saved = process.env.DEMO_MODE;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.DEMO_MODE;
+    else process.env.DEMO_MODE = saved;
+  });
+
+  const post = (headers: Record<string, string>) =>
+    new Request('http://test/api/inbox', { method: 'POST', headers });
+
+  it('does nothing outside demo mode', () => {
+    delete process.env.DEMO_MODE;
+    expect(rejectOversizedDemoRequest(post({}))).toBeNull();
+  });
+
+  it('refuses a body over the limit before it is read', () => {
+    process.env.DEMO_MODE = 'true';
+    expect(
+      rejectOversizedDemoRequest(post({ 'content-length': String(5 * 1024 * 1024) }))?.status
+    ).toBe(413);
+    expect(rejectOversizedDemoRequest(post({ 'content-length': String(1024 * 1024) }))).toBeNull();
+  });
+
+  it('refuses a body of unknown size', () => {
+    process.env.DEMO_MODE = 'true';
+    expect(rejectOversizedDemoRequest(post({}))?.status).toBe(411);
   });
 });

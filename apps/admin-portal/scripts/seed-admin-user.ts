@@ -1,43 +1,41 @@
-import bcrypt from 'bcryptjs';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from '../lib/db/schema';
-
-const { adminUsers } = schema;
-
-if (!process.env.DATABASE_URL) {
-  console.error('ERROR: DATABASE_URL environment variable is required');
-  process.exit(1);
-}
-const connectionString: string = process.env.DATABASE_URL;
-const client = postgres(connectionString);
-const db = drizzle(client, { schema });
-
-const email = (process.env.ADMIN_EMAIL ?? 'admin@example.com').toLowerCase();
-const password = process.env.ADMIN_PASSWORD ?? 'admin123';
-const name = process.env.ADMIN_NAME ?? 'Admin';
+/**
+ * Creates the admin account.
+ *
+ *   ADMIN_EMAIL=you@example.com pnpm db:seed-admin                      # random password, printed once
+ *   ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=… pnpm db:seed-admin     # your own password
+ *
+ * Uses the database DB_DRIVER selects (Postgres via DATABASE_URL, or PGlite).
+ * Does nothing if the email already has an account.
+ */
+import { dbDriver } from '@/lib/drivers';
 
 async function main() {
-  console.log(`Seeding admin user: ${email}`);
-
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  const [user] = await db
-    .insert(adminUsers)
-    .values({ email, passwordHash, name, role: 'admin' })
-    .onConflictDoNothing({ target: adminUsers.email })
-    .returning({ id: adminUsers.id, email: adminUsers.email });
-
-  if (user) {
-    console.log(`Created admin user: ${user.email} (id: ${user.id})`);
-  } else {
-    console.log(`Admin user ${email} already exists, skipping.`);
+  if (dbDriver() === 'pglite') {
+    const { ensurePgliteReady } = await import('@/lib/db/pglite');
+    await ensurePgliteReady();
+  } else if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required');
   }
 
-  await client.end();
+  const { seedAdminUser } = await import('@/lib/auth/seed-admin');
+  const result = await seedAdminUser({
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD,
+    name: process.env.ADMIN_NAME,
+  });
+
+  if (!result.created) {
+    console.log(`An account for ${result.email} already exists; nothing changed.`);
+  } else if (result.generatedPassword) {
+    console.log(`Created admin ${result.email}. Password (shown once, store it now):`);
+    console.log(result.generatedPassword);
+  } else {
+    console.log(`Created admin ${result.email} with the password from ADMIN_PASSWORD.`);
+  }
+  process.exit(0);
 }
 
-main().catch((err) => {
-  console.error('Failed to seed admin user:', err);
+main().catch((error) => {
+  console.error(`Failed to seed the admin user: ${error instanceof Error ? error.message : error}`);
   process.exit(1);
 });

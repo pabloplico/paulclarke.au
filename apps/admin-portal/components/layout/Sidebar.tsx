@@ -22,6 +22,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { useHrefVisible } from '@/components/demo/demo-features';
 import { cn } from '@/lib/utils';
 
 type NavItem = { label: string; href: string; icon: LucideIcon; adminOnly?: boolean };
@@ -118,7 +119,13 @@ export function Sidebar({
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
-  const visibleSystem = SYSTEM_NAV.filter((item) => !item.adminOnly || userRole === 'admin');
+  // Demo mode hides switched-off pages (the middleware refuses them anyway)
+  const hrefVisible = useHrefVisible();
+  const visibleKnowledge = knowledgeNav.filter((item) => hrefVisible(item.href));
+  const visibleOps = opsNav.filter((item) => hrefVisible(item.href));
+  const visibleSystem = SYSTEM_NAV.filter(
+    (item) => (!item.adminOnly || userRole === 'admin') && hrefVisible(item.href)
+  );
 
   const onKnowledgePage = knowledgeNav.some((item) => isActive(item.href));
   const onOpsPage = opsNav.some((item) => isActive(item.href));
@@ -159,7 +166,7 @@ export function Sidebar({
         <NavGroup
           groupLabel="Knowledge"
           groupIcon={BookOpen}
-          items={knowledgeNav}
+          items={visibleKnowledge}
           open={knowledgeOpen}
           onPageInGroup={onKnowledgePage}
           onToggle={() => setKnowledgeOpen(!knowledgeOpen)}
@@ -175,7 +182,7 @@ export function Sidebar({
         <NavGroup
           groupLabel="Operations"
           groupIcon={Briefcase}
-          items={opsNav}
+          items={visibleOps}
           open={opsOpen}
           onPageInGroup={onOpsPage}
           onToggle={() => setOpsOpen(!opsOpen)}

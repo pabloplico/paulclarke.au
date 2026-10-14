@@ -84,15 +84,22 @@ The repo moved from Turborepo to NX in its first pull request. The task graph, t
 
 ## Getting started
 
-Requirements: Node 22 and pnpm 10.28 (`corepack enable` picks up the version from `package.json`). Docker is needed for the admin portal.
+Requirements: Node 22 and pnpm 10.28 (`corepack enable` picks up the version from `package.json`). Docker is optional.
 
 ```bash
 pnpm install
 
-# Website: Vite on :3004, wrangler (Worker API) on :3005
-cd apps/website && pnpm dev
+# Website: Vite on :3004, wrangler (Worker API) on :3005. Generates the blog
+# posts first, then starts both
+pnpm nx run website:dev
 
-# Admin portal: Next.js on :3001 with Postgres + Redis in Docker
+# Admin portal with nothing else running: Next.js on :3001, PGlite database
+# in apps/admin-portal/.pglite, in-process jobs, sign-in off. A new database
+# gets a dev user and a Getting Started workspace. Pass OPENAI_API_KEY (and
+# AI_PROVIDER/AI_MODEL) in the environment for the AI features
+pnpm nx run admin-portal:dev:lite
+
+# Admin portal on the full stack: Postgres + Redis in Docker
 cp .env.docker.example .env.docker      # then fill in values
 cd apps/admin-portal && docker compose up -d
 ```

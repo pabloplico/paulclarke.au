@@ -1,8 +1,8 @@
 /**
  * Deterministic stand-ins for the chat and embedding models, for tests only.
  *
- * They're injected with vi.mock('@/lib/ai/models') in the test file that
- * needs them. Nothing in the app can select them: lib/ai has no "fake"
+ * They're injected with vi.mock('@/lib/ai/providers') in the test file that
+ * needs them, so the AI guard (lib/ai/guard.ts) still wraps them. Nothing in the app can select them: lib/ai has no "fake"
  * provider, so a misconfigured deployment can't end up on fake AI.
  */
 import { MockEmbeddingModelV3, MockLanguageModelV3 } from 'ai/test';
@@ -78,10 +78,13 @@ export function minimalValue(schema: JsonSchema): unknown {
  * has them, e.g. { suggestions: () => [...] } for workspace routing, whose
  * ids the test knows and the model can't invent.
  */
-export function createFakeChatModel(overrides: Record<string, () => unknown> = {}) {
+export function createFakeChatModel(
+  overrides: Record<string, () => unknown> = {},
+  modelId = 'fake-chat'
+) {
   return new MockLanguageModelV3({
     provider: 'fake',
-    modelId: 'fake-chat',
+    modelId,
     doGenerate: async (options) => {
       const format = options.responseFormat;
       let text = 'fake response';
@@ -107,10 +110,10 @@ export function createFakeChatModel(overrides: Record<string, () => unknown> = {
   });
 }
 
-export function createFakeEmbeddingModel() {
+export function createFakeEmbeddingModel(modelId = 'fake-embedding') {
   return new MockEmbeddingModelV3({
     provider: 'fake',
-    modelId: 'fake-embedding',
+    modelId,
     maxEmbeddingsPerCall: 100,
     doEmbed: async ({ values }) => ({
       embeddings: values.map((value) => fakeEmbedding(String(value))),

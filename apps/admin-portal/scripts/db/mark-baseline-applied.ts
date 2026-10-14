@@ -23,11 +23,9 @@ async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is required');
 
-  const migrations = readMigrationFiles({ migrationsFolder: './drizzle' });
-  if (migrations.length !== 1) {
-    throw new Error(`Expected exactly one migration (the baseline), found ${migrations.length}`);
-  }
-  const [baseline] = migrations;
+  // The baseline is always the first migration; later ones are applied
+  // normally by db:migrate once the baseline is recorded
+  const [baseline] = readMigrationFiles({ migrationsFolder: './drizzle' });
   if (!baseline) throw new Error('No baseline migration found');
 
   const sql = postgres(url, { max: 1, onnotice: () => {} });
@@ -82,7 +80,7 @@ async function main() {
         [baseline.hash, baseline.folderMillis]
       );
     });
-    console.log('Recorded the baseline. `pnpm db:migrate` will now skip it.');
+    console.log('Recorded the baseline. Now run `pnpm db:migrate` for any later migrations.');
   } finally {
     await sql.end();
   }

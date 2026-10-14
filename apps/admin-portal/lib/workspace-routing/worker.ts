@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { enterAiUser } from '@/lib/ai/guard';
 import { config } from '@/lib/config';
 import { db } from '@/lib/db';
 import { adminDocuments, adminInboxItems } from '@/lib/db/schema';
@@ -15,6 +16,8 @@ async function processRouting(job: JobContext<RoutingJobData>): Promise<void> {
   if (!item) {
     throw new Error(`Inbox item ${inboxItemId} not found`);
   }
+  // Routing's AI call counts against the item owner's budget
+  if (item.userId) enterAiUser(item.userId);
 
   // Update status to processing
   await db

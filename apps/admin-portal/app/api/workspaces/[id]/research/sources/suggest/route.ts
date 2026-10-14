@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { autoAddSuggestedSources, suggestSourcesForWorkspace } from '@/lib/agents/suggest-sources';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 
 type Params = { params: Promise<{ id: string }> };
@@ -7,6 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(request: Request, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace, user } = resolved;
 
   let body: { autoAdd?: boolean; freeOnly?: boolean } = {};

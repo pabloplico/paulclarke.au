@@ -55,7 +55,8 @@ export async function POST(request: Request) {
       email: email.trim().toLowerCase(),
       passwordHash,
       name: name.trim(),
-      role: 'admin',
+      // Admins come only from scripts/seed-admin-user.ts
+      role: 'member',
     })
     .returning({
       id: adminUsers.id,

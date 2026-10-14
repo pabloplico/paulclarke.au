@@ -1,6 +1,7 @@
 import { streamText } from 'ai';
 import { and, desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
@@ -163,6 +164,7 @@ ${context || 'No relevant sources found for this query.'}`;
 
 export async function POST(request: Request) {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   const parsed = await safeParseJson(request);
   if (parsed.error) return parsed.error;
   const body = parsed.data as ChatRequest;

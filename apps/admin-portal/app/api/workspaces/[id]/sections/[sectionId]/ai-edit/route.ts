@@ -1,6 +1,7 @@
 import { generateObject, generateText } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { checkFidelity, recordProvenance } from '@/lib/ai/semantic-fidelity';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
@@ -28,6 +29,7 @@ const ACTION_PROMPTS: Record<string, string> = {
 export async function POST(request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceSectionParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { section } = resolved;
 
   const parsed = await safeParseJson(request);

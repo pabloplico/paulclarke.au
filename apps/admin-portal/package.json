@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001 --hostname 0.0.0.0",
-    "build": "next build",
+    "build": "next build && node scripts/prune-standalone.mjs",
     "start": "next start --port 3001",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -14,9 +14,11 @@
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "db:seed-admin": "npx tsx scripts/seed-admin-user.ts",
+    "db:seed-admin": "tsx scripts/seed-admin-user.ts",
     "db:check-fresh": "tsx scripts/db/check-fresh-db.ts",
-    "db:mark-baseline": "tsx scripts/db/mark-baseline-applied.ts"
+    "db:mark-baseline": "tsx scripts/db/mark-baseline-applied.ts",
+    "dev:lite": "tsx scripts/dev-lite.ts",
+    "ai:smoke": "tsx scripts/ai-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",

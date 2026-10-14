@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
@@ -23,6 +24,7 @@ const suggestionSchema = z.object({
 
 export async function POST() {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
 
   // Fetch all non-archived workspaces
   const workspaces = await db

@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
@@ -16,6 +17,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace } = resolved;
 
   const parsed = await safeParseJson(request);

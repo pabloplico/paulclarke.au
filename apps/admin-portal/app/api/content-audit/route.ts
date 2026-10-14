@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
@@ -28,6 +29,7 @@ export async function GET() {
 
 export async function POST() {
   const user = await requireAuthApi();
+  await requireAiAllowance(user);
   // 1. Fetch blog posts from business-portal API
   let posts: { slug: string; title: string; date: string; content: string }[] = [];
   try {

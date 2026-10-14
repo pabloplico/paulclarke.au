@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { safeParseJson } from '@/lib/api/safe-json';
-import { requireAuthApi } from '@/lib/auth/server';
+import { requireAdminApi, requireAuthApi } from '@/lib/auth/server';
 import { SETTING_KEYS } from '@/lib/config';
 import { loadConfig } from '@/lib/config.server';
 import { updateSettings } from '@/lib/settings';
@@ -19,7 +19,9 @@ const patchSchema = z
   });
 
 export async function PATCH(request: Request) {
-  await requireAuthApi();
+  // Settings are global (shared by every user), so only an admin may change
+  // them. In demo mode the middleware refuses the request before it gets here
+  await requireAdminApi();
   const jsonResult = await safeParseJson(request);
   if (jsonResult.error) return jsonResult.error;
   const body = jsonResult.data as Record<string, string | number | boolean>;

@@ -1,9 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { adminUsers } from '@/lib/db/schema';
-import { SESSION_COOKIE_NAME, validateSession } from './index';
+import { isDemoMode } from '@/lib/demo';
+import { verifyAccessRequest } from './access';
+import { hashPassword, SESSION_COOKIE_NAME, validateSession } from './index';
 
 export type AuthUser = {
   id: number;
@@ -34,7 +37,57 @@ function isAuthDisabled(): boolean {
   return process.env.AUTH_ENABLED === 'false';
 }
 
+const userColumns = {
+  id: adminUsers.id,
+  email: adminUsers.email,
+  name: adminUsers.name,
+  role: adminUsers.role,
+};
+
+/**
+ * The user for a verified Cloudflare Access email, created as a `member` on
+ * first visit. Safe when two first requests race: the insert does nothing if
+ * the email already exists, and both then read the same row.
+ *
+ * The account has a random password nobody knows, so it can only be reached
+ * through Access.
+ */
+export async function findOrCreateAccessUser(email: string): Promise<AuthUser | null> {
+  const [existing] = await db
+    .select(userColumns)
+    .from(adminUsers)
+    .where(eq(adminUsers.email, email))
+    .limit(1);
+  if (existing) return existing;
+
+  await db
+    .insert(adminUsers)
+    .values({
+      email,
+      name: email.split('@')[0] || email,
+      passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
+      role: 'member',
+    })
+    .onConflictDoNothing({ target: adminUsers.email });
+  const [user] = await db
+    .select(userColumns)
+    .from(adminUsers)
+    .where(eq(adminUsers.email, email))
+    .limit(1);
+  return user ?? null;
+}
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  if (isDemoMode()) {
+    // The middleware has already checked the token; check it again here so
+    // nothing depends on a header the middleware might have passed through
+    const identity = await verifyAccessRequest(await headers());
+    if (!identity) return null;
+    const user = await findOrCreateAccessUser(identity.email);
+    // Nobody is an admin in the demo, whatever the database row says
+    return user ? { ...user, role: 'member' } : null;
+  }
+
   if (isAuthDisabled()) return getDevUser();
 
   const cookieStore = await cookies();

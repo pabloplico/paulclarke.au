@@ -1,5 +1,7 @@
 import { jwtVerify } from 'jose';
 import { type NextRequest, NextResponse } from 'next/server';
+import { AccessConfigError, verifyAccessRequest } from '@/lib/auth/access';
+import { isDemoMode, isDemoRequestBlocked, isDemoRouteDisabled } from '@/lib/demo';
 
 const SESSION_COOKIE_NAME = 'admin-session';
 
@@ -13,6 +15,16 @@ function getSecret() {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // The dev identity bypass must never run in production, whatever the mode
+  if (process.env.DEV_ACCESS_IDENTITY && process.env.NODE_ENV === 'production') {
+    console.error('FATAL: DEV_ACCESS_IDENTITY is set in production. Blocking all requests.');
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+  }
+
+  // Demo mode: Cloudflare Access is the only way in, checked before anything
+  // else (no public paths, no AUTH_ENABLED switch)
+  if (isDemoMode()) return demoMiddleware(request);
 
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
@@ -46,6 +58,50 @@ export async function middleware(request: NextRequest) {
   } catch {
     return redirectOrUnauthorized(request);
   }
+}
+
+async function demoMiddleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isApi = pathname.startsWith('/api');
+
+  let identity: Awaited<ReturnType<typeof verifyAccessRequest>>;
+  try {
+    identity = await verifyAccessRequest(request.headers);
+  } catch (error) {
+    if (!(error instanceof AccessConfigError)) throw error;
+    console.error(`FATAL: ${error.message}. Blocking all requests.`);
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+  }
+  if (!identity) {
+    return isApi
+      ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      : new NextResponse('Sign in through Cloudflare Access to use this demo.', { status: 401 });
+  }
+
+  // A visitor's browser sends the Access cookie with requests from any site,
+  // so another page could make it POST here and spend their AI budget.
+  // Browsers say where a request came from in Sec-Fetch-Site; anything that
+  // changes state must come from this app's own pages. (A request without
+  // the header, e.g. curl, still needs the signed Access token above.)
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if (
+    request.method !== 'GET' &&
+    request.method !== 'HEAD' &&
+    fetchSite !== null &&
+    fetchSite !== 'same-origin'
+  ) {
+    return NextResponse.json({ error: 'Cross-site request refused' }, { status: 403 });
+  }
+
+  if (isDemoRouteDisabled(pathname)) {
+    return isApi
+      ? NextResponse.json({ error: 'Not found' }, { status: 404 })
+      : new NextResponse('Not found', { status: 404 });
+  }
+  const blocked = isDemoRequestBlocked(pathname, request.method);
+  if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
+
+  return NextResponse.next();
 }
 
 function redirectOrUnauthorized(request: NextRequest) {

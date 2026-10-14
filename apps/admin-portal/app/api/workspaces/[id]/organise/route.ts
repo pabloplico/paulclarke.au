@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { loadConfig } from '@/lib/config.server';
@@ -27,6 +28,7 @@ const suggestionSchema = z.object({
 export async function POST(request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
+  await requireAiAllowance(resolved.user);
   const { workspace } = resolved;
 
   const body = await request.json().catch(() => ({}));
