@@ -40,7 +40,7 @@ export const PROJECTS: Project[] = [
       'typed parsing pipeline with quality gates',
       'background job queues',
       'AI edits with diff preview',
-      '919 unit tests',
+      '1,046 unit tests',
     ],
     stack: [
       'Next.js',
