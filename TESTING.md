@@ -2,8 +2,8 @@
 
 | Layer         | Tool                                                                | Website                                                              | Admin portal                          |
 | ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1042 tests (node)                     |
-| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 19 spec files, needs Postgres + Redis |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1046 tests (node)                     |
+| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 20 spec files, needs Postgres + Redis |
 | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                               |
 | Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)              |
 
@@ -108,7 +108,7 @@ FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… TEST_REDIS_URL=redis://�
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
-These need the admin dev stack (`cd apps/admin-portal && docker compose up -d`). `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev` if nothing is running. Selected specs:
+These need the admin dev stack (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`). `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev` if nothing is running. Selected specs:
 
 | File                           | What it covers                                              |
 | ------------------------------ | ----------------------------------------------------------- |
