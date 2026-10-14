@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { VersionDiff } from '@/app/(authenticated)/workspaces/[slug]/sections/version-diff';
 import { useFeatureEnabled } from '@/components/demo/demo-features';
+import { toastAiRefusal } from '@/lib/ai/refusal-toast';
 import type { ContentAuditFinding, GapFinding } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import {
@@ -338,6 +339,7 @@ export function GapAnalysisView({ workspaces, contentAuditReport }: GapAnalysisV
     setGapFixPreview(null);
 
     const res = await fetch(`/api/workspaces/${wsId}/gap-analysis`, { method: 'POST' });
+    await toastAiRefusal(res);
     if (res.ok) {
       const data = await res.json();
       setWorkspaceData((prev) =>

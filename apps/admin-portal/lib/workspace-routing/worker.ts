@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { enterAiUser } from '@/lib/ai/guard';
+import { enterAiUser, isPermanentAiError } from '@/lib/ai/guard';
 import { config } from '@/lib/config';
 import { db } from '@/lib/db';
 import { adminDocuments, adminInboxItems } from '@/lib/db/schema';
@@ -86,7 +86,10 @@ async function processRouting(job: JobContext<RoutingJobData>): Promise<void> {
 
 // ── Start worker ─────────────────────────────────────────────────────────────
 
-/** Wraps processRouting with error recording; a thrown error is retried by the queue. */
+/**
+ * Wraps processRouting with error recording. A thrown error is retried by the
+ * queue, except a spent budget or an unattributed call, which won't fix itself.
+ */
 export async function handleRoutingJob(job: JobContext<RoutingJobData>): Promise<void> {
   try {
     await processRouting(job);
@@ -104,6 +107,10 @@ export async function handleRoutingJob(job: JobContext<RoutingJobData>): Promise
       })
       .where(eq(adminInboxItems.id, job.data.inboxItemId));
 
+    if (isPermanentAiError(error)) {
+      job.discard();
+      return;
+    }
     throw error;
   }
 }

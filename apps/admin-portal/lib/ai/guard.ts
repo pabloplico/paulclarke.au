@@ -5,7 +5,7 @@ import type {
   LanguageModel,
   LanguageModelMiddleware,
 } from 'ai';
-import { wrapEmbeddingModel, wrapLanguageModel } from 'ai';
+import { APICallError, wrapEmbeddingModel, wrapLanguageModel } from 'ai';
 import { isDemoMode } from '@/lib/demo';
 import { costUsd, type TokenUsage } from './pricing';
 import { spendLedger } from './usage-logger';
@@ -21,6 +21,8 @@ import { spendLedger } from './usage-logger';
  * - After a call: its cost is priced from the token usage and recorded.
  * - In demo mode, a call that can't be tied to a user is refused, so spend
  *   can't escape the per-user cap through some path nobody thought of.
+ * - A provider error saying the account or project budget is spent becomes
+ *   AiBudgetError, so neither the AI SDK nor the job queue retries it.
  *
  * Calls are tied to a user by withAiUser() (queue workers), or else by the
  * signed-in user of the current request.
@@ -37,6 +39,57 @@ export class AiAttributionError extends Error {
   constructor() {
     super('AI call with no user attached; demo mode refuses unattributed AI calls');
     this.name = 'AiAttributionError';
+  }
+}
+
+/** Errors that won't go away on retry: queue workers discard the job. */
+export function isPermanentAiError(error: unknown): boolean {
+  return error instanceof AiBudgetError || error instanceof AiAttributionError;
+}
+
+/**
+ * OpenAI's codes for a 429 that means the money has run out, not that
+ * requests came too fast: insufficient_quota (account credit or plan limit)
+ * and project_spend_limit_exceeded (the project's hard limit).
+ */
+const SPEND_LIMIT_CODES = new Set(['insufficient_quota', 'project_spend_limit_exceeded']);
+
+function providerErrorCodes(error: APICallError): string[] {
+  let body: unknown = error.data;
+  if (!body && error.responseBody) {
+    try {
+      body = JSON.parse(error.responseBody);
+    } catch {
+      body = undefined;
+    }
+  }
+  const detail = (body as { error?: { code?: unknown; type?: unknown } } | undefined)?.error;
+  return [detail?.code, detail?.type].filter((v): v is string => typeof v === 'string');
+}
+
+export function isSpendLimitError(error: unknown): boolean {
+  return (
+    APICallError.isInstance(error) &&
+    error.statusCode === 429 &&
+    providerErrorCodes(error).some((code) => SPEND_LIMIT_CODES.has(code))
+  );
+}
+
+/**
+ * Runs a provider call, turning a spent-budget 429 into AiBudgetError. The
+ * AI SDK retries any 429 (it can't tell the two kinds apart), and the queue
+ * would retry the job on top; AiBudgetError stops both.
+ */
+async function providerCall<T>(call: () => PromiseLike<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (isSpendLimitError(error)) {
+      throw new AiBudgetError(
+        'The AI provider’s spending limit has been reached, so AI features are paused for now.'
+      );
+    }
+    throw error;
   }
 }
 
@@ -148,7 +201,7 @@ const languageMiddleware: LanguageModelMiddleware = {
   },
   wrapGenerate: async ({ doGenerate, model }) => {
     const userId = await beforeCall();
-    const result = await doGenerate();
+    const result = await providerCall(doGenerate);
     afterCall(userId, model.modelId, 'generate', {
       inputTokens: result.usage.inputTokens.total ?? 0,
       cachedInputTokens: result.usage.inputTokens.cacheRead ?? 0,
@@ -158,7 +211,7 @@ const languageMiddleware: LanguageModelMiddleware = {
   },
   wrapStream: async ({ doStream, model }) => {
     const userId = await beforeCall();
-    const { stream, ...rest } = await doStream();
+    const { stream, ...rest } = await providerCall(doStream);
     const counted = stream.pipeThrough(
       new TransformStream({
         transform(part, controller) {
@@ -181,7 +234,7 @@ const embeddingMiddleware: EmbeddingModelMiddleware = {
   specificationVersion: 'v3',
   wrapEmbed: async ({ doEmbed, model, params }) => {
     const userId = await beforeCall();
-    const result = await doEmbed();
+    const result = await providerCall(doEmbed);
     // Providers report embedding tokens; estimate (4 characters a token) if not
     const tokens =
       result.usage?.tokens ??

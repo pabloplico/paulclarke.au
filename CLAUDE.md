@@ -64,9 +64,12 @@ Both apps run on the host with nothing else installed or running:
 ```bash
 pnpm nx run website:dev               # generates the blog posts, then Vite (3004) + wrangler dev (3005)
 pnpm nx run admin-portal:dev:lite     # Next.js on 3001: PGlite + in-process jobs, sign-in off
+OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo   # Next.js on 3003: demo mode as a visitor sees it
 ```
 
 `dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `QUEUE_DRIVER=memory`, `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
+
+`dev:demo` (`scripts/dev-demo.ts`) runs `DEMO_MODE=true` signed in as `DEV_ACCESS_IDENTITY` (default `visitor@example.com`) instead of through Cloudflare Access, on a fresh PGlite database in `.pglite/demo` every start, with OpenAI `gpt-4.1-nano`. The first request seeds that visitor. It needs `OPENAI_API_KEY` (demo mode checks the AI setup at start-up; AI features spend on it). It uses port 3003 and its own build folder (`NEXT_DIST_DIR=.next/demo`), so it runs beside the Docker dev server, which locks `.next/dev`.
 
 ### Admin Portal Dev
 
@@ -168,6 +171,7 @@ Key vars (see `.env.docker.example` for full list):
 | Website (dev, Vite SPA) | website | `website-dev` | 3004 |
 | Website (dev, wrangler Worker) | website | `website-dev` | 3005 |
 | Admin Portal (dev) | admin-portal | `admin-portal-dev-node` | 3001 |
+| Admin Portal (demo mode, `dev:demo`) | admin-portal | host | 3003 |
 | PostgreSQL 15 (pgvector) | admin-portal | `admin-portal-dev-postgres` | 5432 |
 | Redis 7 | admin-portal | `admin-portal-dev-redis` | 6379 |
 | Ollama (optional, `--profile ai`) | admin-portal | `admin-portal-dev-ollama` | 11434 |
@@ -213,6 +217,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Auth** — JWT-based session auth with bcryptjs password hashing. Middleware protects all routes except `/login`, `/signup`, and `/api/auth/*`. Tables: `admin_users`, `admin_sessions`. All major tables have `userId` foreign key. New accounts are `member`s; the only admin comes from `pnpm db:seed-admin` (needs `ADMIN_EMAIL`; no default password). Global settings and backups need an admin. Auth helpers in `lib/auth/` — `requireAuth()` for pages, `requireAuthApi()` for API routes.
 - **Demo mode** — `DEMO_MODE=true`, read at request time. `lib/demo.ts` lists every page and API route as `core` or a switched-off feature (a test fails if a route is missing), and the middleware returns 404 for switched-off ones and 403 for settings changes. The only way in is Cloudflare Access: the middleware verifies the `Cf-Access-Jwt-Assertion` JWT (`lib/auth/access.ts`; never the plain email header) and each verified email gets a `member` user. `DEV_ACCESS_IDENTITY` stands in for Access locally and is refused in production. Start-up checks (`lib/startup-checks.ts`) stop the process on bad config.
 - **AI cost controls** — every model goes through `lib/ai/guard.ts` (via `getModel`/`getEmbeddingModel`): `maxOutputTokens` cap, daily spend caps in total and per user (priced from `lib/ai/pricing.ts`), and in demo mode no unattributed calls. Every API route that starts AI work calls `requireAiAllowance(user)` (per-user rate limit + budget); `lib/ai/allowance-coverage.test.ts` enforces it from the import graph. Tests fake models by mocking `@/lib/ai/providers`, so the guard still runs.
+- **Demo seed** — each Access visitor is seeded on first sign-in, in the same transaction as their user row (`findOrCreateAccessUser` → `lib/demo-seed/seed.ts`): Getting Started plus a fictional Cairns bakery (Harbourside Bakery) with workspaces and version history, clients, jobs, todos, a processed and routed inbox document and saved gap reports. Hand-written content is in `lib/demo-seed/content.ts`; the AI-made parts are in `generated.json`, built once by `pnpm demo:build-seed` (paid: it runs the real pipeline with `OPENAI_API_KEY`; re-run it after changing the content and commit the result). Sample files for visitors to upload are in `public/demo/`.
 - **Onboarding** — New users get a "Getting Started" workspace seeded on signup (`lib/onboarding/seed-default-workspace.ts`) with example sections for each template type. Guide page at `/guide` explains all features.
 - **Workspaces** — Structured knowledge base with typed sections (prose, cards, table, checklist, kv-pairs). Version history per section. Tables prefixed `admin_*`. Pages live under `app/(authenticated)/` route group.
 - **Inbox** — File upload drop zone → document processing pipeline (PDF/DOCX/CSV/MD parsing, chunking, embedding) → AI-powered workspace routing via BullMQ workers.

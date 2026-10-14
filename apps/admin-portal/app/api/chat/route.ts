@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { safeParseJson } from '@/lib/api/safe-json';
@@ -45,7 +45,9 @@ export async function POST(request: Request) {
   let queryEmbedding: number[];
   try {
     queryEmbedding = await generateEmbedding(message);
-  } catch (_err) {
+  } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     return NextResponse.json({ error: 'Failed to generate embedding' }, { status: 500 });
   }
 
@@ -118,7 +120,9 @@ ${context || 'No relevant sources found for this query.'}`;
       totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
       latencyMs: Date.now() - startTime,
     });
-  } catch (_err) {
+  } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     return NextResponse.json({ error: 'LLM call failed' }, { status: 500 });
   }
 

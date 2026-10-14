@@ -509,30 +509,45 @@ describe('routeMaterial', () => {
     expect(generateObject).toHaveBeenCalledTimes(1);
   });
 
-  it('TC-010 — happy path: unknown workspaceId/sectionId in AI response gets Unknown titles', async () => {
+  it('TC-010 — drops suggestions whose workspace or section is not in the map', async () => {
+    const ws = baseWorkspaceMap[0]!;
+    const other = {
+      workspaceId: 2,
+      workspaceTitle: 'Suppliers',
+      workspaceDescription: null,
+      sections: [{ ...ws.sections[0]!, sectionId: 20, sectionTitle: 'Supplier list' }],
+    };
+    const map = [...baseWorkspaceMap, other];
+    const suggestion = {
+      confidence: 0.8,
+      action: 'append',
+      suggestedContent: 'content',
+      reasoning: 'match',
+      chunkRefs: [],
+    };
     const { generateObject } = await import('ai');
     vi.mocked(generateObject).mockResolvedValueOnce({
       object: {
         suggestions: [
-          {
-            workspaceId: 999,
-            sectionId: 888,
-            confidence: 0.8,
-            action: 'append',
-            suggestedContent: 'content',
-            reasoning: 'unknown match',
-            chunkRefs: [],
-          },
+          { ...suggestion, workspaceId: 999, sectionId: 888 },
+          // A real section, but from another workspace
+          { ...suggestion, workspaceId: ws.workspaceId, sectionId: other.sections[0]!.sectionId },
+          { ...suggestion, workspaceId: ws.workspaceId, sectionId: ws.sections[0]!.sectionId },
+          { ...suggestion, action: 'new_section', workspaceId: ws.workspaceId, sectionId: 0 },
         ],
       },
       usage: { inputTokens: 10, outputTokens: 5 },
     } as never);
 
     const { routeMaterial } = await import('./router');
-    const result = await routeMaterial('T', 'content', baseWorkspaceMap);
+    const result = await routeMaterial('T', 'content', map);
 
-    expect(result[0]!.workspaceTitle).toBe('Unknown');
-    expect(result[0]!.sectionTitle).toBe('Unknown');
+    expect(result.map((r) => [r.action, r.sectionId])).toEqual([
+      ['append', ws.sections[0]!.sectionId],
+      ['new_section', 0],
+    ]);
+    expect(result[0]!.sectionTitle).toBe(ws.sections[0]!.sectionTitle);
+    expect(result[1]!.sectionTitle).toBe('Unknown');
   });
 
   it('TC-011 — happy path: empty suggestions array from AI is passed through unchanged', async () => {

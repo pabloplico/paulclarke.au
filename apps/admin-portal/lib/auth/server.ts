@@ -46,8 +46,12 @@ const userColumns = {
 
 /**
  * The user for a verified Cloudflare Access email, created as a `member` on
- * first visit. Safe when two first requests race: the insert does nothing if
- * the email already exists, and both then read the same row.
+ * first visit and seeded with the demo content (lib/demo-seed) in the same
+ * transaction, so an account is never left without it.
+ *
+ * Safe when two first requests race: only the request whose insert returns
+ * a row seeds; the other's insert does nothing, and it reads the row once
+ * the first transaction has committed.
  *
  * The account has a random password nobody knows, so it can only be reached
  * through Access.
@@ -60,15 +64,21 @@ export async function findOrCreateAccessUser(email: string): Promise<AuthUser | 
     .limit(1);
   if (existing) return existing;
 
-  await db
-    .insert(adminUsers)
-    .values({
-      email,
-      name: email.split('@')[0] || email,
-      passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
-      role: 'member',
-    })
-    .onConflictDoNothing({ target: adminUsers.email });
+  const passwordHash = await hashPassword(randomBytes(32).toString('base64url'));
+  const created = await db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(adminUsers)
+      .values({ email, name: email.split('@')[0] || email, passwordHash, role: 'member' })
+      .onConflictDoNothing({ target: adminUsers.email })
+      .returning(userColumns);
+    if (user) {
+      const { seedDemoUser } = await import('@/lib/demo-seed/seed');
+      await seedDemoUser(tx, user.id);
+    }
+    return user;
+  });
+  if (created) return created;
+
   const [user] = await db
     .select(userColumns)
     .from(adminUsers)

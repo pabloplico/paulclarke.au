@@ -4,6 +4,7 @@ import { Button } from '@repo/ui/button';
 import { Card, CardContent } from '@repo/ui/card';
 import { Inbox, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { DemoSamples } from './demo-samples';
 import { DropZone } from './drop-zone';
 import { InboxItemCard } from './inbox-item';
 import { type InboxItem, useInboxStore } from './store';
@@ -70,6 +71,7 @@ export function InboxView({ initialItems }: InboxViewProps) {
   return (
     <div className="space-y-6">
       <DropZone onItemCreated={handleItemCreated} />
+      <DemoSamples />
 
       {activeItems.length === 0 && approvedItems.length === 0 && dismissedItems.length === 0 ? (
         <Card>

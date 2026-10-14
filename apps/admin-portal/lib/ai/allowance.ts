@@ -44,3 +44,13 @@ export async function requireAiAllowance(user: { id: number }): Promise<void> {
   }
   await aiLimiter.record(key);
 }
+
+/**
+ * For an AI route's catch block: a 429 with the reason when the AI guard
+ * refused a call part-way through (a daily cap, or the provider's spending
+ * limit), so the visitor sees why instead of a generic failure. Null for
+ * any other error.
+ */
+export function aiBudgetResponse(error: unknown): Response | null {
+  return error instanceof AiBudgetError ? tooMany(error.message) : null;
+}

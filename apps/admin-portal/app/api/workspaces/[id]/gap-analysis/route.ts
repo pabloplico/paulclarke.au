@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
@@ -319,6 +319,9 @@ ${sectionSummaries}
       };
     });
   } catch (error) {
+    // A spent budget isn't a reason to save a rule-only report: say so instead
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     console.error('AI gap analysis failed:', error);
     // Continue with just rule-based findings
   }

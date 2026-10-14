@@ -8,7 +8,10 @@ const mockResolveResult = vi.hoisted(() => ({
 }));
 
 // The AI allowance (rate limit, budget) has its own tests
-vi.mock('@/lib/ai/allowance', () => ({ requireAiAllowance: async () => {} }));
+vi.mock('@/lib/ai/allowance', () => ({
+  requireAiAllowance: async () => {},
+  aiBudgetResponse: () => null,
+}));
 
 vi.mock('@/lib/api/resolve-params', () => ({
   resolveWorkspaceSectionParams: vi.fn(() => Promise.resolve(mockResolveResult.current)),

@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { type Db, type DbTx, db } from '@/lib/db';
 import { adminSectionVersions, adminWorkspaceSections, adminWorkspaces } from '@/lib/db/schema';
 
 type SectionDef = {
@@ -112,10 +112,10 @@ This workspace has example sections showing each section type. Try editing them!
   },
 ];
 
-export async function seedDefaultWorkspace(userId: number) {
+export async function seedDefaultWorkspace(userId: number, conn: Db | DbTx = db) {
   const slug = `getting-started-u${userId}`;
 
-  const [workspace] = await db
+  const [workspace] = await conn
     .insert(adminWorkspaces)
     .values({
       slug,
@@ -130,7 +130,7 @@ export async function seedDefaultWorkspace(userId: number) {
   if (!workspace) return;
 
   for (const sec of SECTIONS) {
-    const [section] = await db
+    const [section] = await conn
       .insert(adminWorkspaceSections)
       .values({
         workspaceId: workspace.id,
@@ -144,7 +144,7 @@ export async function seedDefaultWorkspace(userId: number) {
 
     if (!section) continue;
 
-    await db.insert(adminSectionVersions).values({
+    await conn.insert(adminSectionVersions).values({
       sectionId: section.id,
       version: 1,
       content: sec.content || null,

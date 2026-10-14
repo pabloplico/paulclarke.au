@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
@@ -143,6 +143,8 @@ ${contextBlock}${findingsBlock}`;
       ...(contextTruncated ? { contextTruncated: true } : {}),
     });
   } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     console.error('Workspace chat failed:', error);
     return NextResponse.json({ error: 'Chat request failed' }, { status: 500 });
   }
