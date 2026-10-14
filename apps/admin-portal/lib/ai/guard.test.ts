@@ -1,4 +1,4 @@
-import { embed, generateText, streamText } from 'ai';
+import { APICallError, embed, generateText, streamText } from 'ai';
 import { convertArrayToReadableStream, MockEmbeddingModelV3, MockLanguageModelV3 } from 'ai/test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,7 @@ const {
   AiBudgetError,
   enterAiUser,
   guardEmbeddingModel,
+  isPermanentAiError,
   guardLanguageModel,
   withAiUser,
 } = await import('./guard');
@@ -164,5 +165,73 @@ describe('AI guard', () => {
     });
     await withAiUser(9, () => embed({ model: guardEmbeddingModel(raw), value: 'text' }));
     expect(spendLedger().spentToday(9).user).toBeCloseTo(0.02);
+  });
+
+  describe('provider spend limits', () => {
+    function rateLimitError(code: string) {
+      const body = { error: { message: 'limit', type: code, code } };
+      return new APICallError({
+        message: 'limit',
+        url: 'https://api.openai.com/v1/responses',
+        requestBodyValues: {},
+        statusCode: 429,
+        responseBody: JSON.stringify(body),
+        isRetryable: true,
+        data: body,
+      });
+    }
+
+    function failingChatModel(error: Error) {
+      return new MockLanguageModelV3({
+        modelId: 'gpt-4.1-nano',
+        doGenerate: async () => {
+          throw error;
+        },
+      });
+    }
+
+    it.each([
+      'project_spend_limit_exceeded',
+      'insufficient_quota',
+    ])('turns a %s 429 into AiBudgetError, with no SDK retries', async (code) => {
+      const raw = failingChatModel(rateLimitError(code));
+      const result = withAiUser(1, () =>
+        generateText({ model: guardLanguageModel(raw), prompt: 'x', maxRetries: 2 })
+      );
+      await expect(result).rejects.toThrow(AiBudgetError);
+      await expect(result).rejects.toSatisfy(isPermanentAiError);
+      expect(raw.doGenerateCalls).toHaveLength(1);
+    });
+
+    it('reads the code from the response body when the provider gives no parsed data', async () => {
+      const error = rateLimitError('insufficient_quota');
+      Object.defineProperty(error, 'data', { value: undefined });
+      const raw = failingChatModel(error);
+      await expect(
+        withAiUser(1, () => generateText({ model: guardLanguageModel(raw), prompt: 'x' }))
+      ).rejects.toThrow(AiBudgetError);
+    });
+
+    it('leaves an ordinary rate-limit 429 to the normal retries', async () => {
+      const raw = failingChatModel(rateLimitError('rate_limit_exceeded'));
+      const result = withAiUser(1, () =>
+        generateText({ model: guardLanguageModel(raw), prompt: 'x', maxRetries: 0 })
+      );
+      await expect(result).rejects.toSatisfy((e) => APICallError.isInstance(e));
+      await expect(result).rejects.not.toSatisfy(isPermanentAiError);
+    });
+
+    it('applies to embeddings', async () => {
+      const raw = new MockEmbeddingModelV3({
+        modelId: 'text-embedding-3-small',
+        doEmbed: async () => {
+          throw rateLimitError('project_spend_limit_exceeded');
+        },
+      });
+      await expect(
+        withAiUser(1, () => embed({ model: guardEmbeddingModel(raw), value: 'text' }))
+      ).rejects.toThrow(AiBudgetError);
+      expect(raw.doEmbedCalls).toHaveLength(1);
+    });
   });
 });

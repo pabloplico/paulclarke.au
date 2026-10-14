@@ -340,6 +340,30 @@ describe('processRouting (worker)', () => {
     );
   });
 
+  it('a spent AI budget is recorded and the job discarded, not retried', async () => {
+    vi.resetModules();
+
+    const item = { id: 7, content: 'valid content', title: 'Doc', userId: 1, documentId: null };
+    setupInboxItem(item);
+
+    await import('./worker');
+    const { routeMaterial } = await import('./router');
+    const { AiBudgetError } = await import('@/lib/ai/guard');
+    vi.mocked(routeMaterial).mockRejectedValueOnce(new AiBudgetError('budget spent'));
+
+    const processor = capturedProcessor.current as (job: unknown) => Promise<void>;
+    const job = { ...makeJob(7), discard: vi.fn() };
+
+    await expect(processor(job)).resolves.toBeUndefined();
+    expect(job.discard).toHaveBeenCalledTimes(1);
+    const lastSetCall =
+      vi.mocked(mockDbUpdate).mock.results[vi.mocked(mockDbUpdate).mock.results.length - 1]!.value
+        .set;
+    expect(lastSetCall).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed', processingError: 'budget spent' })
+    );
+  });
+
   it('TC-022 — boundary: zero suggestions from routeMaterial sets status to failed', async () => {
     vi.resetModules();
 

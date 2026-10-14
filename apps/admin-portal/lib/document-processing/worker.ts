@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { AiAttributionError, AiBudgetError, enterAiUser } from '@/lib/ai/guard';
+import { enterAiUser, isPermanentAiError } from '@/lib/ai/guard';
 import { config } from '@/lib/config';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
@@ -292,10 +292,7 @@ export async function handleDocumentJob(job: JobContext<DocumentJob>): Promise<v
     console.log(`[document-worker] Document ${job.data.documentId} processed successfully`);
   } catch (error) {
     // A spent budget or an unattributed call won't fix itself on retry
-    const isPermanent =
-      error instanceof PermanentProcessingError ||
-      error instanceof AiBudgetError ||
-      error instanceof AiAttributionError;
+    const isPermanent = error instanceof PermanentProcessingError || isPermanentAiError(error);
     const code = error instanceof ProcessingError ? error.code : 'UNKNOWN';
     const stage = error instanceof ProcessingError ? error.stage : undefined;
     const message = error instanceof Error ? error.message : 'Unknown processing error';
