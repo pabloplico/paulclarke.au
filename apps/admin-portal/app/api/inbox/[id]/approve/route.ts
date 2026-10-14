@@ -123,7 +123,14 @@ export async function POST(request: NextRequest, { params }: Params) {
   const parse = parsers[template];
   if (parse && cleanContent) {
     structuredData = currentVersion?.structuredData
-      ? mergeStructuredData(template, currentVersion.structuredData, parse(cleanContent))
+      ? mergeStructuredData(
+          template,
+          currentVersion.structuredData,
+          // Appending to a checklist: only the suggestion's list lines become items
+          template === 'checklist'
+            ? parseMarkdownToChecklist(cleanContent, { listItemsOnly: true })
+            : parse(cleanContent)
+        )
       : parse(finalContent);
   }
 

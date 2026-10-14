@@ -179,7 +179,15 @@ function parseListToTable(markdown: string): TableData {
   return { columns: [], rows: [] };
 }
 
-export function parseMarkdownToChecklist(markdown: string): ChecklistData {
+/**
+ * listItemsOnly: only bullet, numbered and [ ] lines become items, never
+ * headings or paragraphs. For appending to an existing checklist, where a
+ * suggestion's heading and intro text would otherwise land as items.
+ */
+export function parseMarkdownToChecklist(
+  markdown: string,
+  { listItemsOnly = false }: { listItemsOnly?: boolean } = {}
+): ChecklistData {
   const items: ChecklistData['items'] = [];
   const lines = markdown.split('\n');
 
@@ -207,7 +215,7 @@ export function parseMarkdownToChecklist(markdown: string): ChecklistData {
   }
 
   // If no list items found, split on newlines and treat each as an item
-  if (items.length === 0) {
+  if (items.length === 0 && !listItemsOnly) {
     const textLines = markdown
       .split('\n')
       .map((l) => l.replace(/^#+\s*/, '').trim())

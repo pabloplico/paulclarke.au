@@ -135,7 +135,7 @@ vi.mock('drizzle-orm', () => ({
 // Mock structured data parsers
 const mockParseTable = vi.fn((_md: string) => ({ columns: ['A'], rows: [{ A: '1' }] }));
 const mockParseCards = vi.fn((_md: string) => ({ items: [{ title: 'Card', body: 'text' }] }));
-const mockParseChecklist = vi.fn((_md: string) => ({
+const mockParseChecklist = vi.fn((_md: string, _opts?: { listItemsOnly?: boolean }) => ({
   items: [{ text: 'Do thing', checked: false }],
 }));
 const mockParseKvPairs = vi.fn((_md: string) => ({ pairs: [{ key: 'k', value: 'v' }] }));
@@ -146,7 +146,8 @@ vi.mock('@/lib/workspaces/parse-structured', async (importOriginal) => ({
     .mergeStructuredData,
   parseMarkdownToTable: (md: string) => mockParseTable(md),
   parseMarkdownToCards: (md: string) => mockParseCards(md),
-  parseMarkdownToChecklist: (md: string) => mockParseChecklist(md),
+  parseMarkdownToChecklist: (md: string, opts?: { listItemsOnly?: boolean }) =>
+    opts ? mockParseChecklist(md, opts) : mockParseChecklist(md),
   parseMarkdownToKvPairs: (md: string) => mockParseKvPairs(md),
 }));
 
@@ -412,7 +413,7 @@ describe('POST /api/inbox/[id]/approve', () => {
       const data = await approveAppend('checklist', {
         items: [{ text: 'Existing check', checked: true }],
       });
-      expect(mockParseChecklist).toHaveBeenCalledWith('New items');
+      expect(mockParseChecklist).toHaveBeenCalledWith('New items', { listItemsOnly: true });
       expect(data).toEqual({
         items: [
           { text: 'Existing check', checked: true },

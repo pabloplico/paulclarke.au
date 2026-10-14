@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mergeStructuredData } from './parse-structured';
+import generated from '@/lib/demo-seed/generated.json';
+import { mergeStructuredData, parseMarkdownToChecklist } from './parse-structured';
 
 describe('mergeStructuredData', () => {
   it('lines table rows up by column name, ignoring case, and adds new columns at the end', () => {
@@ -72,5 +73,38 @@ describe('mergeStructuredData', () => {
       columns: [],
       rows: [],
     });
+  });
+});
+
+describe('parseMarkdownToChecklist with listItemsOnly', () => {
+  // The suggestions the demo seed routes into checklist sections
+  const suggestion = (sectionKey: string) =>
+    generated.inboxItem.routingResults.find((r) => r.sectionKey === sectionKey)!.suggestedContent;
+
+  it('keeps only the bullet lines of the seeded allergen memo', () => {
+    const memo = suggestion('operations/food-safety');
+    const { items } = parseMarkdownToChecklist(memo, { listItemsOnly: true });
+    const bullets = memo.split('\n').filter((line) => /^\s*[-*]\s+/.test(line));
+    expect(items).toHaveLength(bullets.length);
+    expect(items[0]?.text).toMatch(/^All products must display an allergen card/);
+    for (const item of items) {
+      expect(item.text).not.toMatch(/Allergen Labelling Requirements|^A memo from|^These measures/);
+    }
+  });
+
+  it('adds nothing from a suggestion that is only a heading and paragraphs', () => {
+    const memo = suggestion('staff/onboarding-checklist');
+    expect(parseMarkdownToChecklist(memo, { listItemsOnly: true }).items).toEqual([]);
+    // Without the option, every line still becomes an item
+    expect(parseMarkdownToChecklist(memo).items.length).toBeGreaterThan(0);
+  });
+
+  it('keeps numbered and [ ] lines', () => {
+    const md = '## Steps\n\nIntro text here.\n\n1. First step\n- [x] Done already\n* Third';
+    expect(parseMarkdownToChecklist(md, { listItemsOnly: true }).items).toEqual([
+      { text: 'First step', checked: false },
+      { text: 'Done already', checked: true },
+      { text: 'Third', checked: false },
+    ]);
   });
 });
