@@ -200,14 +200,20 @@ ${materialSection}
     latencyMs: Date.now() - startTime,
   });
 
-  // Enrich with workspace/section titles
-  return object.suggestions.map((s) => {
+  // Enrich with workspace/section titles. The model sometimes pairs a
+  // workspace with another workspace's section, or makes ids up; those
+  // suggestions can't be approved, so drop them. A new_section suggestion
+  // names no existing section, so it only needs a real workspace.
+  return object.suggestions.flatMap((s) => {
     const ws = workspaceMap.find((w) => w.workspaceId === s.workspaceId);
     const sec = ws?.sections.find((sec) => sec.sectionId === s.sectionId);
-    return {
-      ...s,
-      workspaceTitle: ws?.workspaceTitle ?? 'Unknown',
-      sectionTitle: sec?.sectionTitle ?? 'Unknown',
-    };
+    if (!ws || (!sec && s.action !== 'new_section')) return [];
+    return [
+      {
+        ...s,
+        workspaceTitle: ws.workspaceTitle,
+        sectionTitle: sec?.sectionTitle ?? 'Unknown',
+      },
+    ];
   });
 }
