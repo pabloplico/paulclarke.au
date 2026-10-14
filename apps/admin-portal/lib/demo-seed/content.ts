@@ -364,6 +364,9 @@ export const GAP_REPORT_WORKSPACES = ['operations', 'staff'];
  * The document that arrives already processed and routed, so the inbox
  * isn't empty. Its text is in documents/; the AI output is in generated.json.
  */
+/** How many documents the seed gives each visitor (the upload cap adds to this). */
+export const SEEDED_DOCUMENT_COUNT = 1;
+
 export const PREROUTED_DOCUMENT = {
   filename: 'allergen-labelling-update.md',
   title: 'Allergen labelling update',

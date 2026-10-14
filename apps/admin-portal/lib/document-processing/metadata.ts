@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { enforceBudget } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import type { AppConfig } from '@/lib/config';
@@ -47,6 +48,7 @@ export async function extractMetadata(text: string): Promise<DocumentMetadata> {
   const { object, usage } = await generateObject({
     model: getModel(cfg),
     schema: metadataSchema,
+    system: AU_ENGLISH,
     prompt: `Analyze the following document text and extract metadata.\n\n${budgetResult.text}`,
   });
 
@@ -148,6 +150,7 @@ export async function extractEnrichedMetadata(
   const { object, usage } = await generateObject({
     model: getModel(cfg),
     schema: enrichedMetadataSchema,
+    system: AU_ENGLISH,
     prompt: `You are synthesizing metadata for a document based on per-chunk analysis results.
 
 DOCUMENT PREVIEW:

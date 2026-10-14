@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getModel } from '@/lib/agents/mastra/provider';
 import { loadResearchSettings } from '@/lib/agents/settings';
 import { requireAiAllowance } from '@/lib/ai/allowance';
+import { withAuEnglish } from '@/lib/ai/style';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { db } from '@/lib/db';
@@ -50,7 +51,7 @@ export async function POST(request: Request, { params }: Params) {
 Answer questions using the provided findings as context. Be specific and data-driven.${findingsContext}`;
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: withAuEnglish(systemPrompt) },
     ...(body.history ?? []).map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,

@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { withAuEnglish } from '@/lib/ai/style';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
@@ -124,7 +125,7 @@ ${contextBlock}${findingsBlock}`;
     const startTime = Date.now();
     const result = await generateText({
       model: getModel(cfg),
-      system: systemPrompt,
+      system: withAuEnglish(systemPrompt),
       messages: [...conversationHistory, { role: 'user', content: message }],
     });
 

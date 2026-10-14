@@ -4,6 +4,7 @@ import { requireAiAllowance } from '@/lib/ai/allowance';
 import { requireAuthApi } from '@/lib/auth/server';
 import { db } from '@/lib/db';
 import { adminDocumentChunks, adminDocuments, adminKbDocuments } from '@/lib/db/schema';
+import { rejectDemoUploadOverLimit } from '@/lib/document-processing/demo-upload-limit';
 import { queueDocument } from '@/lib/document-processing/queue';
 import {
   rejectOversizedDemoRequest,
@@ -105,6 +106,9 @@ export async function POST(request: Request) {
   const user = await requireAuthApi();
   const oversized = rejectOversizedDemoRequest(request);
   if (oversized) return oversized;
+  // Before the AI allowance, so a refused upload doesn't use up a request
+  const overLimit = await rejectDemoUploadOverLimit(user.id);
+  if (overLimit) return overLimit;
   await requireAiAllowance(user);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;

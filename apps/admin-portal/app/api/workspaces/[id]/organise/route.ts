@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const result = await generateObject({
       model,
       schema: suggestionSchema,
+      system: AU_ENGLISH,
       prompt: `You are analysing a workspace called "${workspace.title}" with ${sectionsWithContent.length} sections.
 
 Sections:

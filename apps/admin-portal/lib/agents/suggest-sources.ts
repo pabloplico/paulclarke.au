@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { db } from '@/lib/db';
 import type { SourceType } from '@/lib/db/schema';
 import { adminResearchSources } from '@/lib/db/schema';
@@ -60,6 +61,7 @@ export async function suggestSourcesForWorkspace(
   const result = await generateObject({
     model: getModel({ provider: settings.aiProvider, model: settings.aiModel }),
     schema: suggestionSchema,
+    system: AU_ENGLISH,
     prompt: `You are a market research data source specialist. Given the workspace below, select the 8-12 MOST RELEVANT data sources from the directory. Prioritize:
 1. Sources matching the geographic focus (${geoContext})
 2. Sources matching the category (${workspace.category || 'general'})

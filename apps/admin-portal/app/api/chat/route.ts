@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { withAuEnglish } from '@/lib/ai/style';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
@@ -107,7 +108,7 @@ ${context || 'No relevant sources found for this query.'}`;
     const startTime = Date.now();
     const result = await generateText({
       model: getModel(cfg),
-      system: systemPrompt,
+      system: withAuEnglish(systemPrompt),
       messages: [...history, { role: 'user', content: message }],
     });
     responseText = result.text;

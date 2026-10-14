@@ -3,6 +3,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { withAuEnglish } from '@/lib/ai/style';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { safeParseJson } from '@/lib/api/safe-json';
@@ -262,7 +263,7 @@ export async function POST(request: Request) {
 
   const result = streamText({
     model: getModel(cfg),
-    system: systemPrompt,
+    system: withAuEnglish(systemPrompt),
     messages: [...history, { role: 'user', content: message }],
     async onFinish({ text, usage }) {
       logAIUsage({

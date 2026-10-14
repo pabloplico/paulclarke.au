@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { checkFidelity, recordProvenance } from '@/lib/ai/semantic-fidelity';
+import { withAuEnglish } from '@/lib/ai/style';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { resolveWorkspaceSectionParams } from '@/lib/api/resolve-params';
@@ -58,8 +59,9 @@ export async function POST(request: NextRequest, { params }: Params) {
         schema: z.object({
           topics: z.array(z.string()),
         }),
-        system:
-          'You are an expert content analyst. Extract between 3 and 8 key topics from the given text as short phrases (2–5 words each). Return ONLY the most important and distinctive themes. Never return more than 8 topics.',
+        system: withAuEnglish(
+          'You are an expert content analyst. Extract between 3 and 8 key topics from the given text as short phrases (2–5 words each). Return ONLY the most important and distinctive themes. Never return more than 8 topics.'
+        ),
         messages: [
           {
             role: 'user',
@@ -248,7 +250,7 @@ Return the complete updated section content with the selected text modified acco
     const startTime = Date.now();
     const result = await generateText({
       model: getModel(cfg),
-      system: systemPrompt,
+      system: withAuEnglish(systemPrompt),
       messages: [{ role: 'user', content: finalUserPrompt }],
     });
 
