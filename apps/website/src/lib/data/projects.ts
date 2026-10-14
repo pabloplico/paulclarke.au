@@ -40,7 +40,7 @@ export const PROJECTS: Project[] = [
       'typed parsing pipeline with quality gates',
       'background job queues',
       'AI edits with diff preview',
-      '1,046 unit tests',
+      '1,000+ unit tests',
     ],
     stack: [
       'Next.js',
@@ -83,7 +83,7 @@ export const PROJECTS: Project[] = [
       'TypeScript',
       'Vite',
       'Tailwind v4',
-      'Hono on Cloudflare Workers',
+      'Cloudflare Workers (static hosting)',
       'Vitest',
       'Playwright',
     ],
