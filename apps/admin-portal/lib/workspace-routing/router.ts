@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { loadConfig } from '@/lib/config.server';
@@ -173,6 +174,7 @@ ${budgetResult.text}`;
   const { object, usage } = await generateObject({
     model: getModel(cfg),
     schema: routingSuggestionSchema,
+    system: AU_ENGLISH,
     prompt: `You are a knowledge management routing system. Given incoming material and a map of existing workspaces with their sections, determine where this material should be routed.
 
 ## Workspace Map

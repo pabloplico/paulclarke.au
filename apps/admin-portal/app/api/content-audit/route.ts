@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
@@ -110,6 +111,7 @@ export async function POST() {
     const { object } = await generateObject({
       model: getModel(cfg),
       schema: findingSchema,
+      system: AU_ENGLISH,
       prompt: `You are a fact-checking analyst for a business website. The website has two public content sources:
 1. BLOG POSTS — long-form articles published to the blog
 2. INSIGHTS DATABASE — curated statistics and data points displayed on the Insights page, each with a verified source citation

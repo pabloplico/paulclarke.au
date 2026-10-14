@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import type { PipelineTokenTracker } from '@/lib/ai/usage-logger';
 import type { AppConfig } from '@/lib/config';
 
@@ -34,6 +35,7 @@ export async function analyzeChunk(
   const { object } = await generateObject({
     model: getModel(cfg),
     schema: chunkAnalysisSchema,
+    system: AU_ENGLISH,
     prompt: `Analyze this text chunk (chunk ${chunkIndex}) and extract key claims, named entities, and topic keywords. Be precise and factual — only extract what is explicitly stated.\n\n${content}`,
   });
   return object;
@@ -60,6 +62,7 @@ export async function analyzeChunksBatch(
   const { object } = await generateObject({
     model: getModel(cfg),
     schema: batchSchema,
+    system: AU_ENGLISH,
     prompt: `Analyze each text chunk below. For each chunk, extract key claims, named entities, and topic keywords. Be precise — only extract what is explicitly stated.\n\n${chunksText}`,
   });
 

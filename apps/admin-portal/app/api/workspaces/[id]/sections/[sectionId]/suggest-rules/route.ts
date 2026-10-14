@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { resolveWorkspaceSectionParams } from '@/lib/api/resolve-params';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
@@ -63,6 +64,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
     const { object } = await generateObject({
       model: getModel(cfg),
       schema: suggestedRuleSchema,
+      system: AU_ENGLISH,
       prompt: `You are a knowledge base quality analyst. Suggest completeness rules for a workspace section.
 
 ## Workspace

@@ -3,6 +3,7 @@ import { inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { withAuEnglish } from '@/lib/ai/style';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
         try {
           const result = await generateText({
             model,
-            system: SYSTEM_PROMPT + toneInstruction,
+            system: withAuEnglish(SYSTEM_PROMPT + toneInstruction),
             messages: [
               {
                 role: 'user',

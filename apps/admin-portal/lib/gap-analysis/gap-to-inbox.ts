@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { enforceBudget } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { loadConfig } from '@/lib/config.server';
@@ -49,6 +50,7 @@ export async function createInboxItemFromGap(params: {
     const startTime = Date.now();
     const { text: generatedText, usage } = await generateText({
       model: getModel(cfg),
+      system: AU_ENGLISH,
       prompt: `You are a business knowledge writer. A gap analysis found: ${finding.issue}. Suggestion: ${finding.suggestion}. Section: ${finding.sectionTitle}. Current content: ${budgetResult.text}. Write a concise paragraph addressing this gap. Output only the content, no preamble.`,
     });
 

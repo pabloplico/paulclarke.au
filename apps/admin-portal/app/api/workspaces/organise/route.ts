@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
 import { db } from '@/lib/db';
@@ -85,6 +86,7 @@ export async function POST() {
     const result = await generateObject({
       model,
       schema: suggestionSchema,
+      system: AU_ENGLISH,
       prompt: `You are analysing ${workspaceData.length} workspaces for a business knowledge base. Suggest cross-workspace organisation improvements.
 
 Workspaces:

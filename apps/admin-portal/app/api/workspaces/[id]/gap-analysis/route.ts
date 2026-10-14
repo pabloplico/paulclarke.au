@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
+import { AU_ENGLISH } from '@/lib/ai/style';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
 import { logAIUsage } from '@/lib/ai/usage-logger';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
@@ -273,6 +274,7 @@ ${preview || '(empty)'}`;
     const { object, usage } = await generateObject({
       model: getModel(cfg),
       schema: findingSchema,
+      system: AU_ENGLISH,
       prompt: `You are a knowledge base quality analyst. Analyze the workspace "${workspace.title}" and identify content gaps — areas that are thin, missing important details, outdated, or incomplete.
 
 ## Workspace Description
