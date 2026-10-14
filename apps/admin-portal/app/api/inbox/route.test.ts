@@ -6,7 +6,10 @@ const inserted = vi.hoisted(() => ({ rows: [] as unknown[] }));
 vi.mock('@/lib/auth/server', () => ({
   requireAuthApi: async () => ({ id: 1, email: 'v@example.com', name: 'V', role: 'member' }),
 }));
-vi.mock('@/lib/ai/allowance', () => ({ requireAiAllowance: async () => {} }));
+vi.mock('@/lib/ai/allowance', () => ({
+  requireAiAllowance: async () => {},
+  aiBudgetResponse: () => null,
+}));
 vi.mock('@/lib/document-processing/queue', () => ({ queueDocument }));
 vi.mock('@/lib/storage', () => ({ storage: { save: async (name: string) => `/uploads/${name}` } }));
 vi.mock('@/lib/db', () => ({
