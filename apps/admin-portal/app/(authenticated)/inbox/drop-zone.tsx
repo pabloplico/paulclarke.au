@@ -5,6 +5,7 @@ import { Card, CardContent } from '@repo/ui/card';
 import { Input } from '@repo/ui/input';
 import { FileUp, Globe, Loader2, StickyNote } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
+import { toastRequestError } from '@/lib/client/request-error';
 import type { InboxItem } from './store';
 
 type DropMode = 'file' | 'url' | 'note';
@@ -35,6 +36,8 @@ export function DropZone({ onItemCreated }: DropZoneProps) {
           if (res.ok) {
             const item = await res.json();
             onItemCreated(item);
+          } else {
+            await toastRequestError(res, `Couldn't add ${file.name}`);
           }
         } finally {
           setSubmitting(false);
@@ -62,6 +65,8 @@ export function DropZone({ onItemCreated }: DropZoneProps) {
         onItemCreated(item);
         setNoteTitle('');
         setNoteContent('');
+      } else {
+        await toastRequestError(res, "Couldn't add the note");
       }
     } finally {
       setSubmitting(false);
@@ -86,6 +91,8 @@ export function DropZone({ onItemCreated }: DropZoneProps) {
         const item = await res.json();
         onItemCreated(item);
         setUrl('');
+      } else {
+        await toastRequestError(res, "Couldn't add the web page");
       }
     } finally {
       setSubmitting(false);

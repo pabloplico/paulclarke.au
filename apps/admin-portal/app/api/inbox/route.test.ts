@@ -12,6 +12,11 @@ vi.mock('@/lib/ai/allowance', () => ({
 }));
 vi.mock('@/lib/document-processing/queue', () => ({ queueDocument }));
 vi.mock('@/lib/storage', () => ({ storage: { save: async (name: string) => `/uploads/${name}` } }));
+// Tested on its own in lib/document-processing/demo-upload-limit.test.ts
+vi.mock('@/lib/document-processing/demo-upload-limit', () => ({
+  rejectDemoUploadOverLimit: async () => null,
+}));
+
 vi.mock('@/lib/db', () => ({
   db: {
     insert: () => ({
