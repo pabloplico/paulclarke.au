@@ -439,10 +439,3 @@ export const DEMO_TODOS = [
   { title: 'Calibrate the probe thermometer', priority: 'medium', client: null },
   { title: 'Reply to the P&C about fete rolls', priority: 'low', client: 'school-fete' },
 ] as const;
-
-/** Files visitors can download from the inbox and upload themselves. */
-export const SAMPLE_UPLOADS = [
-  'new-oven-sop.md',
-  'flour-price-update.md',
-  'casual-staff-induction.md',
-] as const;
