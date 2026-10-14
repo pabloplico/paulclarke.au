@@ -5,20 +5,20 @@
 A pnpm + NX monorepo with two apps:
 
 - **My developer portfolio** (`apps/website`): projects, an AI readiness assessment demo, writing and contact. A React SPA plus a small Hono API, deployed as one Cloudflare Worker.
-- **A document workspace platform** (`apps/admin-portal`): upload documents, have them parsed and routed into structured workspaces, and edit sections with AI, previewing each change as a diff. Next.js with Postgres, Redis job queues and the Vercel AI SDK.
+- **A document workspace platform** (`apps/admin-portal`): upload documents, have them parsed and routed into structured workspaces, and edit sections with AI, previewing each change as a diff. Next.js with Postgres, Redis job queues and the Vercel AI SDK. It can also run with no other services: an embedded Postgres (PGlite) and in-process queues.
 
 Both are written in strict TypeScript and share UI and tooling packages.
 
 ## What's in here
 
-| Path                         | What it is                                                                    | Stack                                                                            |
-| ---------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `apps/website`               | Developer portfolio                                                           | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers |
-| `apps/admin-portal`          | Document workspace platform                                                   | Next.js 16, Drizzle + Postgres/pgvector, BullMQ + Redis, AI SDK                  |
-| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                | React, Tailwind, Radix primitives                                                |
-| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library` | TypeScript                                                                       |
-| `packages/biome-config`      | Shared lint and format rules                                                  | Biome                                                                            |
-| `packages/prettier-config`   | Markdown formatting                                                           | Prettier                                                                         |
+| Path                         | What it is                                                                    | Stack                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `apps/website`               | Developer portfolio                                                           | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers               |
+| `apps/admin-portal`          | Document workspace platform                                                   | Next.js 16, Drizzle + Postgres/pgvector or PGlite, BullMQ + Redis or in-process queues, AI SDK |
+| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                | React, Tailwind, Radix primitives                                                              |
+| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library` | TypeScript                                                                                     |
+| `packages/biome-config`      | Shared lint and format rules                                                  | Biome                                                                                          |
+| `packages/prettier-config`   | Markdown formatting                                                           | Prettier                                                                                       |
 
 ## Architecture
 
@@ -101,7 +101,9 @@ pnpm nx run admin-portal:dev:lite
 
 # Admin portal on the full stack: Postgres + Redis in Docker
 cp .env.docker.example .env.docker      # then fill in values
-cd apps/admin-portal && docker compose up -d
+cd apps/admin-portal
+export COMPOSE_ENV_FILES=../../.env.docker   # compose reads its ${VARS} from here
+docker compose up -d
 ```
 
 The website needs no environment variables or secrets. Admin-portal settings are documented in `.env.docker.example` and `CLAUDE.md`.
@@ -121,11 +123,11 @@ pnpm --filter website test:e2e   # Playwright + axe against the production build
 
 ## Testing
 
-- **Unit tests:** about 970 across both apps.
+- **Unit tests:** 1,098 across both apps (1,046 admin-portal, 52 website).
 - **Website E2E:** Playwright on a desktop and a mobile viewport.
 - **Accessibility:** automated checks with axe on every website page.
 
-CI runs it all except admin-portal E2E, which needs Postgres and Redis. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
+CI runs it all except admin-portal E2E, which needs Postgres and Redis. It also builds a fresh database from the migrations and checks it matches the schema. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
 
 ## Deployment
 
@@ -164,6 +166,13 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 
 - **Why no plugins yet:** NX plugins (`@nx/vite`, `@nx/next`, `@nx/playwright`) can infer targets from tool configs, but they replace the package scripts and bring their own dependencies. Keeping the scripts meant the migration changed only the task runner: each target is still a plain script you can read in `package.json`. The one exception is the website's posts step, now its own target that `build` and `check-types` depend on.
 - **Cost:** cache inputs and outputs are written by hand in `nx.json`, so a new tool's config file has to be added there. Plugins are the natural next step.
+
+**Admin-portal demo: one container, a gate, and real AI with caps.** The admin portal is being prepared as a public demo.
+
+- **No external services:** `DB_DRIVER=pglite` and `QUEUE_DRIVER=memory` run the database and job queues inside the Node process, so the demo is one container on one instance. Postgres and Redis remain the default, behind the same interfaces.
+- **Cloudflare Access instead of demo logins:** visitors will sign in with a one-time email PIN. The app verifies the signed Access token on every request and gives each email its own member account.
+- **Real AI, capped:** every model call goes through one guard with an output-token cap, daily spend caps in total and per user, and a per-user rate limit. A test checks that every route that starts AI work applies it. The provider's hard spend limit is the final backstop.
+- **`DEMO_MODE=true`** switches off backups, settings, feeds, research agents and URL ingestion. Every route is listed as on or off, and a test fails if a new one isn't.
 
 **Allow-list `COPY` in Docker.** The admin image used `COPY . .`. `.dockerignore` patterns only match from the repo root, so nested `node_modules`, `.next`, `uploads`, local database dumps and a service-account key were all in the build context: over 720 MB, and the build failed reading a root-owned folder.
 
