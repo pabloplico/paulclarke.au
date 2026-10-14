@@ -3,6 +3,6 @@
   "extends": ["./packages/biome-config/base.json"],
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/drizzle/meta", "!**/next-env.d.ts"]
+    "includes": ["**", "!**/drizzle/meta", "!**/next-env.d.ts", "!**/lib/demo-seed/generated.json"]
   }
 }

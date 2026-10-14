@@ -51,7 +51,8 @@ describe('demo upload limit', () => {
     await addDocuments(1);
     const refused = await rejectDemoUploadOverLimit(userId);
     expect(refused?.status).toBe(429);
-    expect((await refused?.json()).error).toMatch(/20 uploads per visitor/);
+    const body = (await refused?.json()) as { error?: string } | undefined;
+    expect(body?.error).toMatch(/20 uploads per visitor/);
   });
 
   it('never applies outside demo mode', async () => {
