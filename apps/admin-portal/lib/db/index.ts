@@ -4,7 +4,9 @@ import { dbDriver } from '@/lib/drivers';
 import { createPgliteDb } from './pglite';
 import * as schema from './schema';
 
-type Db = ReturnType<typeof drizzle<typeof schema>>;
+export type Db = ReturnType<typeof drizzle<typeof schema>>;
+/** The client inside db.transaction(); takes the same queries as Db. */
+export type DbTx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 const globalForDb = globalThis as unknown as {
   _pgClient: ReturnType<typeof postgres> | undefined;
