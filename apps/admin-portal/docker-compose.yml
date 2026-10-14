@@ -12,7 +12,7 @@
 #   docker compose exec app pnpm lint:fix
 #   docker compose exec app pnpm check-types
 #   docker compose exec app pnpm test
-#   docker compose exec app bash -c "cd apps/admin-portal && pnpm db:migrate"
+#   docker compose exec -w /app/apps/admin-portal app pnpm db:migrate
 # =============================================================================
 
 name: admin-portal-dev
