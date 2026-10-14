@@ -19,7 +19,8 @@
     "db:mark-baseline": "tsx scripts/db/mark-baseline-applied.ts",
     "dev:lite": "tsx scripts/dev-lite.ts",
     "ai:smoke": "tsx scripts/ai-smoke.ts",
-    "demo:build-seed": "tsx scripts/demo/build-seed.ts"
+    "demo:build-seed": "tsx scripts/demo/build-seed.ts",
+    "dev:demo": "tsx scripts/dev-demo.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",

@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   poweredByHeader: false,
+  // dev:demo builds into its own folder, so it can run beside the Docker dev
+  // server, which holds a lock on .next/dev in the same directory
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   output: 'standalone',
   // DB_DRIVER=pglite runs drizzle/ at start-up, so the migrations ship with the server
   outputFileTracingIncludes: { '/*': ['./drizzle/**/*'] },
