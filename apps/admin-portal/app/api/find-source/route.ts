@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { safeParseJson } from '@/lib/api/safe-json';
 import { requireAuthApi } from '@/lib/auth/server';
 import { generateEmbedding } from '@/lib/rag/embeddings';
@@ -75,6 +75,8 @@ export async function POST(request: Request) {
       query: queryText.slice(0, 100),
     });
   } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     console.error('Find source failed:', error);
     return NextResponse.json({ error: 'Search failed' }, { status: 500 });
   }

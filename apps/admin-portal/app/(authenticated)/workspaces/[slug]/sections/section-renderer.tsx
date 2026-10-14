@@ -28,6 +28,7 @@ import {
   type ContextMenuEntry,
   type ContextMenuItem,
 } from '@/components/ui/context-menu';
+import { toastAiRefusal } from '@/lib/ai/refusal-toast';
 import type { CompletenessRule, GapFinding } from '@/lib/db/schema';
 import type { AllSectionItem, SectionVersion, SectionWithContent } from '@/lib/workspaces/types';
 import { AiEditPreview } from './ai-edit-preview';
@@ -264,6 +265,7 @@ export function SectionRenderer({
             }),
           });
           if (!res.ok) {
+            await toastAiRefusal(res);
             setTopicPreview(null);
             return;
           }
@@ -294,6 +296,7 @@ export function SectionRenderer({
         });
 
         if (!res.ok) {
+          await toastAiRefusal(res);
           setAiPreview(null);
           return;
         }

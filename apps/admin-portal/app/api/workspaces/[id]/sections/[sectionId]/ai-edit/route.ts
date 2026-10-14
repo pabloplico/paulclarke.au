@@ -1,7 +1,7 @@
 import { generateObject, generateText } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { checkFidelity, recordProvenance } from '@/lib/ai/semantic-fidelity';
 import { enforceBudget, estimateTokens } from '@/lib/ai/tokens';
@@ -73,6 +73,8 @@ export async function POST(request: NextRequest, { params }: Params) {
         action: 'analyse',
       });
     } catch (error) {
+      const budget = aiBudgetResponse(error);
+      if (budget) return budget;
       logger.error('AI analyse failed', {
         module: 'ai-edit',
         error: error instanceof Error ? error.message : String(error),
@@ -324,6 +326,8 @@ Return the complete updated section content with the selected text modified acco
       ...(fidelityWarning ? { fidelityWarning } : {}),
     });
   } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     logger.error('AI edit failed', {
       module: 'ai-edit',
       error: error instanceof Error ? error.message : String(error),

@@ -20,6 +20,7 @@ import { useHeaderSlot } from '@/components/layout/header-context';
 import { FindingsPanel } from '@/components/research/findings-panel';
 import { ResearchToolbar } from '@/components/research/research-toolbar';
 import { SourcesPanel } from '@/components/research/sources-panel';
+import { toastAiRefusal } from '@/lib/ai/refusal-toast';
 import type { GapFinding } from '@/lib/db/schema';
 import {
   parseMarkdownToCards,
@@ -582,7 +583,10 @@ export function WorkspaceView({
           }),
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+          await toastAiRefusal(res);
+          return;
+        }
 
         const data = await res.json();
 
@@ -620,7 +624,10 @@ export function WorkspaceView({
           }),
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+          await toastAiRefusal(res);
+          return;
+        }
 
         const data = await res.json();
 

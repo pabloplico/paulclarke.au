@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { requireAuthApi } from '@/lib/auth/server';
 import { loadConfig } from '@/lib/config.server';
@@ -109,6 +109,8 @@ Return only actionable suggestions. If workspaces are well-organised, return emp
 
     return NextResponse.json(result.object);
   } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     console.error('AI workspace organise error:', error);
     return NextResponse.json({ error: 'Failed to generate suggestions' }, { status: 500 });
   }

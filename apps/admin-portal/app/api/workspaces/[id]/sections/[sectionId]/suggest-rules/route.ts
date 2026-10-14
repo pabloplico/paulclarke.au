@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAiAllowance } from '@/lib/ai/allowance';
+import { aiBudgetResponse, requireAiAllowance } from '@/lib/ai/allowance';
 import { getModel } from '@/lib/ai/models';
 import { resolveWorkspaceSectionParams } from '@/lib/api/resolve-params';
 import { loadConfig } from '@/lib/config.server';
@@ -97,6 +97,8 @@ ${existingRules.length > 0 ? JSON.stringify(existingRules, null, 2) : 'None — 
 
     return NextResponse.json({ suggestions: object.rules });
   } catch (error) {
+    const budget = aiBudgetResponse(error);
+    if (budget) return budget;
     console.error('AI rule suggestion failed:', error);
     return NextResponse.json({ error: 'Failed to generate suggestions' }, { status: 500 });
   }

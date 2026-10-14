@@ -13,6 +13,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { toastAiRefusal } from '@/lib/ai/refusal-toast';
 import type { GapFinding } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 
@@ -274,6 +275,7 @@ export const GapPanel = forwardRef<GapPanelHandle, GapPanelProps>(function GapPa
       const res = await fetch(`/api/workspaces/${workspaceId}/gap-analysis`, {
         method: 'POST',
       });
+      await toastAiRefusal(res);
       if (res.ok) {
         const { report } = await res.json();
         setFindings(report.findings);
