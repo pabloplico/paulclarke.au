@@ -23,8 +23,6 @@ const defaults: Record<string, string> = {
   DEMO_MODE: 'true',
   DEV_ACCESS_IDENTITY: 'visitor@example.com',
   DB_DRIVER: 'pglite',
-  PGLITE_DATA_DIR: join(dir, 'demo'),
-  UPLOADS_DIR: join(dir, 'demo-uploads'),
   QUEUE_DRIVER: 'memory',
   AI_PROVIDER: 'openai',
   AI_MODEL: 'gpt-4.1-nano',
@@ -32,6 +30,9 @@ const defaults: Record<string, string> = {
   NEXT_DIST_DIR: '.next/demo',
 };
 for (const [key, value] of Object.entries(defaults)) process.env[key] ??= value;
+// Always these two, never whatever the shell has: both are deleted on every start
+process.env.PGLITE_DATA_DIR = join(dir, 'demo');
+process.env.UPLOADS_DIR = join(dir, 'demo-uploads');
 // Demo mode refuses to start with sign-in switched off
 delete process.env.AUTH_ENABLED;
 
