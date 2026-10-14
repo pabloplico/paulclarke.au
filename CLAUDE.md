@@ -40,7 +40,7 @@ Next.js uses `output: 'standalone'` — the prod image contains only traced depe
 
 ## Docker Dev Environments
 
-Each app has its own `docker-compose.yml` and `Dockerfile.dev` in its app directory. All dev images use `node:22-alpine` (matching prod). Run commands from the app directory.
+Each app has its own `docker-compose.yml` and `Dockerfile.dev` in its app directory. The admin-portal dev image uses `node:22-alpine` (matching prod); the website's uses `node:22-slim` (see below). Run commands from the app directory.
 
 ### Website Dev
 
@@ -72,6 +72,7 @@ pnpm nx run admin-portal:dev:lite     # Next.js on 3001: PGlite + in-process job
 
 ```bash
 cd apps/admin-portal
+export COMPOSE_ENV_FILES=../../.env.docker  # once per shell: compose reads its ${VARS} from here
 docker compose up -d                      # Start (port 3001 + postgres + redis)
 docker compose --profile ai up -d         # Include Ollama
 docker compose logs -f app                # View logs
@@ -145,7 +146,7 @@ docker compose exec app pnpm install
 
 ### Environment variables
 
-All env vars live in **`.env.docker`** (root of repo). Copy `.env.docker.example` to `.env.docker` to set up. Do **not** create `.env.local` files in app directories — the Docker container loads `.env.docker` via `env_file` in docker-compose.
+All env vars live in **`.env.docker`** (root of repo). Copy `.env.docker.example` to `.env.docker` to set up. Do **not** create `.env.local` files in app directories — the Docker container loads `.env.docker` via `env_file` in docker-compose. `env_file` only reaches the container, though: Compose fills the `${POSTGRES_PASSWORD}` and `${REDIS_PASSWORD}` in `apps/admin-portal/docker-compose.yml` from the shell or a `.env` file, not from `env_file`. Run `export COMPOSE_ENV_FILES=../../.env.docker` in `apps/admin-portal` first (or pass `--env-file ../../.env.docker`). Don't add an `apps/admin-portal/.env`: Next.js would load it on the host too. Without it every `docker compose` command there, `exec` included, fails with "required variable POSTGRES_PASSWORD is missing a value".
 
 Key vars (see `.env.docker.example` for full list):
 - `DATABASE_URL` — Set in docker-compose `environment` (points to `postgres` service hostname)
