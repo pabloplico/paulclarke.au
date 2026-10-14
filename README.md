@@ -99,6 +99,10 @@ pnpm nx run website:dev
 # AI_PROVIDER/AI_MODEL) in the environment for the AI features
 pnpm nx run admin-portal:dev:lite
 
+# The admin portal's public demo as a visitor sees it: demo mode on :3003,
+# a fresh database seeded with a fictional bakery. Needs an OpenAI key
+OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo
+
 # Admin portal on the full stack: Postgres + Redis in Docker
 cp .env.docker.example .env.docker      # then fill in values
 cd apps/admin-portal
@@ -123,7 +127,7 @@ pnpm --filter website test:e2e   # Playwright + axe against the production build
 
 ## Testing
 
-- **Unit tests:** 1,098 across both apps (1,046 admin-portal, 52 website).
+- **Unit tests:** 1,113 across both apps (1,061 admin-portal, 52 website).
 - **Website E2E:** Playwright on a desktop and a mobile viewport.
 - **Accessibility:** automated checks with axe on every website page.
 
@@ -172,6 +176,7 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 - **No external services:** `DB_DRIVER=pglite` and `QUEUE_DRIVER=memory` run the database and job queues inside the Node process, so the demo is one container on one instance. Postgres and Redis remain the default, behind the same interfaces.
 - **Cloudflare Access instead of demo logins:** visitors will sign in with a one-time email PIN. The app verifies the signed Access token on every request and gives each email its own member account.
 - **Real AI, capped:** every model call goes through one guard with an output-token cap, daily spend caps in total and per user, and a per-user rate limit. A test checks that every route that starts AI work applies it. The provider's hard spend limit is the final backstop.
+- **Seeded per visitor, without AI calls:** each visitor gets their own copy of a fictional bakery's workspaces, with a document already processed and routed and saved gap reports. The AI-made parts were produced once by the real pipeline and stored, so seeding costs nothing.
 - **`DEMO_MODE=true`** switches off backups, settings, feeds, research agents and URL ingestion. Every route is listed as on or off, and a test fails if a new one isn't.
 
 **Allow-list `COPY` in Docker.** The admin image used `COPY . .`. `.dockerignore` patterns only match from the repo root, so nested `node_modules`, `.next`, `uploads`, local database dumps and a service-account key were all in the build context: over 720 MB, and the build failed reading a root-owned folder.
