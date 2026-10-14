@@ -240,3 +240,50 @@ export function parseMarkdownToKvPairs(markdown: string): KvPairsData {
 
   return { pairs };
 }
+
+/**
+ * Adds parsed incoming data to a structured section's current data, for an
+ * "append" approval: the existing items, rows or pairs stay and the new ones
+ * follow. Table rows line up by column name (ignoring case); an incoming
+ * column the table doesn't have yet is added at the end. With no usable
+ * current data, the incoming data is returned as it is.
+ */
+export function mergeStructuredData(
+  template: string,
+  current: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown>
+): Record<string, unknown> {
+  switch (template) {
+    case 'checklist':
+    case 'cards': {
+      const existing = (current as ChecklistData | CardsData | null)?.items;
+      const added = (incoming as ChecklistData | CardsData).items ?? [];
+      return Array.isArray(existing) ? { ...current, items: [...existing, ...added] } : incoming;
+    }
+    case 'kv-pairs': {
+      const existing = (current as KvPairsData | null)?.pairs;
+      const added = (incoming as KvPairsData).pairs ?? [];
+      return Array.isArray(existing) ? { ...current, pairs: [...existing, ...added] } : incoming;
+    }
+    case 'table': {
+      const table = current as TableData | null;
+      if (!Array.isArray(table?.columns) || !Array.isArray(table?.rows)) return incoming;
+      const added = incoming as TableData;
+      const columns = [...table.columns];
+      const columnFor = (name: string) => {
+        const match = columns.find((c) => c.toLowerCase() === name.toLowerCase());
+        if (match) return match;
+        columns.push(name);
+        return name;
+      };
+      const rows = (added.rows ?? []).map((row) => {
+        const mapped: Record<string, string> = {};
+        for (const [name, value] of Object.entries(row)) mapped[columnFor(name)] = value;
+        return mapped;
+      });
+      return { ...table, columns, rows: [...table.rows, ...rows] };
+    }
+    default:
+      return incoming;
+  }
+}

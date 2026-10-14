@@ -15,6 +15,7 @@ import {
   type RoutingSuggestion,
 } from '@/lib/db/schema';
 import {
+  mergeStructuredData,
   parseMarkdownToCards,
   parseMarkdownToChecklist,
   parseMarkdownToKvPairs,
@@ -89,38 +90,41 @@ export async function POST(request: NextRequest, { params }: Params) {
   // not meaningful to users. Source traceability is handled via section_sources + RAG search.
   const cleanContent = suggestion.suggestedContent.replace(/\s*\[chunk\s+\d+\]/gi, '');
 
-  // Determine content based on action
+  // For append, the current version is what the suggestion adds to
+  const appending = suggestion.action === 'append' && latest;
+  const [currentVersion] = appending
+    ? await db
+        .select({
+          content: adminSectionVersions.content,
+          structuredData: adminSectionVersions.structuredData,
+        })
+        .from(adminSectionVersions)
+        .where(eq(adminSectionVersions.sectionId, suggestion.sectionId))
+        .orderBy(desc(adminSectionVersions.version))
+        .limit(1)
+    : [];
+
   let finalContent = cleanContent;
-  if (suggestion.action === 'append' && latest) {
-    // For append, get current content and add to it
-    const [currentVersion] = await db
-      .select({ content: adminSectionVersions.content })
-      .from(adminSectionVersions)
-      .where(eq(adminSectionVersions.sectionId, suggestion.sectionId))
-      .orderBy(desc(adminSectionVersions.version))
-      .limit(1);
-    if (currentVersion?.content) {
-      finalContent = `${currentVersion.content}\n\n${suggestion.suggestedContent}`;
-    }
+  if (currentVersion?.content) {
+    finalContent = `${currentVersion.content}\n\n${cleanContent}`;
   }
 
-  // Parse markdown into structured data for non-prose templates
+  // Parse the suggestion into structured data for non-prose templates. When
+  // appending, add it to the section's current data: structured sections
+  // keep their items there, not in content, so re-parsing content alone
+  // would replace what the section already has
   let structuredData: Record<string, unknown> | undefined;
-  if (finalContent) {
-    switch (template) {
-      case 'table':
-        structuredData = parseMarkdownToTable(finalContent);
-        break;
-      case 'cards':
-        structuredData = parseMarkdownToCards(finalContent);
-        break;
-      case 'checklist':
-        structuredData = parseMarkdownToChecklist(finalContent);
-        break;
-      case 'kv-pairs':
-        structuredData = parseMarkdownToKvPairs(finalContent);
-        break;
-    }
+  const parsers: Record<string, (md: string) => Record<string, unknown>> = {
+    table: parseMarkdownToTable,
+    cards: parseMarkdownToCards,
+    checklist: parseMarkdownToChecklist,
+    'kv-pairs': parseMarkdownToKvPairs,
+  };
+  const parse = parsers[template];
+  if (parse && cleanContent) {
+    structuredData = currentVersion?.structuredData
+      ? mergeStructuredData(template, currentVersion.structuredData, parse(cleanContent))
+      : parse(finalContent);
   }
 
   // Create new section version

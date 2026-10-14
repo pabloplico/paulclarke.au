@@ -140,7 +140,10 @@ const mockParseChecklist = vi.fn((_md: string) => ({
 }));
 const mockParseKvPairs = vi.fn((_md: string) => ({ pairs: [{ key: 'k', value: 'v' }] }));
 
-vi.mock('@/lib/workspaces/parse-structured', () => ({
+vi.mock('@/lib/workspaces/parse-structured', async (importOriginal) => ({
+  // The real merge: it's what the append regression tests check
+  mergeStructuredData: (await importOriginal<typeof import('@/lib/workspaces/parse-structured')>())
+    .mergeStructuredData,
   parseMarkdownToTable: (md: string) => mockParseTable(md),
   parseMarkdownToCards: (md: string) => mockParseCards(md),
   parseMarkdownToChecklist: (md: string) => mockParseChecklist(md),
@@ -388,6 +391,65 @@ describe('POST /api/inbox/[id]/approve', () => {
 
     expect(res.status).toBe(200);
     expect(mockParseKvPairs).toHaveBeenCalledWith('New content from document');
+  });
+
+  // Regression: appending into a structured section used to re-parse only the
+  // suggestion, so the new version kept the new items and lost the old ones
+  describe('append into a structured section keeps what it has', () => {
+    async function approveAppend(template: string, structuredData: Record<string, unknown>) {
+      const suggestion = makeSuggestion({ action: 'append', suggestedContent: 'New items' });
+      inboxResult = [makeInboxItem({ routingResults: [suggestion] })];
+      versionsResult = [{ version: 1, content: null, structuredData }];
+      sectionsResult = [{ template }];
+      workspacesResult = [{ slug: 'services' }];
+      const POST = await getHandler();
+      const res = await POST(makeRequest(), makeParams());
+      expect(res.status).toBe(200);
+      return insertedValues.find((v) => v._table === 'adminSectionVersions')?.structuredData;
+    }
+
+    it('checklist', async () => {
+      const data = await approveAppend('checklist', {
+        items: [{ text: 'Existing check', checked: true }],
+      });
+      expect(mockParseChecklist).toHaveBeenCalledWith('New items');
+      expect(data).toEqual({
+        items: [
+          { text: 'Existing check', checked: true },
+          { text: 'Do thing', checked: false },
+        ],
+      });
+    });
+
+    it('cards', async () => {
+      const data = await approveAppend('cards', {
+        items: [{ title: 'Existing', body: 'card' }],
+      });
+      expect(data).toEqual({
+        items: [
+          { title: 'Existing', body: 'card' },
+          { title: 'Card', body: 'text' },
+        ],
+      });
+    });
+
+    it('kv-pairs', async () => {
+      const data = await approveAppend('kv-pairs', { pairs: [{ key: 'Owner', value: 'Marie' }] });
+      expect(data).toEqual({
+        pairs: [
+          { key: 'Owner', value: 'Marie' },
+          { key: 'k', value: 'v' },
+        ],
+      });
+    });
+
+    it('table', async () => {
+      const data = await approveAppend('table', {
+        columns: ['A', 'B'],
+        rows: [{ A: '0', B: 'x' }],
+      });
+      expect(data).toEqual({ columns: ['A', 'B'], rows: [{ A: '0', B: 'x' }, { A: '1' }] });
+    });
   });
 
   it('does not parse structured data for prose template', async () => {
