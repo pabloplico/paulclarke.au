@@ -82,7 +82,7 @@ docker compose exec app <command>         # Run commands
 
 ### Running commands inside the container
 
-All build, test, lint, and database commands must run inside the `app` container:
+All build, test, lint, and database commands must run inside the `app` container. The image is Alpine, so there's no `bash`; for commands in `apps/admin-portal`, set the working directory with `-w /app/apps/admin-portal` (or use `sh -c`):
 
 ```bash
 docker compose exec app <command>
@@ -112,7 +112,7 @@ docker compose exec app pnpm exec nx reset                      # clear the cach
 
 # Unit tests (Vitest in admin-portal and website)
 docker compose exec app pnpm test
-docker compose exec app bash -c "cd apps/admin-portal && npx vitest run lib/rag/chunker.test.ts"
+docker compose exec -w /app/apps/admin-portal app npx vitest run lib/rag/chunker.test.ts
 
 # E2E tests (website: Playwright + axe against wrangler dev, no services needed;
 # admin-portal needs postgres + redis)
@@ -120,20 +120,20 @@ docker compose exec app pnpm --filter website test:e2e
 docker compose exec app pnpm test:e2e
 
 # Database (from admin-portal dir inside container)
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:generate"
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:migrate"
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:studio"
+docker compose exec -w /app/apps/admin-portal app pnpm db:generate
+docker compose exec -w /app/apps/admin-portal app pnpm db:migrate
+docker compose exec -w /app/apps/admin-portal app pnpm db:studio
 # Build a fresh in-memory PGlite database from drizzle/ and smoke-test it (also
 # fails if the schema has drifted from the latest migration). CI runs this
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:check-fresh"
+docker compose exec -w /app/apps/admin-portal app pnpm db:check-fresh
 ```
 
-**Migrations** start from one baseline (`drizzle/0000_baseline.sql`, generated from `lib/db/schema`), which replaced a history that couldn't build a fresh database. A database built before the baseline (with `drizzle-kit push` or the old migrations) needs the baseline recorded once, or `db:migrate` fails with "already exists". `db:mark-baseline` is non-destructive: it refuses unless every schema table and column exists, never drops anything, and with `--apply` only inserts one row into `drizzle.__drizzle_migrations`:
+**Migrations** start from one baseline (`drizzle/0000_baseline.sql`, generated from `lib/db/schema`), which replaced a history that couldn't build a fresh database. A new, empty database (a fresh `postgres_data` volume) only needs `db:migrate`. A database built before the baseline (with `drizzle-kit push` or the old migrations) needs the baseline recorded once, or `db:migrate` fails with "already exists". `db:mark-baseline` is non-destructive: it refuses unless every schema table and column exists, never drops anything, and with `--apply` only inserts one row into `drizzle.__drizzle_migrations`:
 
 ```bash
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline"          # dry run
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:mark-baseline --apply"  # record it
-docker compose exec app bash -c "cd apps/admin-portal && pnpm db:migrate"                # then later migrations
+docker compose exec -w /app/apps/admin-portal app pnpm db:mark-baseline          # dry run
+docker compose exec -w /app/apps/admin-portal app pnpm db:mark-baseline --apply  # record it
+docker compose exec -w /app/apps/admin-portal app pnpm db:migrate                # then later migrations
 ```
 
 ### After adding dependencies
