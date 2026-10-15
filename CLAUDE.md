@@ -206,6 +206,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 ### Packages
 
 - **`@repo/ui`** — Shared React components (Button, Card, Badge, Input, etc.). Uses direct path exports: `import { Button } from '@repo/ui/button'` (no barrel file).
+- **`@repo/tailwind-theme`** — CSS-only Tailwind v4 theme (`@repo/tailwind-theme/theme.css`): the `@theme` tokens, base body styles, the `:focus-visible` ring and the reduced-motion rule. Apps `@import` it right after `tailwindcss` and keep their own `@source` lines and app-specific CSS (the website's print stylesheet stays in `globals.css`). An app restyles itself by redefining tokens in a later `@theme` block.
 - **`@repo/typescript-config`** — Shared tsconfig bases (base, vite, nextjs, react-library)
 - **`@repo/biome-config`** — Shared Biome linting/formatting rules
 - **`@repo/prettier-config`** — Shared Prettier config
@@ -244,7 +245,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 ## Code Style & Conventions
 
 - **Biome 2.4.4** for linting and formatting. Single quotes, semicolons, 2-space indent, 100-char line width, ES5 trailing commas.
-- **Tailwind v4** — Uses CSS `@import "tailwindcss"` syntax. No plugin system. Apps include `@source` directive to scan `@repo/ui`. Dark theme with lime green accent.
+- **Tailwind v4** — Uses CSS `@import "tailwindcss"` syntax. No plugin system. Apps include `@source` directive to scan `@repo/ui`. Shared tokens come from `@repo/tailwind-theme`. Dark theme with lime green accent.
 - **Drizzle schema** uses `admin_` table prefix and camelCase column names in PostgreSQL (Drizzle maps JS prop names directly).
 - **No pre-commit hooks** — there is no Husky or lint-staged setup. Run `pnpm lint` before committing.
 - Dependency versions managed via pnpm catalog in `pnpm-workspace.yaml`.
