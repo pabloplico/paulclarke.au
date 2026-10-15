@@ -11,12 +11,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Website (Cloudflare Workers)
 
-The website is a single Worker that serves the Vite SPA via the Static Assets binding and exposes a tiny blog API (`/api/posts`). Build and deploy from `apps/website/`:
+The website is a single Worker that serves the Vite SPA via the Static Assets binding and exposes a tiny blog API (`/api/posts`).
+
+**CI deploys it.** The `deploy-website` job in `.github/workflows/ci.yml` runs on pushes to `main` after every other job passes, and only when `nx show projects --affected` (from the previous `main` commit) includes `website`. Running the CI workflow by hand on `main` (Actions → CI → Run workflow) always deploys. The job uses the `production` GitHub environment, which holds the `CLOUDFLARE_API_TOKEN` (Workers edit permission, this account only) and `CLOUDFLARE_ACCOUNT_ID` secrets. Don't also connect the repo to Workers Builds in the Cloudflare dashboard, or every merge deploys twice.
+
+To deploy by hand, from `apps/website/` (use `pnpm run`: plain `pnpm deploy` is pnpm's own command and fails):
 
 ```bash
 cd apps/website
-pnpm deploy            # nx run website:build (posts + vite build), then wrangler deploy
-pnpm deploy:dry-run    # build + bundle without uploading
+pnpm run deploy            # nx run website:build (posts + vite build), then wrangler deploy
+pnpm run deploy:dry-run    # build + bundle without uploading
 ```
 
 The Worker has **no secrets**. The contact form opens the visitor's email client via `mailto:`, and the assessment results are downloaded as a PDF via the browser's print dialog (`window.print()` + a print stylesheet in `globals.css`). No Resend, no Turnstile, no SMTP.
@@ -188,7 +192,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Root scripts** (`pnpm lint`, `check-types`, `test`, `build`, `test:e2e`, `dev`) call `nx run-many -t …`. The root `package.json` is itself a project (`paulclarke.au`) that only exposes `lint:root` (`nx.includedScripts`), so root scripts can't recurse.
 - **Website posts:** `prebuild:posts` is its own cached target (output `server/posts.generated.ts`); the website's `build` and `check-types` depend on it via `targetDefaults` entries filtered to `website`. The `website` scripts `build`/`check-types` no longer run it themselves, so build through NX (`nx run website:build`), as `deploy` and the Playwright `webServer` do. `dev` still runs it inline.
 - **Cache:** local only. `neverConnectToCloud: true` and `analytics: false` in `nx.json`; CI sets `NX_NO_CLOUD=true`. NX 23 keeps the cache in `~/.nx/<repo-id>/cache`, shared by every checkout and worktree of the repo; `nx reset` clears it. Script targets hash all external dependencies, so any lockfile change invalidates every task.
-- **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`. Runners are pinned to `ubuntu-24.04`.
+- **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`, then deploy the website if it changed (see Production Builds). Runners are pinned to `ubuntu-24.04`.
 
 ### Apps
 

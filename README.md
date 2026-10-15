@@ -71,7 +71,7 @@ The repo moved from Turborepo to NX in its first pull request. The task graph, t
 - **Why:** NX treats the workspace as a project graph, not just a list of packages. That gives `nx affected` (CI checks only what a change can break), `nx graph` to see the structure, and room to grow into generators and module-boundary rules.
 - **No plugins yet.** Each target is the package's own `package.json` script, so the migration changed the task runner and nothing else. Caching therefore relies on explicit `inputs` and `outputs` in `nx.json` rather than on plugin inference. A `production` input excludes tests and specs, so editing a test doesn't invalidate a build.
 - **Local cache only.** Nx Cloud is turned off (`neverConnectToCloud`), and CI uses no remote cache.
-- **CI:** pull requests run `nx affected` against their merge base with `main`; pushes to `main` run everything.
+- **CI:** pull requests run `nx affected` against their merge base with `main`; pushes to `main` run everything, then deploy the website if it changed.
 
 | Task                       | Command                                             |
 | -------------------------- | --------------------------------------------------- |
@@ -137,10 +137,13 @@ CI runs it all except admin-portal E2E, which needs Postgres and Redis. It also 
 
 **Website (Cloudflare Workers).** One Worker serves the SPA through the Static Assets binding, plus a small `/api/posts` endpoint for the blog:
 
+- **Continuous deployment:** after every check passes on `main`, CI deploys the Worker if NX says the website was affected (its own code, `@repo/ui`, shared config or the lockfile). Admin-portal-only changes don't redeploy it. The Cloudflare token is a secret on the `production` GitHub environment, so only the deploy job can read it.
+- **By hand:**
+
 ```bash
 cd apps/website
-pnpm deploy           # nx run website:build (posts + vite build), then wrangler deploy
-pnpm deploy:dry-run   # build and bundle without uploading
+pnpm run deploy           # nx run website:build (posts + vite build), then wrangler deploy
+pnpm run deploy:dry-run   # build and bundle without uploading
 ```
 
 - **Deep links:** `wrangler.jsonc` sets `not_found_handling: "single-page-application"`, so browser navigations to paths like `/writing/my-post` get `index.html` and the client router takes over. These navigations don't invoke the Worker script. `/api/*` always runs the Worker (`run_worker_first`).
