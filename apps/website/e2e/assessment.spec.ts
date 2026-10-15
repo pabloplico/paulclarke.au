@@ -34,6 +34,8 @@ test.describe('assessment', () => {
     await expect(page.getByText('38', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Your 90-Day AI Action Plan' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Download/ })).toBeVisible();
+    // Screen readers hear the result too, through a polite status region
+    await expect(page.getByRole('status')).toHaveText('Readiness score 38 out of 100: Developing.');
   });
 
   test('detailed analysis works by keyboard alone', async ({ page }) => {

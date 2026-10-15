@@ -103,6 +103,7 @@ export function AssessmentResults({ profile, results, onRestart }: AssessmentRes
   return (
     <PrintModeContext.Provider value={printMode}>
       <div className="space-y-6 print:space-y-4" data-print-root>
+        <ResultsAnnouncer results={results} />
         <PrintHeader profile={profile} results={results} />
         <div className="rounded-xl border border-white/8 bg-white/[0.02] p-5 print:break-inside-avoid">
           <div className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr] gap-5">
@@ -241,6 +242,29 @@ export function AssessmentResults({ profile, results, onRestart }: AssessmentRes
         )}
       </div>
     </PrintModeContext.Provider>
+  );
+}
+
+/**
+ * Screen readers don't notice the results panel changing as answers come in, so announce the
+ * score politely. The short delay means a run of quick clicks is announced once, at the end.
+ */
+function ResultsAnnouncer({ results }: { results: Results | null }) {
+  const [message, setMessage] = useState('');
+  const next = results
+    ? `Readiness score ${results.overallScore} out of 100: ${getReadinessLevelMeta(results.overallLevel).label}.`
+    : '';
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMessage(next), 500);
+    return () => clearTimeout(timer);
+  }, [next]);
+
+  return (
+    // <output> is a status region; aria-live is explicit for screen readers that don't infer it
+    <output aria-live="polite" className="sr-only">
+      {message}
+    </output>
   );
 }
 
