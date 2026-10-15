@@ -24,8 +24,11 @@ export async function verifyPassword(hash: string, plain: string): Promise<boole
 export async function createSession(userId: number): Promise<string> {
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
 
+  // The jti makes every token unique: without it, two logins by one user in
+  // the same second sign identical tokens and the second insert fails
   const token = await new SignJWT({ sub: String(userId) })
     .setProtectedHeader({ alg: 'HS256' })
+    .setJti(crypto.randomUUID())
     .setExpirationTime(expiresAt)
     .setIssuedAt()
     .sign(getSecret());
