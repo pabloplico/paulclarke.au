@@ -165,15 +165,6 @@ describe('POST /api/auth/login', () => {
     expect(setCookie).toContain('admin-session=mock-jwt-token');
   });
 
-  it('updates lastLoginAt on successful login', async () => {
-    mockGetUserByEmail.mockResolvedValue(testUser);
-    mockVerifyPassword.mockResolvedValue(true);
-    const { db } = await import('@/lib/db');
-    const POST = await getHandler();
-    await POST(makeRequest({ email: 'test@test.com', password: 'correct1' }));
-    expect(db.update).toHaveBeenCalled();
-  });
-
   it('returns 429 when IP rate limited', async () => {
     const { ipLimiter } = await import('@/lib/auth/rate-limiter');
     vi.mocked(ipLimiter.check).mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });

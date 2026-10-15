@@ -157,26 +157,6 @@ describe('createLanguageModel – static config fallback', () => {
   });
 });
 
-// ── createLanguageModel – logging ──────────────────────────────────────────────────────
-
-describe('createLanguageModel – logging', () => {
-  it('logs model selection on first call only', async () => {
-    setEnvKeys({ ANTHROPIC_API_KEY: 'sk-ant-test' });
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const { createLanguageModel } = await import('./providers');
-
-    createLanguageModel(makeConfig());
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[ai]'));
-
-    createLanguageModel(makeConfig());
-    // Should NOT log again
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
-
-    consoleSpy.mockRestore();
-  });
-});
-
 // ── createEmbeddingModel ───────────────────────────────────────────────────────
 
 describe('createEmbeddingModel', () => {

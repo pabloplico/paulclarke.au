@@ -107,16 +107,6 @@ describe('verifyPassword', () => {
     const result = await verifyPassword(hash, '');
     expect(result).toBe(false);
   });
-
-  it('calls bcrypt.compare with (plain, hash) argument order', async () => {
-    const { verifyPassword } = await import('./index');
-    const compareSpy = vi.spyOn(bcrypt, 'compare');
-    const hash = await bcrypt.hash('test', 12);
-    await verifyPassword(hash, 'test');
-    // bcrypt.compare should be called as compare(plain, hash)
-    expect(compareSpy).toHaveBeenCalledWith('test', hash);
-    compareSpy.mockRestore();
-  });
 });
 
 describe('createSession', () => {

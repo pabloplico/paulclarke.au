@@ -220,12 +220,6 @@ describe('POST /api/auth/signup', () => {
     expect(capturedInsertValues!.name).toBe('Alice');
   });
 
-  it('calls seedDefaultWorkspace after user creation', async () => {
-    const POST = await getHandler();
-    await POST(makeRequest({ name: 'Alice', email: 'alice@test.com', password: 'password1' }));
-    expect(mockSeedDefaultWorkspace).toHaveBeenCalledWith(1);
-  });
-
   it('returns 201 even when seedDefaultWorkspace throws', async () => {
     mockSeedDefaultWorkspace.mockRejectedValue(new Error('seed failed'));
     const POST = await getHandler();

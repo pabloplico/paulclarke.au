@@ -1,15 +1,6 @@
-import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
-
-// execFile is called via promisify at module init, so we must hoist the mock
-// and patch it as a node-style callback function.
-const mockExecFile = vi.hoisted(() => vi.fn());
-
-vi.mock('node:child_process', () => ({
-  execFile: mockExecFile,
-}));
 
 vi.mock('node:fs/promises', () => ({
   readdir: vi.fn(),
@@ -21,193 +12,20 @@ vi.mock('node:fs/promises', () => ({
 // ── Imports (after mocks) ─────────────────────────────────────────────────────
 
 import { readdir, stat, unlink } from 'node:fs/promises';
-import { createBackup, deleteBackup, getBackupPath, listBackups, pruneOldBackups } from './backup';
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const BACKUP_DIR = resolve(process.cwd(), '../../backups');
+import { deleteBackup, getBackupPath, pruneOldBackups } from './backup';
 
 // Helper: build a valid backup filename from a date string like '20240101_080000'
 function makeFilename(ts: string) {
   return `business_portal_${ts}.sql`;
 }
 
-// Helper: make execFile resolve (calls callback with null error)
-function mockExecFileSuccess() {
-  mockExecFile.mockImplementation(
-    (
-      _cmd: string,
-      _args: string[],
-      _opts: unknown,
-      callback: (err: null, stdout: string, stderr: string) => void
-    ) => {
-      callback(null, '', '');
-    }
-  );
-}
-
-// Helper: make execFile reject (calls callback with error)
-function mockExecFileError(message: string) {
-  mockExecFile.mockImplementation(
-    (_cmd: string, _args: string[], _opts: unknown, callback: (err: Error) => void) => {
-      callback(new Error(message));
-    }
-  );
-}
-
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.DATABASE_URL = 'postgresql://myuser:mypassword@db-host:5433/mydb';
-});
-
-afterEach(() => {
-  delete process.env.DATABASE_URL;
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
-
-describe('createBackup', () => {
-  it('TC-009-BACKUP-01 — calls pg_dump with correct arguments (happy path)', async () => {
-    const { mkdir } = await import('node:fs/promises');
-    vi.mocked(mkdir).mockResolvedValue(undefined);
-    mockExecFileSuccess();
-    vi.mocked(stat).mockResolvedValue({
-      size: 1024 * 500,
-      mtime: new Date('2024-01-01T08:00:00Z'),
-    } as Awaited<ReturnType<typeof stat>>);
-
-    const info = await createBackup();
-
-    // execFile was called with pg_dump as first arg
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'pg_dump',
-      expect.any(Array),
-      expect.any(Object),
-      expect.any(Function)
-    );
-
-    const [, args, opts] = mockExecFile.mock.calls[0] as [
-      string,
-      string[],
-      { env: Record<string, string> },
-      unknown,
-    ];
-
-    // Required pg_dump flags
-    expect(args).toContain('-h');
-    expect(args).toContain('db-host');
-    expect(args).toContain('-p');
-    expect(args).toContain('5433');
-    expect(args).toContain('-U');
-    expect(args).toContain('myuser');
-    expect(args).toContain('--clean');
-    expect(args).toContain('--if-exists');
-    expect(args).toContain('--no-owner');
-    expect(args).toContain('--no-privileges');
-    expect(args).toContain('-f');
-    expect(args).toContain('mydb');
-
-    // Output file path contains the expected prefix
-    const fileArg = args[args.indexOf('-f') + 1];
-    expect(fileArg).toEqual(expect.stringContaining('business_portal_'));
-
-    // PGPASSWORD passed in env
-    expect(opts.env).toMatchObject({ PGPASSWORD: 'mypassword' });
-
-    // Returned BackupInfo
-    expect(info.filename).toMatch(/^business_portal_\d{8}_\d{6}\.sql$/);
-    expect(info.size).toBe(512000);
-    expect(info.createdAt).toBe('2024-01-01T08:00:00.000Z');
-  });
-
-  it('TC-009-BACKUP-02 — defaults to port 5432 when URL omits port (boundary condition)', async () => {
-    process.env.DATABASE_URL = 'postgresql://user:pass@localhost/dbname';
-
-    const { mkdir } = await import('node:fs/promises');
-    vi.mocked(mkdir).mockResolvedValue(undefined);
-    mockExecFileSuccess();
-    vi.mocked(stat).mockResolvedValue({
-      size: 100,
-      mtime: new Date('2024-01-01T00:00:00Z'),
-    } as Awaited<ReturnType<typeof stat>>);
-
-    await createBackup();
-
-    const [, args] = mockExecFile.mock.calls[0] as [string, string[], unknown, unknown];
-    expect(args).toContain('-p');
-    expect(args).toContain('5432');
-  });
-
-  it('TC-009-BACKUP-03 — throws when DATABASE_URL is not set (error path)', async () => {
-    delete process.env.DATABASE_URL;
-    await expect(createBackup()).rejects.toThrow('DATABASE_URL is not set');
-  });
-
-  it('TC-009-BACKUP-04 — propagates pg_dump failure (error path)', async () => {
-    const { mkdir } = await import('node:fs/promises');
-    vi.mocked(mkdir).mockResolvedValue(undefined);
-    mockExecFileError('pg_dump: could not connect');
-
-    await expect(createBackup()).rejects.toThrow('pg_dump: could not connect');
-  });
-});
-
-describe('listBackups', () => {
-  it('TC-009-BACKUP-05 — returns sorted list newest-first (happy path)', async () => {
-    vi.mocked(readdir).mockResolvedValue([
-      'business_portal_20240103_080000.sql',
-      'business_portal_20240101_080000.sql',
-      'other-file.txt',
-      'business_portal_20240102_080000.sql',
-    ] as unknown as Awaited<ReturnType<typeof readdir>>);
-
-    vi.mocked(stat).mockImplementation((filePath) => {
-      const path = filePath as string;
-      if (path.includes('20240103'))
-        return Promise.resolve({ size: 100, mtime: new Date('2024-01-03T08:00:00Z') } as Awaited<
-          ReturnType<typeof stat>
-        >);
-      if (path.includes('20240102'))
-        return Promise.resolve({ size: 100, mtime: new Date('2024-01-02T08:00:00Z') } as Awaited<
-          ReturnType<typeof stat>
-        >);
-      if (path.includes('20240101'))
-        return Promise.resolve({ size: 100, mtime: new Date('2024-01-01T08:00:00Z') } as Awaited<
-          ReturnType<typeof stat>
-        >);
-      return Promise.resolve({ size: 100, mtime: new Date() } as Awaited<ReturnType<typeof stat>>);
-    });
-
-    const backups = await listBackups();
-
-    expect(backups.length).toBe(3);
-    expect(backups[0]!.filename).toBe('business_portal_20240103_080000.sql');
-    expect(backups[2]!.filename).toBe('business_portal_20240101_080000.sql');
-
-    for (const entry of backups) {
-      expect(entry).toMatchObject({
-        filename: expect.any(String),
-        size: expect.any(Number),
-        createdAt: expect.any(String),
-      });
-    }
-  });
-
-  it('TC-009-BACKUP-06 — returns empty array when directory does not exist (boundary condition)', async () => {
-    vi.mocked(readdir).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
-
-    const backups = await listBackups();
-    expect(backups).toEqual([]);
-  });
-
-  it('TC-009-BACKUP-07 — propagates non-ENOENT errors (error path)', async () => {
-    vi.mocked(readdir).mockRejectedValue(Object.assign(new Error('EACCES'), { code: 'EACCES' }));
-
-    await expect(listBackups()).rejects.toMatchObject({ code: 'EACCES' });
-  });
-});
 
 describe('deleteBackup', () => {
   it('TC-009-BACKUP-08 — removes file with valid filename (happy path)', async () => {

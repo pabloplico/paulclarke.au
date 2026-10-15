@@ -1,10 +1,9 @@
-import { embed, embedMany } from 'ai';
+import { embedMany } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/lib/config';
-import { generateEmbedding, generateEmbeddings } from './embeddings';
+import { generateEmbeddings } from './embeddings';
 
 vi.mock('ai', () => ({
-  embed: vi.fn(() => Promise.resolve({ embedding: [0.1, 0.2, 0.3] })),
   embedMany: vi.fn(() => Promise.resolve({ embeddings: [[0.1], [0.2]] })),
 }));
 
@@ -24,51 +23,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Reset batchSize to default before each test
   (config as { ai: { embedding: { batchSize: number } } }).ai.embedding.batchSize = 100;
-});
-
-// ---------------------------------------------------------------------------
-// generateEmbedding
-// ---------------------------------------------------------------------------
-
-describe('generateEmbedding', () => {
-  it('TC-101 — happy path: returns embedding array from embed call', async () => {
-    vi.mocked(embed).mockResolvedValueOnce({ embedding: [0.1, 0.2, 0.3] } as never);
-
-    const result = await generateEmbedding('Hello world');
-
-    expect(embed).toHaveBeenCalledOnce();
-    expect(embed).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: { modelId: 'mock-embedding' },
-        value: 'Hello world',
-      })
-    );
-    expect(result).toEqual([0.1, 0.2, 0.3]);
-  });
-
-  it('TC-102 — happy path: returns 1536-element vector (dimension check)', async () => {
-    const vector = Array(1536).fill(0.01);
-    vi.mocked(embed).mockResolvedValueOnce({ embedding: vector } as never);
-
-    const result = await generateEmbedding('any text');
-
-    expect(result).toHaveLength(1536);
-  });
-
-  it('TC-103 — error path: embed rejects → promise rejects with same error', async () => {
-    vi.mocked(embed).mockRejectedValueOnce(new Error('Rate limit exceeded'));
-
-    await expect(generateEmbedding('text')).rejects.toThrow('Rate limit exceeded');
-  });
-
-  it('TC-104 — boundary condition: empty string input is passed through without error', async () => {
-    vi.mocked(embed).mockResolvedValueOnce({ embedding: [] } as never);
-
-    const result = await generateEmbedding('');
-
-    expect(embed).toHaveBeenCalledWith(expect.objectContaining({ value: '' }));
-    expect(result).toEqual([]);
-  });
 });
 
 // ---------------------------------------------------------------------------

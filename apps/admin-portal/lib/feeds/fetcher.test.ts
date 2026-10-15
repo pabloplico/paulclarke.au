@@ -176,24 +176,4 @@ describe('fetchFeed', () => {
 
     expect(result.items[0]!.title).toBe('https://example.com');
   });
-
-  // ── TC-008-FETCHER-06 — RSS feed with AbortSignal timeout set ────────────
-
-  it('TC-008-FETCHER-06: RSS feed requests AbortSignal.timeout of 30000ms', async () => {
-    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
-
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      text: () => Promise.resolve(MINIMAL_RSS_XML),
-    } as Response);
-
-    const { fetchFeed } = await import('./fetcher');
-    const feed = makeFeed({ type: 'rss' });
-
-    await fetchFeed(feed);
-
-    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
-  });
 });

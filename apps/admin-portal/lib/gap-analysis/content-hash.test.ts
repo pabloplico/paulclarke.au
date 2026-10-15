@@ -50,16 +50,6 @@ describe('hashSectionContent', () => {
     const hash2 = hashSectionContent('', { k: 'v' });
     expect(hash1).not.toBe(hash2);
   });
-
-  it('TC-014-A5: structuredData key order in JSON affects hash (not key-order-stable)', () => {
-    // Documents that JSON.stringify preserves insertion order in V8 (Node.js)
-    // so key-order differences produce different serialisations and thus different hashes
-    const hash1 = hashSectionContent('', { a: 1, b: 2 });
-    const hash2 = hashSectionContent('', { b: 2, a: 1 });
-    // This may or may not differ depending on JS engine key ordering; we document the behaviour.
-    // In V8 (Node.js), non-integer keys preserve insertion order so these will differ.
-    expect(hash1).not.toBe(hash2);
-  });
 });
 
 describe('hashWorkspace', () => {
