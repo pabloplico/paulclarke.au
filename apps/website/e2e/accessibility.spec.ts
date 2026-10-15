@@ -43,6 +43,7 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
   });
 
   test('the open mobile menu has no serious or critical violations', async ({ page, isMobile }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: runs only in the mobile project
     test.skip(!isMobile, 'mobile layout only');
     await page.goto('/');
     await page.getByRole('button', { name: 'Menu' }).click();
