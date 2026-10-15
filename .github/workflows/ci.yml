@@ -72,6 +72,13 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: nrwl/nx-set-shas@v5
 
+      # Reports test files added, deleted and changed, and assertions removed,
+      # in the job summary, with a warning on each file that loses assertions.
+      # It never fails the build: it's there so test edits get read on their own
+      - name: Summarise test changes
+        if: github.event_name == 'pull_request'
+        run: bash scripts/test-diff-summary.sh "$NX_BASE" "$NX_HEAD"
+
       - name: Lint
         run: pnpm exec nx "$NX_RUN" -t lint lint:root
 

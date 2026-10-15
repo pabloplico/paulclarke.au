@@ -139,6 +139,7 @@ test.describe('navigation', () => {
     page,
     isMobile,
   }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: runs only in the mobile project
     test.skip(!isMobile, 'mobile layout only');
     await page.goto('/');
     const menu = page.getByRole('button', { name: 'Menu' });

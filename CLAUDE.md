@@ -244,3 +244,14 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Drizzle schema** uses `admin_` table prefix and camelCase column names in PostgreSQL (Drizzle maps JS prop names directly).
 - **No pre-commit hooks** — there is no Husky or lint-staged setup. Run `pnpm lint` before committing.
 - Dependency versions managed via pnpm catalog in `pnpm-workspace.yaml`.
+
+## Tests
+
+Tests are the spec. Changing one changes what the code is promised to do, so test edits get reviewed on their own.
+
+- **A failing test is a question, not an obstacle.** Before touching it, decide whether the code or the test is wrong. If the code is wrong, fix the code. If the test is out of date because behaviour changed on purpose, update it and say so in your summary.
+- **Never weaken a test to get it passing.** Don't delete or loosen assertions, change expected values or snapshots to match new output, widen matchers (`toBeTruthy()`, `expect.anything()`, `toBeDefined()` in place of a real value), add `.skip`/`.only`/`.todo`, wrap assertions in `try`/`catch` or `if`, or mock away the code under test. If a test can't pass without one of these, stop and report it.
+- **Every test change goes in the summary and the PR body:** each test added, changed or deleted, with one line on why. "Updated test to match" is not a reason; name the behaviour that changed.
+- **Add tests only for behaviour the change introduces or fixes.** Extend the existing test file for that module rather than starting a new one. Test through the public interface, not private helpers or call counts. Don't add tests that only check a mock returns what it was told to.
+- **Skips need a reason.** Biome's `noSkippedTests` and `noFocusedTests` are errors in test files. A skip that is genuinely conditional (a Playwright project, a missing service) gets a `biome-ignore` comment saying why. A test must fail, not skip, when the feature it tests is broken. The admin E2E specs still skip when an element isn't found; that rule is a warning there until the test audit fixes them.
+- **`pnpm test:diff [base] [head]`** (defaults: `origin/main`, `HEAD`) prints test files added, changed and deleted, assertion lines removed and added, and new skips. CI writes it to the PR's job summary and warns on each file that loses assertions. Run it before opening a PR and read the test diff first.
