@@ -11,14 +11,15 @@ Both are written in strict TypeScript and share UI and tooling packages.
 
 ## What's in here
 
-| Path                         | What it is                                                                    | Stack                                                                                          |
-| ---------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `apps/website`               | Developer portfolio                                                           | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers               |
-| `apps/admin-portal`          | Document workspace platform                                                   | Next.js 16, Drizzle + Postgres/pgvector or PGlite, BullMQ + Redis or in-process queues, AI SDK |
-| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                | React, Tailwind, Radix primitives                                                              |
-| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library` | TypeScript                                                                                     |
-| `packages/biome-config`      | Shared lint and format rules                                                  | Biome                                                                                          |
-| `packages/prettier-config`   | Markdown formatting                                                           | Prettier                                                                                       |
+| Path                         | What it is                                                                         | Stack                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `apps/website`               | Developer portfolio                                                                | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers               |
+| `apps/admin-portal`          | Document workspace platform                                                        | Next.js 16, Drizzle + Postgres/pgvector or PGlite, BullMQ + Redis or in-process queues, AI SDK |
+| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                     | React, Tailwind, Radix primitives                                                              |
+| `packages/tailwind-theme`    | Shared Tailwind theme: design tokens, base body styles, focus ring, reduced motion | Tailwind v4 (CSS only)                                                                         |
+| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library`      | TypeScript                                                                                     |
+| `packages/biome-config`      | Shared lint and format rules                                                       | Biome                                                                                          |
+| `packages/prettier-config`   | Markdown formatting                                                                | Prettier                                                                                       |
 
 ## Architecture
 
@@ -28,6 +29,7 @@ Both are written in strict TypeScript and share UI and tooling packages.
 graph LR
   website["apps/website"] --> ui["@repo/ui"]
   admin["apps/admin-portal"] --> ui
+  website --> theme["@repo/tailwind-theme"]
   website --> ts["@repo/typescript-config"]
   admin --> ts
   ui --> ts
@@ -137,7 +139,7 @@ CI runs it all except admin-portal E2E, which needs Postgres and Redis. It also 
 
 **Website (Cloudflare Workers).** One Worker serves the SPA through the Static Assets binding, plus a small `/api/posts` endpoint for the blog:
 
-- **Continuous deployment:** after every check passes on `main`, CI deploys the Worker if NX says the website was affected (its own code, `@repo/ui`, shared config or the lockfile). Admin-portal-only changes don't redeploy it. The Cloudflare token is a secret on the `production` GitHub environment, so only the deploy job can read it.
+- **Continuous deployment:** after every check passes on `main`, CI deploys the Worker if NX says the website was affected (its own code, `@repo/ui`, `@repo/tailwind-theme`, shared config or the lockfile). Admin-portal-only changes don't redeploy it. The Cloudflare token is a secret on the `production` GitHub environment, so only the deploy job can read it.
 - **By hand:**
 
 ```bash

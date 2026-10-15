@@ -273,6 +273,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.3
         version: 1.2.4(@types/react@19.2.14)(react@19.2.4)
+      '@repo/tailwind-theme':
+        specifier: workspace:*
+        version: link:../../packages/tailwind-theme
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -385,6 +388,8 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: 'catalog:'
         version: 0.7.2(prettier@3.8.1)
+
+  packages/tailwind-theme: {}
 
   packages/typescript-config: {}
 

@@ -10,6 +10,7 @@ WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/website/package.json apps/website/
+COPY packages/tailwind-theme/package.json packages/tailwind-theme/
 COPY packages/ui/package.json packages/ui/
 COPY packages/typescript-config/package.json packages/typescript-config/
 COPY packages/biome-config/package.json packages/biome-config/
