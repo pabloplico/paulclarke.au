@@ -118,7 +118,7 @@ Run from the repo root. NX runs each task in every project that defines it, and 
 
 ```bash
 pnpm lint           # Biome in every package + root config files
-pnpm check-types    # tsc --noEmit in admin-portal, website and @repo/ui
+pnpm check-types    # tsc --noEmit in admin-portal (after next typegen), website and @repo/ui
 pnpm test           # Vitest unit tests (website + admin-portal)
 pnpm build          # production builds
 
