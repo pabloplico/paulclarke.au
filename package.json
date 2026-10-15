@@ -10,6 +10,7 @@
     "format:check": "biome format . && prettier --check \"**/*.{md,svelte}\"",
     "test": "nx run-many -t test",
     "test:e2e": "nx run-many -t test:e2e",
+    "test:diff": "bash scripts/test-diff-summary.sh",
     "check-types": "nx run-many -t check-types",
     "lint:root": "biome check *.json .claude"
   },
