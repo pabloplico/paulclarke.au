@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { resolveWorkspaceSectionParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
@@ -9,13 +9,29 @@ type Params = { params: Promise<{ id: string; sectionId: string; versionId: stri
 export async function POST(_request: NextRequest, { params }: Params) {
   const resolved = await resolveWorkspaceSectionParams(params);
   if (resolved.error) return resolved.error;
+  const { workspace, section } = resolved;
   const { versionId } = await params;
 
-  // Get the version to restore
+  // The version must belong to the section in the URL, in this workspace
   const [sourceVersion] = await db
-    .select()
+    .select({
+      sectionId: adminSectionVersions.sectionId,
+      version: adminSectionVersions.version,
+      content: adminSectionVersions.content,
+      structuredData: adminSectionVersions.structuredData,
+    })
     .from(adminSectionVersions)
-    .where(eq(adminSectionVersions.id, Number(versionId)));
+    .innerJoin(
+      adminWorkspaceSections,
+      eq(adminSectionVersions.sectionId, adminWorkspaceSections.id)
+    )
+    .where(
+      and(
+        eq(adminSectionVersions.id, Number(versionId)),
+        eq(adminSectionVersions.sectionId, section.id),
+        eq(adminWorkspaceSections.workspaceId, workspace.id)
+      )
+    );
 
   if (!sourceVersion) {
     return NextResponse.json({ error: 'Version not found' }, { status: 404 });
