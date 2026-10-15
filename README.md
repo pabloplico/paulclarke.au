@@ -105,12 +105,18 @@ pnpm nx run admin-portal:dev:lite
 # a fresh database seeded with a fictional bakery. Needs an OpenAI key
 OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo
 
-# Admin portal on the full stack: Postgres + Redis in Docker
-cp .env.docker.example .env.docker      # then fill in values
+# Admin portal on the full stack: Postgres + pgvector and Redis (for the
+# BullMQ workers) from the services-only compose file, or native Postgres 15
+# and Redis 7 on the same ports. The app itself still runs on the host
+cp .env.docker.example .env.docker      # then fill in section 1
 cd apps/admin-portal
 export COMPOSE_ENV_FILES=../../.env.docker   # compose reads its ${VARS} from here
-docker compose up -d
+docker compose up -d                         # Postgres :5432, Redis :6379
+pnpm with-dev-env pnpm db:migrate            # loads .env.docker for host commands
+pnpm nx run admin-portal:dev:full            # Next.js on :3001
 ```
+
+`dev:lite` is the everyday setup. Under it, document processing and workspace routing run in-process, but the Redis-only workers don't start: scheduled feed fetches, database backups and the research agents (with their cron schedules and live run logs). Use `dev:full` for those.
 
 The website needs no environment variables or secrets. Admin-portal settings are documented in `.env.docker.example` and `CLAUDE.md`.
 
@@ -162,7 +168,7 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 **Cloud Run → Cloudflare Workers (website).** The website is a static SPA with a read-only blog API, so a container on Cloud Run was paying for a server that did almost nothing.
 
 - **Why Workers:** one Worker serves the assets from the edge, runs the tiny API, costs nothing at this traffic, and leaves no container image or region to manage.
-- **Costs:** local dev needs `workerd`, which is glibc-only, so the dev container uses `node:22-slim` rather than Alpine. And the Worker doesn't run on page navigations, which is why security headers moved to `_headers`.
+- **Costs:** local dev needs `workerd`, which is glibc-only, so `wrangler dev` doesn't run on Alpine (musl) hosts. And the Worker doesn't run on page navigations, which is why security headers moved to `_headers`.
 
 **`mailto:` instead of a form backend.** The contact form builds a pre-filled `mailto:` link.
 
