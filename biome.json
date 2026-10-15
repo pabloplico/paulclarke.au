@@ -1,6 +1,18 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
   "extends": ["./packages/biome-config/base.json"],
+  "overrides": [
+    {
+      "includes": ["apps/admin-portal/e2e/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noSkippedTests": { "level": "warn", "fix": "none" }
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "ignoreUnknown": true,
     "includes": ["**", "!**/drizzle/meta", "!**/next-env.d.ts", "!**/lib/demo-seed/generated.json"]

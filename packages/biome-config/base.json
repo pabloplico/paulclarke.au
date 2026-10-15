@@ -76,7 +76,9 @@
             "noUnusedVariables": "off"
           },
           "suspicious": {
-            "noThenProperty": "off"
+            "noThenProperty": "off",
+            "noFocusedTests": "error",
+            "noSkippedTests": { "level": "error", "fix": "none" }
           }
         }
       }
