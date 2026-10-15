@@ -25,6 +25,8 @@ describe('seedAdminUser', () => {
     await expect(seedAdminUser({ email: 'not-an-email' })).rejects.toThrow('ADMIN_EMAIL');
   });
 
+  // Three real bcrypt operations at the production cost (12): about 1.5 s idle,
+  // past the 5 s default when the CPU is busy with builds
   it('generates a random password when none is given, and never uses admin123', async () => {
     const result = await seedAdminUser({ email: 'Owner@Example.com' });
     expect(result.created).toBe(true);
@@ -39,7 +41,7 @@ describe('seedAdminUser', () => {
       true
     );
     expect(await verifyPassword(row?.passwordHash ?? '', 'admin123')).toBe(false);
-  });
+  }, 20_000);
 
   it('rejects a weak password', async () => {
     await expect(seedAdminUser({ email: 'b@example.com', password: 'short' })).rejects.toThrow(
