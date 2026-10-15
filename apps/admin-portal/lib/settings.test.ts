@@ -146,9 +146,11 @@ describe('updateSettings', () => {
         where: vi.fn(() => ({
           limit: vi.fn(() => {
             callCount++;
-            return Promise.resolve(callCount === 1 ? [{ id: 1 }] : []);
+            return Promise.resolve<unknown[]>(callCount === 1 ? [{ id: 1 }] : []);
           }),
         })),
+        // Same shape as the factory's mock (Vitest 5 types the replacement against it)
+        then: (_resolve: (v: unknown) => void) => _resolve(selectResult.current),
       })),
     }));
 
