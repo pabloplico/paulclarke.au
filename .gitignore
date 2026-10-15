@@ -7,6 +7,8 @@ dist/
 build/
 .next/
 out/
+# Next.js rewrites it on every dev, build and typegen run
+next-env.d.ts
 *.tsbuildinfo
 
 # Environment files
