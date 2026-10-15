@@ -11,15 +11,23 @@ const { capturedProcessor, mockUpsertJobScheduler } = vi.hoisted(() => {
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
+// Class implementations: the code calls these with `new`, and since Vitest 4
+// a mock with an arrow implementation can't be constructed.
 vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => ({
-    upsertJobScheduler: mockUpsertJobScheduler,
-    on: vi.fn(),
-  })),
-  Worker: vi.fn((_name: string, processor: (job: unknown) => Promise<unknown>, _opts: unknown) => {
-    capturedProcessor.current = processor;
-    return { on: vi.fn() };
-  }),
+  Queue: vi.fn(
+    class {
+      upsertJobScheduler = mockUpsertJobScheduler;
+      on = vi.fn();
+    }
+  ),
+  Worker: vi.fn(
+    class {
+      on = vi.fn();
+      constructor(_name: string, processor: (job: unknown) => Promise<unknown>, _opts: unknown) {
+        capturedProcessor.current = processor;
+      }
+    }
+  ),
 }));
 
 vi.mock('ioredis', () => ({
