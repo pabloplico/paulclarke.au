@@ -43,7 +43,9 @@ export function AssessmentStateProvider({ children }: { children: ReactNode }) {
 
   const restart = useCallback(() => {
     setProfile(INITIAL_PROFILE);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // The CSS reduced-motion rule can't reach a scroll started from script, so check it here
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }, []);
 
   const value = useMemo(

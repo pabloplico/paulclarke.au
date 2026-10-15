@@ -1,6 +1,6 @@
 import { Button } from '@repo/ui/button';
 import { ChevronDown, Download, ExternalLink, Lock, RotateCcw } from 'lucide-react';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useMemo, useState } from 'react';
 import type { AssessmentProfile, AssessmentResults as Results } from '@/hooks/useAssessment';
 import {
   type AI6Practice,
@@ -103,6 +103,7 @@ export function AssessmentResults({ profile, results, onRestart }: AssessmentRes
   return (
     <PrintModeContext.Provider value={printMode}>
       <div className="space-y-6 print:space-y-4" data-print-root>
+        <ResultsAnnouncer results={results} />
         <PrintHeader profile={profile} results={results} />
         <div className="rounded-xl border border-white/8 bg-white/[0.02] p-5 print:break-inside-avoid">
           <div className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr] gap-5">
@@ -241,6 +242,29 @@ export function AssessmentResults({ profile, results, onRestart }: AssessmentRes
         )}
       </div>
     </PrintModeContext.Provider>
+  );
+}
+
+/**
+ * Screen readers don't notice the results panel changing as answers come in, so announce the
+ * score politely. The short delay means a run of quick clicks is announced once, at the end.
+ */
+function ResultsAnnouncer({ results }: { results: Results | null }) {
+  const [message, setMessage] = useState('');
+  const next = results
+    ? `Readiness score ${results.overallScore} out of 100: ${getReadinessLevelMeta(results.overallLevel).label}.`
+    : '';
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMessage(next), 500);
+    return () => clearTimeout(timer);
+  }, [next]);
+
+  return (
+    // <output> is a status region; aria-live is explicit for screen readers that don't infer it
+    <output aria-live="polite" className="sr-only">
+      {message}
+    </output>
   );
 }
 
@@ -516,19 +540,27 @@ function PlanCard({ card, phase }: { card: ScoredRecommendation; phase: PhaseCon
   const [openState, setOpen] = useState(false);
   const printMode = usePrintMode();
   const open = openState || printMode;
+  const detailsId = useId();
 
+  // Only the title row is the button: buttons may only hold phrasing content, and the details
+  // would otherwise be read out as part of the button's name.
   return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={() => setOpen(!openState)}
+    <div
       className={cn(
-        'w-full text-left bg-white/3 border border-white/6 border-l-2 rounded-xl mb-2 last:mb-0 hover:bg-white/6 transition-colors cursor-pointer print:break-inside-avoid',
-        phase.cardBorder,
-        open ? 'p-4' : 'px-4 py-3'
+        'bg-white/3 border border-white/6 border-l-2 rounded-xl mb-2 last:mb-0 hover:bg-white/6 transition-colors print:break-inside-avoid',
+        phase.cardBorder
       )}
     >
-      <div className="flex items-center gap-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? detailsId : undefined}
+        onClick={() => setOpen(!openState)}
+        className={cn(
+          'w-full text-left flex items-center gap-3 px-4 cursor-pointer rounded-xl',
+          open ? 'pt-4' : 'py-3'
+        )}
+      >
         <span data-card-title className="text-sm font-semibold leading-snug flex-1">
           {card.title}
         </span>
@@ -539,9 +571,9 @@ function PlanCard({ card, phase }: { card: ScoredRecommendation; phase: PhaseCon
             open && 'rotate-180'
           )}
         />
-      </div>
+      </button>
       {open && (
-        <div className="mt-2">
+        <div id={detailsId} className="px-4 pb-4 mt-2">
           <p className="text-sm text-muted-foreground leading-snug">{card.body}</p>
           <div className="flex flex-wrap items-center gap-2 mt-2.5">
             {card.estimatedSaving && (
@@ -563,7 +595,7 @@ function PlanCard({ card, phase }: { card: ScoredRecommendation; phase: PhaseCon
           </div>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -649,6 +681,7 @@ function DimensionBar({ dimensionScore }: { dimensionScore: DimensionScore }) {
     <div>
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expandedState)}
         className="w-full text-left rounded-lg hover:bg-white/[0.02] transition-colors py-1.5 px-1 -mx-1 group print:break-inside-avoid"
       >
