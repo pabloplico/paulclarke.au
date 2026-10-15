@@ -20,6 +20,7 @@
     "@fontsource-variable/space-grotesk": "^5.3.0",
     "@radix-ui/react-progress": "^1.1.4",
     "@radix-ui/react-slot": "^1.2.3",
+    "@repo/tailwind-theme": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "^1.170.42",

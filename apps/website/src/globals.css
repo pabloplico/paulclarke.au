@@ -1,70 +1,7 @@
 @import "tailwindcss";
+@import "@repo/tailwind-theme/theme.css";
 @source "../../../packages/ui/src";
 @plugin "@tailwindcss/typography";
-
-@theme {
-  --color-background: #11131c;
-  --color-foreground: #e1e1ee;
-  --color-card: hsl(224 40% 11% / 0.6);
-  --color-card-foreground: #e1e1ee;
-  --color-popover: hsl(224 38% 9% / 0.9);
-  --color-popover-foreground: #e1e1ee;
-  --color-primary: hsl(72 100% 50%);
-  --color-primary-foreground: hsl(72 100% 0%);
-  --color-secondary: hsl(224 28% 15% / 0.7);
-  --color-secondary-foreground: hsl(224 20% 82%);
-  --color-muted: hsl(224 28% 15% / 0.7);
-  --color-muted-foreground: hsl(224 14% 56%);
-  --color-accent: hsl(72 25% 14% / 0.6);
-  --color-accent-foreground: #e1e1ee;
-  --color-destructive: hsl(0 100% 40%);
-  --color-destructive-foreground: hsl(0 0% 97%);
-  --color-border: hsl(221 33% 22% / 0.4);
-  --color-input: hsl(224 28% 15% / 0.7);
-  --color-ring: hsl(72 100% 50% / 0.4);
-
-  --color-surface: #11131c;
-  --color-surface-low: #191b24;
-  --color-surface-container: #1d1f28;
-  --color-surface-high: #282a33;
-  --color-surface-highest: #32343e;
-  --color-surface-lowest: #0c0e16;
-
-  --color-status-online: hsl(142 76% 36%);
-  --color-status-offline: hsl(0 84% 60%);
-  --color-status-degraded: hsl(38 92% 50%);
-  --color-status-unknown: hsl(215 15% 58%);
-
-  --color-chart-1: hsl(220 70% 50%);
-  --color-chart-2: hsl(160 60% 45%);
-  --color-chart-3: hsl(30 80% 55%);
-  --color-chart-4: hsl(280 65% 60%);
-  --color-chart-5: hsl(340 75% 55%);
-
-  --radius: 0.625rem;
-  --radius-lg: 0.75rem;
-  --radius-md: calc(0.625rem - 2px);
-  --radius-sm: calc(0.625rem - 4px);
-
-  --font-label: "Space Grotesk Variable", system-ui, sans-serif;
-}
-
-* {
-  border-color: var(--color-border);
-}
-
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: "Inter Variable", system-ui, -apple-system, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  font-feature-settings:
-    "kern" 1,
-    "liga" 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 
 .glass {
   backdrop-filter: blur(16px) saturate(1.2);
@@ -233,29 +170,8 @@ body {
   }
 }
 
-/* Keyboard focus: a clear ring on anything reached by keyboard. Mouse clicks
-   don't trigger :focus-visible, so pointer users don't see it. */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
 /* <main> receives programmatic focus (skip link, route changes); it is a
    container, not a control, so it doesn't need a ring. */
 #main:focus {
   outline: none;
-}
-
-/* Respect the OS "reduce motion" setting: keep state changes, drop the
-   motion. !important is needed to beat utility classes and inline delays. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    transition-delay: 0ms !important;
-    scroll-behavior: auto !important;
-  }
 }
