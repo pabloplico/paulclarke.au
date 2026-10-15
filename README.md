@@ -91,6 +91,9 @@ Requirements: Node 22 and pnpm 10.28 (`corepack enable` picks up the version fro
 ```bash
 pnpm install
 
+# Both apps: the website (below) and the admin portal in dev:lite mode
+pnpm dev
+
 # Website: Vite on :3004, wrangler (Worker API) on :3005. Generates the blog
 # posts first, then starts both
 pnpm nx run website:dev
@@ -116,7 +119,9 @@ pnpm with-dev-env pnpm db:migrate            # loads .env.docker for host comman
 pnpm nx run admin-portal:dev:full            # Next.js on :3001
 ```
 
-`dev:lite` is the everyday setup. Under it, document processing and workspace routing run in-process, but the Redis-only workers don't start: scheduled feed fetches, database backups and the research agents (with their cron schedules and live run logs). Use `dev:full` for those.
+The admin dev servers listen on 127.0.0.1 only. To open them from another device on your network, start them with `DEV_HOST=0.0.0.0` and list that device's IP in `ALLOWED_DEV_ORIGINS` (details in `CLAUDE.md`).
+
+`dev:lite` is the everyday setup, and it's what `pnpm dev` runs. Under it, document processing and workspace routing run in-process, but the Redis-only workers don't start: scheduled feed fetches, database backups and the research agents (with their cron schedules and live run logs). Use `dev:full` for those.
 
 The website needs no environment variables or secrets. Admin-portal settings are documented in `.env.docker.example` and `CLAUDE.md`.
 

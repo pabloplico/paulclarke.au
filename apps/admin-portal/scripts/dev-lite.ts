@@ -3,6 +3,9 @@
  *
  *   pnpm nx run admin-portal:dev:lite     (or pnpm dev:lite in apps/admin-portal)
  *
+ * It's also what `admin-portal:dev` and root `pnpm dev` run, so a fresh clone
+ * needs only `pnpm install && pnpm dev`. Next.js listens on 127.0.0.1:3001.
+ *
  * - The database is PGlite, kept in apps/admin-portal/.pglite between runs
  *   (delete the folder to start again). Uploads go in .pglite/uploads.
  * - Jobs run in-process (QUEUE_DRIVER=memory).
@@ -57,7 +60,12 @@ async function seed() {
 
 async function main() {
   await seed();
-  const next = spawn('next', ['dev', '--port', '3001'], { stdio: 'inherit', env: process.env });
+  // This machine only, unless DEV_HOST opts in (0.0.0.0 for other devices on the network)
+  const host = process.env.DEV_HOST || '127.0.0.1';
+  const next = spawn('next', ['dev', '--port', '3001', '--hostname', host], {
+    stdio: 'inherit',
+    env: process.env,
+  });
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => next.kill(signal));
   }

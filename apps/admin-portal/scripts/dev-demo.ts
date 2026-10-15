@@ -3,7 +3,7 @@
  *
  *   OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo     (or pnpm dev:demo here)
  *
- * Next.js on port 3003, beside the Docker dev stack (3001) and jobquest (3002).
+ * Next.js on 127.0.0.1:3003, beside dev:lite or dev:full (3001) and jobquest (3002).
  *
  * - DEMO_MODE=true, signed in as DEV_ACCESS_IDENTITY (default
  *   visitor@example.com), which stands in for the Access identity. Set it to
@@ -46,7 +46,12 @@ for (const path of [process.env.PGLITE_DATA_DIR, process.env.UPLOADS_DIR]) {
 }
 console.log(`[dev:demo] Fresh demo database; signed in as ${process.env.DEV_ACCESS_IDENTITY}`);
 
-const next = spawn('next', ['dev', '--port', '3003'], { stdio: 'inherit', env: process.env });
+// This machine only, unless DEV_HOST opts in (0.0.0.0 for other devices on the network)
+const host = process.env.DEV_HOST || '127.0.0.1';
+const next = spawn('next', ['dev', '--port', '3003', '--hostname', host], {
+  stdio: 'inherit',
+  env: process.env,
+});
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => next.kill(signal));
 }

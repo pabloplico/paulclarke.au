@@ -46,6 +46,10 @@ Next.js uses `output: 'standalone'` — the prod image contains only traced depe
 
 Everything runs on the host: Node 22 and pnpm (`corepack enable`). Docker is optional and only provides Postgres, Redis and Ollama for the admin portal's full stack. There is no app container. Run commands from the repo root unless noted.
 
+A fresh clone needs one command after `pnpm install`: `pnpm dev` runs `website:dev` and `admin-portal:dev`, which is `dev:lite`.
+
+**Network access.** The website's dev servers listen on all interfaces. The admin dev servers (`dev`, `dev:lite`, `dev:full`, `dev:demo`) listen on 127.0.0.1 only, unless `DEV_HOST` says otherwise. To open them from a phone or another computer, set `DEV_HOST=0.0.0.0` and list the device's IP in `ALLOWED_DEV_ORIGINS`, or Next.js blocks its dev assets. `DEV_HOST` comes from the shell only, never `.env.docker`. `ALLOWED_DEV_ORIGINS` reaches `dev:full` from `.env.docker`; `dev:lite` and `dev:demo` need it from the shell. For example: `DEV_HOST=0.0.0.0 ALLOWED_DEV_ORIGINS=192.168.0.20 pnpm dev`. Export both in your shell profile to make that the default.
+
 ### Website
 
 ```bash
@@ -58,7 +62,8 @@ Vite proxies `/api/*` to the Worker. The Worker only serves the blog API and has
 ### Admin portal: daily work (`dev:lite`)
 
 ```bash
-pnpm nx run admin-portal:dev:lite     # Next.js on 3001: PGlite + in-process jobs, sign-in off
+pnpm nx run admin-portal:dev:lite     # Next.js on 127.0.0.1:3001: PGlite + in-process jobs, sign-in off
+                                      # (admin-portal:dev and root `pnpm dev` run this too)
 OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo   # Next.js on 3003: demo mode as a visitor sees it
 ```
 
@@ -90,7 +95,7 @@ pnpm with-dev-env pnpm db:migrate           # first time, and after new migratio
 pnpm nx run admin-portal:dev:full           # Next.js on 3001 against Postgres + Redis
 ```
 
-`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` and `REDIS_URL` for localhost (from `POSTGRES_*` and `REDIS_PASSWORD`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` and `REDIS_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it. The plain `dev` script (and so root `pnpm dev`) doesn't load `.env.docker`: on the host it falls back to an unauthenticated `localhost` Redis and fails with `NOAUTH`, so use `dev:lite` or `dev:full`.
+`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` and `REDIS_URL` for localhost (from `POSTGRES_*` and `REDIS_PASSWORD`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` and `REDIS_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001 --hostname ${DEV_HOST:-127.0.0.1}`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it.
 
 Host requirements for the full stack: `pg_dump` 15 or later for backups (Ubuntu 22.04's `postgresql-client` is 14, which refuses a 15 server), and `pnpm exec playwright install chromium` (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) for URL scraping.
 
@@ -166,8 +171,8 @@ Key vars (see `.env.docker.example` for full list):
 |---------|-----|---------|------|
 | Website (dev, Vite SPA) | website | host | 3004 |
 | Website (dev, wrangler Worker) | website | host | 3005 |
-| Admin Portal (`dev:lite` or `dev:full`) | admin-portal | host | 3001 |
-| Admin Portal (demo mode, `dev:demo`) | admin-portal | host | 3003 |
+| Admin Portal (`dev`/`dev:lite` or `dev:full`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3001 |
+| Admin Portal (demo mode, `dev:demo`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3003 |
 | PostgreSQL 15 (pgvector) | admin-portal | `admin-portal-dev-postgres` | 5432 |
 | Redis 7 | admin-portal | `admin-portal-dev-redis` | 6379 |
 | Ollama (optional, `--profile ai`) | admin-portal | `admin-portal-dev-ollama` | 11434 |

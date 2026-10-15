@@ -60,7 +60,7 @@ services:
     container_name: admin-portal-dev-ollama
     restart: unless-stopped
     ports:
-      - '11434:11434'
+      - '127.0.0.1:11434:11434'
     volumes:
       - ollama_data:/root/.ollama
     profiles:
