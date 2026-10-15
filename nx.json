@@ -103,6 +103,10 @@
       "cache": false,
       "continuous": true
     },
+    "dev:full": {
+      "cache": false,
+      "continuous": true
+    },
     "dev:demo": {
       "cache": false,
       "continuous": true

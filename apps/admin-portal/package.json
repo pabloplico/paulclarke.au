@@ -18,6 +18,8 @@
     "db:check-fresh": "tsx scripts/db/check-fresh-db.ts",
     "db:mark-baseline": "tsx scripts/db/mark-baseline-applied.ts",
     "dev:lite": "tsx scripts/dev-lite.ts",
+    "dev:full": "tsx scripts/with-dev-env.ts next dev --port 3001",
+    "with-dev-env": "tsx scripts/with-dev-env.ts",
     "ai:smoke": "tsx scripts/ai-smoke.ts",
     "demo:build-seed": "tsx scripts/demo/build-seed.ts",
     "dev:demo": "tsx scripts/dev-demo.ts"
