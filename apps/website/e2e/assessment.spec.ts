@@ -113,6 +113,8 @@ test.describe('assessment', () => {
 
     await page.getByRole('button', { name: /Start over|Restart/ }).click();
     await expect(page.getByText('Select industry to begin')).toBeVisible();
+    // The restart button disappears with the results, so focus moves to the first question
+    await expect(page.getByRole('button', { name: 'Trades & Construction' })).toBeFocused();
     await expect(page.getByRole('button', { name: 'Retail & E-Commerce' })).toHaveAttribute(
       'aria-pressed',
       'false'

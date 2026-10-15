@@ -1,6 +1,6 @@
 import { Checkbox } from '@repo/ui/checkbox';
 import { Star } from 'lucide-react';
-import { useId, useState } from 'react';
+import { type Ref, useId, useState } from 'react';
 import type { AssessmentProfile } from '@/hooks/useAssessment';
 import {
   DIMENSION_QUESTIONS,
@@ -16,6 +16,8 @@ interface AssessmentFormProps {
   profile: AssessmentProfile;
   onProfileChange: (patch: Partial<AssessmentProfile>) => void;
   onDimensionAnswer: (questionId: string, value: number | null) => void;
+  /** The industry buttons' container, so the page can focus the first one after a restart. */
+  industryListRef?: Ref<HTMLDivElement>;
 }
 
 const MAX_PAIN_POINTS = 3;
@@ -44,6 +46,7 @@ export function AssessmentForm({
   profile,
   onProfileChange,
   onDimensionAnswer,
+  industryListRef,
 }: AssessmentFormProps) {
   const [detailedOpen, setDetailedOpen] = useState(false);
   const [painPointsOpen, setPainPointsOpen] = useState(false);
@@ -67,7 +70,7 @@ export function AssessmentForm({
           <span className="text-lg font-semibold">Your Industry</span>
         </legend>
 
-        <div className="grid gap-1.5">
+        <div ref={industryListRef} className="grid gap-1.5">
           {INDUSTRIES.map(({ id, label }) => {
             const selected = profile.industry === id;
             if (profile.industry && !selected) return null;

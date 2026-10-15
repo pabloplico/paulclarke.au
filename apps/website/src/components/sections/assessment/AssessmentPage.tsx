@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useAssessment } from '@/hooks/useAssessment';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { AssessmentForm } from './AssessmentForm';
@@ -7,6 +9,14 @@ import { AssessmentResults } from './AssessmentResults';
 export function AssessmentPage() {
   useDocumentTitle('AI readiness assessment');
   const { profile, results, updateProfile, updateDimensionAnswer, restart } = useAssessment();
+  const industryListRef = useRef<HTMLDivElement>(null);
+
+  // "Start over" unmounts itself along with the results, so move focus to the first question
+  // rather than letting it fall back to <body>. flushSync renders the full industry list first.
+  const handleRestart = () => {
+    flushSync(restart);
+    industryListRef.current?.querySelector('button')?.focus({ preventScroll: true });
+  };
 
   return (
     <section className="pt-20 md:pt-32 pb-16 relative">
@@ -32,10 +42,11 @@ export function AssessmentPage() {
             profile={profile}
             onProfileChange={updateProfile}
             onDimensionAnswer={updateDimensionAnswer}
+            industryListRef={industryListRef}
           />
         </div>
         <div className="flex-1 min-w-0 lg:sticky lg:top-20">
-          <AssessmentResults profile={profile} results={results} onRestart={restart} />
+          <AssessmentResults profile={profile} results={results} onRestart={handleRestart} />
         </div>
       </div>
     </section>
