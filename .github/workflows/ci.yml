@@ -4,8 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run by hand from the Actions tab: on main this also redeploys the website
+  workflow_dispatch:
 
-# Read-only token: CI only checks code, it never writes to the repo
+# Read-only token: CI only checks code, it never writes to the repo. The
+# deploy job uses a Cloudflare token, not this one
 permissions:
   contents: read
 
@@ -157,3 +160,62 @@ jobs:
           name: website-playwright-report
           path: apps/website/playwright-report/
           retention-days: 7
+
+  # Deploys the website to Cloudflare Workers once every check has passed on
+  # main. Admin-portal-only pushes skip the deploy. The newest push cancels an
+  # older run (see concurrency above), so deploys never land out of order
+  deploy-website:
+    name: Deploy website
+    needs: [check, admin-db, website-e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # The Cloudflare secrets live on this environment, so only this job can
+    # read them, and GitHub lists each deploy under Environments
+    environment:
+      name: production
+      url: https://paulclarke.au
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # NX decides from its project graph, so changes to @repo/ui, shared
+      # config or the lockfile count as website changes too. A manual run, or
+      # a push whose previous commit isn't in the history, always deploys
+      - name: Check the website changed
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != push ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "website=true" >> "$GITHUB_OUTPUT"
+          elif pnpm exec nx show projects --affected --json --base="$BEFORE" --head="$GITHUB_SHA" | grep -q '"website"'; then
+            echo "website=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "website=false" >> "$GITHUB_OUTPUT"
+            echo "The website didn't change; nothing to deploy"
+          fi
+
+      # The website's deploy script: nx run website:build (blog posts, then the
+      # Vite build), then wrangler deploy. Wrangler reads the token and account
+      # from the environment
+      - name: Build and deploy
+        if: steps.changed.outputs.website == 'true'
+        run: pnpm --filter website run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
