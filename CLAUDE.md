@@ -107,7 +107,9 @@ docker compose exec app pnpm lint
 docker compose exec app pnpm lint:fix    # biome check --write --unsafe .
 
 # Type checking — NX runs `tsc --noEmit` in admin-portal, website and @repo/ui
-# (the website's check-types depends on prebuild:posts, which NX runs first)
+# (the website's check-types depends on prebuild:posts, which NX runs first;
+# admin-portal's runs `next typegen` first, which writes the gitignored
+# next-env.d.ts and the .next/types route types without a build)
 docker compose exec app pnpm check-types
 
 # One target in one project, and NX inspection commands
