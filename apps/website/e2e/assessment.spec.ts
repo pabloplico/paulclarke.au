@@ -38,6 +38,19 @@ test.describe('assessment', () => {
     await expect(page.getByRole('status')).toHaveText('Readiness score 38 out of 100: Developing.');
   });
 
+  test('plan cards expand from a button that holds only the title', async ({ page }) => {
+    await completeQuickAssessment(page);
+
+    const card = page.locator('button:has([data-card-title])').first();
+    const title = (await card.textContent())?.trim() ?? '';
+    await expect(card).toHaveAttribute('aria-expanded', 'false');
+    await card.click();
+    await expect(card).toHaveAttribute('aria-expanded', 'true');
+    // The details sit outside the button, so they don't become part of its name
+    await expect(card).toHaveAccessibleName(title);
+    await expect(page.locator(`#${await card.getAttribute('aria-controls')}`)).toBeVisible();
+  });
+
   test('detailed analysis works by keyboard alone', async ({ page }) => {
     await completeQuickAssessment(page);
 
@@ -60,6 +73,12 @@ test.describe('assessment', () => {
     await expect(breakdown).toBeEnabled();
     await breakdown.click();
     await expect(breakdown).toHaveAttribute('aria-expanded', 'true');
+
+    // Each dimension bar is a disclosure for its feedback
+    const bar = page.getByRole('button', { name: /^Strategy & Leadership/ });
+    await expect(bar).toHaveAttribute('aria-expanded', 'false');
+    await bar.press('Enter');
+    await expect(bar).toHaveAttribute('aria-expanded', 'true');
   });
 
   test('pain points allow at most three choices', async ({ page }) => {
