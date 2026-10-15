@@ -1,18 +1,17 @@
 # =============================================================================
-# Admin Portal — Development
+# Admin Portal — development services (Postgres, Redis, optional Ollama)
 # =============================================================================
-# Usage:
-#   docker compose up -d                      # Start
-#   docker compose --profile ai up -d         # Include Ollama
-#   docker compose logs -f app                # View logs
-#   docker compose down                       # Stop
-#   docker compose exec app <command>         # Run commands
+# The app itself runs on the host (see CLAUDE.md). This stack is only needed for
+# the full setup: Postgres + pgvector and Redis for the BullMQ workers.
 #
-# Examples:
-#   docker compose exec app pnpm lint:fix
-#   docker compose exec app pnpm check-types
-#   docker compose exec app pnpm test
-#   docker compose exec -w /app/apps/admin-portal app pnpm db:migrate
+# Usage (from apps/admin-portal):
+#   export COMPOSE_ENV_FILES=../../.env.docker   # compose reads its ${VARS} here
+#   docker compose up -d                         # Postgres 5432 + Redis 6379
+#   docker compose --profile ai up -d            # also Ollama on 11434
+#   docker compose down                          # stop (data stays in volumes)
+#
+# Then run the app on the host against these services:
+#   pnpm nx run admin-portal:dev:full
 # =============================================================================
 
 name: admin-portal-dev
@@ -67,42 +66,7 @@ services:
     profiles:
       - ai
 
-  app:
-    build:
-      context: ../..
-      dockerfile: apps/admin-portal/Dockerfile.dev
-    container_name: admin-portal-dev-node
-    restart: unless-stopped
-    mem_limit: 8g
-    memswap_limit: 8g
-    working_dir: /app
-    volumes:
-      - ../..:/app:cached
-      - node_modules:/app/node_modules
-      - pnpm_store:/root/.local/share/pnpm/store
-    ports:
-      - '3001:3001'
-    environment:
-      - NODE_ENV=development
-      - CI=true
-      - WATCHPACK_POLLING=true
-      - CHOKIDAR_USEPOLLING=true
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-business_portal}:${POSTGRES_PASSWORD}@admin-portal-dev-postgres:5432/${POSTGRES_DB:-business_portal}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@admin-portal-dev-redis:6379
-      - OLLAMA_URL=http://admin-portal-dev-ollama:11434
-      - OLLAMA_REMOTE_URL=${OLLAMA_REMOTE_URL:-}
-      - OPENAI_API_KEY=${ADMIN_PORTAL_OPENAI_API_KEY:-}
-    env_file:
-      - ../../.env.docker
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
 volumes:
   postgres_data:
   redis_data:
-  node_modules:
-  pnpm_store:
   ollama_data:
