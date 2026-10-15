@@ -80,6 +80,21 @@ describe('useAssessment', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
   });
 
+  it('restart jumps instead of scrolling smoothly when reduced motion is on', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(prefers-reduced-motion: reduce)' }))
+    );
+    try {
+      const { result } = renderHook(() => useAssessment(), { wrapper });
+      act(() => result.current.restart());
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps answers in the provider, so they survive the page unmounting', async () => {
     // Mirrors navigating away from /assessment and back: the provider sits above the router
     function Picker() {
