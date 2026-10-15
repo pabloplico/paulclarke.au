@@ -42,124 +42,114 @@ docker build --build-arg INSTALL_PLAYWRIGHT=true -t admin-portal -f apps/admin-p
 
 Next.js uses `output: 'standalone'` — the prod image contains only traced dependencies.
 
-## Docker Dev Environments
+## Development
 
-Each app has its own `docker-compose.yml` and `Dockerfile.dev` in its app directory. The admin-portal dev image uses `node:22-alpine` (matching prod); the website's uses `node:22-slim` (see below). Run commands from the app directory.
+Everything runs on the host: Node 22 and pnpm (`corepack enable`). Docker is optional and only provides Postgres, Redis and Ollama for the admin portal's full stack. There is no app container. Run commands from the repo root unless noted.
 
-### Website Dev
-
-The website dev container runs Vite (SPA, port 3004) and `wrangler dev` (Worker, port 3005) side-by-side. Vite proxies `/api/*` to the Worker. The Worker only serves the blog API — there are no secrets.
+### Website
 
 ```bash
-cd apps/website
-cp .dev.vars.example .dev.vars    # only ENVIRONMENT=development
-docker compose up -d              # Vite on 3004, wrangler dev on 3005
-docker compose logs -f app        # View logs
-docker compose down               # Stop
-docker compose exec app <command> # Run commands
+cp apps/website/.dev.vars.example apps/website/.dev.vars   # only ENVIRONMENT=development
+pnpm nx run website:dev    # generates the blog posts, then Vite (3004) + wrangler dev (3005)
 ```
 
-The dev container uses `node:22-slim` (not Alpine) because `workerd`, the Cloudflare Workers runtime that backs `wrangler dev`, ships glibc-only binaries that fail to spawn on musl libc.
+Vite proxies `/api/*` to the Worker. The Worker only serves the blog API and has no secrets. `wrangler dev` runs `workerd`, which ships glibc-only binaries, so it doesn't work on musl (Alpine) hosts.
 
-### Without Docker
-
-Both apps run on the host with nothing else installed or running:
+### Admin portal: daily work (`dev:lite`)
 
 ```bash
-pnpm nx run website:dev               # generates the blog posts, then Vite (3004) + wrangler dev (3005)
 pnpm nx run admin-portal:dev:lite     # Next.js on 3001: PGlite + in-process jobs, sign-in off
 OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo   # Next.js on 3003: demo mode as a visitor sees it
 ```
 
-`dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `QUEUE_DRIVER=memory`, `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
+`dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) needs nothing else installed or running. It sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `QUEUE_DRIVER=memory`, `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
 
-`dev:demo` (`scripts/dev-demo.ts`) runs `DEMO_MODE=true` signed in as `DEV_ACCESS_IDENTITY` (default `visitor@example.com`) instead of through Cloudflare Access, on a fresh PGlite database in `.pglite/demo` every start, with OpenAI `gpt-4.1-nano`. The first request seeds that visitor. It needs `OPENAI_API_KEY` (demo mode checks the AI setup at start-up; AI features spend on it). It uses port 3003 and its own build folder (`NEXT_DIST_DIR=.next/demo`), so it runs beside the Docker dev server, which locks `.next/dev`.
+`dev:demo` (`scripts/dev-demo.ts`) runs `DEMO_MODE=true` signed in as `DEV_ACCESS_IDENTITY` (default `visitor@example.com`) instead of through Cloudflare Access, on a fresh PGlite database in `.pglite/demo` every start, with OpenAI `gpt-4.1-nano`. The first request seeds that visitor. It needs `OPENAI_API_KEY` (demo mode checks the AI setup at start-up; AI features spend on it). It uses port 3003 and its own build folder (`NEXT_DIST_DIR=.next/demo`), so it can run beside `dev:lite` or `dev:full`, which use `.next/dev`.
 
-### Admin Portal Dev
+**What doesn't run under `QUEUE_DRIVER=memory`.** Document processing and workspace routing run in-process. These need Redis (BullMQ repeatable jobs or pub/sub) and don't start:
+
+- **Feeds:** the scheduled RSS/news feed fetches.
+- **Backups:** the scheduled `pg_dump` backups into `backups/` (they also need Postgres, not PGlite).
+- **Research agents:** the Mastra research, ingestion and analysis agents (`lib/agents/`), their cron schedules and the live run log (Redis pub/sub).
+
+`RATE_LIMIT_DRIVER=redis` also needs `QUEUE_DRIVER=bullmq`.
+
+### Admin portal: full stack (`dev:full`)
+
+Postgres 15 + pgvector and Redis 7, with the BullMQ workers. Start the services-only compose stack (or use native Postgres 15 with pgvector and Redis 7 on the same ports), then run the app on the host:
 
 ```bash
+cp .env.docker.example .env.docker          # once; fill in section 1
 cd apps/admin-portal
 export COMPOSE_ENV_FILES=../../.env.docker  # once per shell: compose reads its ${VARS} from here
-docker compose up -d                      # Start (port 3001 + postgres + redis)
-docker compose --profile ai up -d         # Include Ollama
-docker compose logs -f app                # View logs
-docker compose down                       # Stop
-docker compose exec app <command>         # Run commands
+docker compose up -d                        # Postgres on 5432, Redis on 6379
+docker compose --profile ai up -d           # also Ollama on 11434
+docker compose down                         # stop (data stays in the volumes)
+
+pnpm with-dev-env pnpm db:migrate           # first time, and after new migrations
+pnpm nx run admin-portal:dev:full           # Next.js on 3001 against Postgres + Redis
 ```
 
-### Running commands inside the container
+`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` and `REDIS_URL` for localhost (from `POSTGRES_*` and `REDIS_PASSWORD`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` and `REDIS_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it. The plain `dev` script (and so root `pnpm dev`) doesn't load `.env.docker`: on the host it falls back to an unauthenticated `localhost` Redis and fails with `NOAUTH`, so use `dev:lite` or `dev:full`.
 
-All build, test, lint, and database commands must run inside the `app` container. The image is Alpine, so there's no `bash`; for commands in `apps/admin-portal`, set the working directory with `-w /app/apps/admin-portal` (or use `sh -c`):
+Host requirements for the full stack: `pg_dump` 15 or later for backups (Ubuntu 22.04's `postgresql-client` is 14, which refuses a 15 server), and `pnpm exec playwright install chromium` (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) for URL scraping.
 
-```bash
-docker compose exec app <command>
-```
-
-Examples (from `apps/admin-portal/`):
+### Commands
 
 ```bash
-# Build
-docker compose exec app pnpm build
-
-# Lint — NX runs `biome check .` in every package, plus `lint:root`
-# for root-level config files (the container's working dir is the root)
-docker compose exec app pnpm lint
-docker compose exec app pnpm lint:fix    # biome check --write --unsafe .
+# Lint — NX runs `biome check .` in every package, plus `lint:root` for root-level config files
+pnpm lint
+pnpm lint:fix
 
 # Type checking — NX runs `tsc --noEmit` in admin-portal, website and @repo/ui
 # (the website's check-types depends on prebuild:posts, which NX runs first;
 # admin-portal's runs `next typegen` first, which writes the gitignored
 # next-env.d.ts and the .next/types route types without a build)
-docker compose exec app pnpm check-types
+pnpm check-types
+
+pnpm test     # Vitest in admin-portal and website
+pnpm build
 
 # One target in one project, and NX inspection commands
-docker compose exec app pnpm exec nx run website:build
-docker compose exec app pnpm exec nx show project website       # targets, inputs, outputs
-docker compose exec app pnpm exec nx show projects --affected --base=main
-docker compose exec app pnpm exec nx run-many -t test --skip-nx-cache
-docker compose exec app pnpm exec nx reset                      # clear the cache
+pnpm exec nx run website:build
+pnpm exec nx show project website       # targets, inputs, outputs
+pnpm exec nx show projects --affected --base=main
+pnpm exec nx run-many -t test --skip-nx-cache
+pnpm exec nx reset                      # clear the cache
 
-# Unit tests (Vitest in admin-portal and website)
-docker compose exec app pnpm test
-docker compose exec -w /app/apps/admin-portal app npx vitest run lib/rag/chunker.test.ts
+# One test file
+pnpm --filter admin-portal exec vitest run lib/rag/chunker.test.ts
 
-# E2E tests (website: Playwright + axe against wrangler dev, no services needed;
-# admin-portal needs postgres + redis)
-docker compose exec app pnpm --filter website test:e2e
-docker compose exec app pnpm test:e2e
+# E2E (website: Playwright + axe against wrangler dev, no services needed;
+# admin-portal: needs the full stack; its webServer runs dev:full)
+pnpm --filter website test:e2e
+pnpm --filter admin-portal test:e2e
 
-# Database (from admin-portal dir inside container)
-docker compose exec -w /app/apps/admin-portal app pnpm db:generate
-docker compose exec -w /app/apps/admin-portal app pnpm db:migrate
-docker compose exec -w /app/apps/admin-portal app pnpm db:studio
+# Database (from apps/admin-portal, against the full stack)
+pnpm with-dev-env pnpm db:generate
+pnpm with-dev-env pnpm db:migrate
+pnpm with-dev-env pnpm db:studio
+pnpm with-dev-env pnpm db:seed-admin    # the admin account (needs ADMIN_EMAIL)
 # Build a fresh in-memory PGlite database from drizzle/ and smoke-test it (also
-# fails if the schema has drifted from the latest migration). CI runs this
-docker compose exec -w /app/apps/admin-portal app pnpm db:check-fresh
+# fails if the schema has drifted from the latest migration). No services needed; CI runs this
+pnpm db:check-fresh
 ```
 
-**Migrations** start from one baseline (`drizzle/0000_baseline.sql`, generated from `lib/db/schema`), which replaced a history that couldn't build a fresh database. A new, empty database (a fresh `postgres_data` volume) only needs `db:migrate`. A database built before the baseline (with `drizzle-kit push` or the old migrations) needs the baseline recorded once, or `db:migrate` fails with "already exists". `db:mark-baseline` is non-destructive: it refuses unless every schema table and column exists, never drops anything, and with `--apply` only inserts one row into `drizzle.__drizzle_migrations`:
+**Migrations** start from one baseline (`drizzle/0000_baseline.sql`, generated from `lib/db/schema`), which replaced a history that couldn't build a fresh database. A new, empty database (a fresh `postgres_data` volume) only needs `db:migrate`. A database built before the baseline (with `drizzle-kit push` or the old migrations) needs the baseline recorded once, or `db:migrate` fails with "already exists". `db:mark-baseline` is non-destructive: it refuses unless every schema table and column exists, never drops anything, and with `--apply` only inserts one row into `drizzle.__drizzle_migrations` (from `apps/admin-portal`):
 
 ```bash
-docker compose exec -w /app/apps/admin-portal app pnpm db:mark-baseline          # dry run
-docker compose exec -w /app/apps/admin-portal app pnpm db:mark-baseline --apply  # record it
-docker compose exec -w /app/apps/admin-portal app pnpm db:migrate                # then later migrations
-```
-
-### After adding dependencies
-
-If you add deps on the host (`pnpm add ...`), you must rebuild or install inside the container:
-
-```bash
-docker compose exec app pnpm install
+pnpm with-dev-env pnpm db:mark-baseline          # dry run
+pnpm with-dev-env pnpm db:mark-baseline --apply  # record it
+pnpm with-dev-env pnpm db:migrate                # then later migrations
 ```
 
 ### Environment variables
 
-All env vars live in **`.env.docker`** (root of repo). Copy `.env.docker.example` to `.env.docker` to set up. Do **not** create `.env.local` files in app directories — the Docker container loads `.env.docker` via `env_file` in docker-compose. `env_file` only reaches the container, though: Compose fills the `${POSTGRES_PASSWORD}` and `${REDIS_PASSWORD}` in `apps/admin-portal/docker-compose.yml` from the shell or a `.env` file, not from `env_file`. Run `export COMPOSE_ENV_FILES=../../.env.docker` in `apps/admin-portal` first (or pass `--env-file ../../.env.docker`). Don't add an `apps/admin-portal/.env`: Next.js would load it on the host too. Without it every `docker compose` command there, `exec` included, fails with "required variable POSTGRES_PASSWORD is missing a value".
+The website needs none. The admin portal's settings live in **`.env.docker`** (root of repo, gitignored; the name predates host development). Copy `.env.docker.example` to `.env.docker` to set up. Two things read it: Docker Compose, for the `${POSTGRES_PASSWORD}` and `${REDIS_PASSWORD}` that set up the service containers (export `COMPOSE_ENV_FILES=../../.env.docker` in `apps/admin-portal` first, or every `docker compose` command there fails with "required variable POSTGRES_PASSWORD is missing a value"), and `with-dev-env` / `dev:full` on the host. `dev:lite` and `dev:demo` don't read it: they take their settings from the shell. Do **not** create `.env` or `.env.local` files in app directories: Next.js would load them into every command, builds included.
 
 Key vars (see `.env.docker.example` for full list):
-- `DATABASE_URL` — Set in docker-compose `environment` (points to `postgres` service hostname)
-- `REDIS_URL` — Redis connection string (points to `redis` service hostname)
+- `DATABASE_URL` — Postgres connection string; `with-dev-env` builds it for localhost from the `POSTGRES_*` values
+- `REDIS_URL` — Redis connection string; `with-dev-env` builds it for localhost from `REDIS_PASSWORD`
 - `AI_PROVIDER` — `anthropic`, `openai`, or `gemini`
 - `AI_MODEL` — Model ID (e.g. `claude-sonnet-4-6`, `gpt-4o`, `gpt-5.2`)
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — API keys for chosen provider
@@ -172,11 +162,11 @@ Key vars (see `.env.docker.example` for full list):
 
 ### Services
 
-| Service | App | Container | Port |
-|---------|-----|-----------|------|
-| Website (dev, Vite SPA) | website | `website-dev` | 3004 |
-| Website (dev, wrangler Worker) | website | `website-dev` | 3005 |
-| Admin Portal (dev) | admin-portal | `admin-portal-dev-node` | 3001 |
+| Service | App | Runs on | Port |
+|---------|-----|---------|------|
+| Website (dev, Vite SPA) | website | host | 3004 |
+| Website (dev, wrangler Worker) | website | host | 3005 |
+| Admin Portal (`dev:lite` or `dev:full`) | admin-portal | host | 3001 |
 | Admin Portal (demo mode, `dev:demo`) | admin-portal | host | 3003 |
 | PostgreSQL 15 (pgvector) | admin-portal | `admin-portal-dev-postgres` | 5432 |
 | Redis 7 | admin-portal | `admin-portal-dev-redis` | 6379 |
@@ -200,8 +190,8 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 | App | Framework | Production | Dev | Role |
 |-----|-----------|-----------|-----|------|
-| `apps/website` | Vite SPA + Hono Worker | Cloudflare Workers (paulclarke.au) | Docker (Vite 3004, wrangler 3005) | Developer portfolio: projects, assessment demo, writing |
-| `apps/admin-portal` | Next.js 16 | Docker | Docker (port 3001) | Internal: workspace knowledge management, document processing, inbox routing, gap analysis |
+| `apps/website` | Vite SPA + Hono Worker | Cloudflare Workers (paulclarke.au) | Host (Vite 3004, wrangler 3005) | Developer portfolio: projects, assessment demo, writing |
+| `apps/admin-portal` | Next.js 16 | Docker | Host (port 3001); Postgres + Redis optionally in Docker | Internal: workspace knowledge management, document processing, inbox routing, gap analysis |
 
 ### Packages
 
@@ -240,7 +230,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **AI**: Vercel AI SDK (`ai@^6`, 6.0.x installed) with configurable provider (Anthropic, OpenAI, Gemini or Ollama) for admin-portal. Mastra (`@mastra/core`) drives the research agents.
 - **Storage**: Local filesystem (`./uploads/`) via `StorageProvider` abstraction (admin-portal only).
 - **Cloudflare Workers**: Website deployed as a single Worker with the Static Assets binding. No backend services — contact uses `mailto:`, assessment results download as PDF via `window.print()`.
-- **Docker**: Admin-portal uses `node:22-alpine` for both dev and prod (`Dockerfile` + `Dockerfile.dev`). Website uses `Dockerfile.dev` only — production is `wrangler deploy`, no container.
+- **Docker**: Admin-portal production image only (`Dockerfile`, `node:22-alpine`). In development, `apps/admin-portal/docker-compose.yml` is a services-only stack (Postgres, Redis, optional Ollama); the apps run on the host. The website has no container: production is `wrangler deploy`.
 
 ## Code Style & Conventions
 

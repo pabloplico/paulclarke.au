@@ -108,7 +108,7 @@ FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://â€¦ TEST_REDIS_URL=redis://â€
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
-These need the admin dev stack (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`). `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev` if nothing is running. Selected specs:
+These need the admin portal's full stack: Postgres and Redis (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`, or native services) and `.env.docker`. `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev:full` on the host if nothing is running. Selected specs:
 
 | File                           | What it covers                                              |
 | ------------------------------ | ----------------------------------------------------------- |
