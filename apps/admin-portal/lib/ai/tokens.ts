@@ -1,35 +1,34 @@
-import { encodingForModel, type TiktokenModel } from 'js-tiktoken';
+import { getEncoding, type Tiktoken, type TiktokenEncoding } from 'js-tiktoken';
 
 /**
- * Map model strings to tiktoken encoding names.
+ * The tiktoken encoding for a model: o200k_base for GPT-4o and later,
+ * cl100k_base for everything else (GPT-4, GPT-3.5, embeddings, and Claude as
+ * an approximation).
  */
-function getEncoding(model?: string) {
-  if (!model) return encodingForModel('gpt-4o' as TiktokenModel);
-
+function encodingName(model?: string): TiktokenEncoding {
+  if (!model) return 'o200k_base';
   const m = model.toLowerCase();
-  if (m.includes('gpt-4o') || m.includes('gpt-5') || m.includes('o200k')) {
-    return encodingForModel('gpt-4o' as TiktokenModel);
-  }
-  // cl100k_base covers GPT-4, GPT-3.5, Claude (approximate), embeddings
-  return encodingForModel('gpt-4' as TiktokenModel);
+  if (m.includes('gpt-4o') || m.includes('gpt-5') || m.includes('o200k')) return 'o200k_base';
+  return 'cl100k_base';
 }
 
-// Cache encodings by model prefix to avoid repeated initialization
-const encodingCache = new Map<string, ReturnType<typeof encodingForModel>>();
+// Building an encoding parses its whole rank table (about 0.3 s for cl100k,
+// 0.6 s for o200k, more under load), so each one is built once per process
+const encodingCache = new Map<TiktokenEncoding, Tiktoken>();
 
-function getCachedEncoding(model?: string) {
-  const key = model?.toLowerCase().slice(0, 10) ?? 'default';
-  let enc = encodingCache.get(key);
+function getCachedEncoding(model?: string): Tiktoken {
+  const name = encodingName(model);
+  let enc = encodingCache.get(name);
   if (!enc) {
-    enc = getEncoding(model);
-    encodingCache.set(key, enc);
+    enc = getEncoding(name);
+    encodingCache.set(name, enc);
   }
   return enc;
 }
 
 /**
  * Estimate token count for a text string.
- * Uses js-tiktoken (WASM) for fast, accurate estimation.
+ * Uses js-tiktoken (pure JS) for accurate estimation.
  * For Anthropic models, overestimates by ~5-10% (safe direction).
  */
 export function estimateTokens(text: string, model?: string): number {

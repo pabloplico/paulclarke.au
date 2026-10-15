@@ -1,10 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   enforceBudget,
   estimateTokens,
   getModelContextWindow,
   TokenBudgetExceededError,
 } from './tokens';
+
+// Build both encodings once up front (about 1 s of CPU, several times that
+// when the machine is busy), so each test's time is only its own work
+beforeAll(() => {
+  estimateTokens('warm-up');
+  estimateTokens('warm-up', 'gpt-4');
+});
 
 describe('estimateTokens', () => {
   it('returns 0 for empty string', () => {
