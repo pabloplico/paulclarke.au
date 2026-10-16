@@ -110,6 +110,61 @@ export function createFakeChatModel(
   });
 }
 
+/** One reply from a scripted chat model: tool calls, final text, or an error. */
+export type ScriptedReply =
+  | { toolCalls: { toolName: string; input: Record<string, unknown> }[] }
+  | { text: string }
+  | { error: Error };
+
+/**
+ * A chat model that gives `replies` in order, one per call, for agents that
+ * call tools (a Mastra agent runs the tools, then calls the model again).
+ * After the last reply it repeats it, so an error stays an error through the
+ * AI SDK's retries. `beforeReply`
+ * runs at the start of every call, so a test can look at (or change) the
+ * database while the agent is working.
+ */
+export function createScriptedChatModel(
+  replies: ScriptedReply[],
+  modelId = 'fake-chat',
+  beforeReply?: (call: number) => void | Promise<void>
+) {
+  let calls = 0;
+  const usage = {
+    inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 10, text: 10, reasoning: 0 },
+  };
+  return new MockLanguageModelV3({
+    provider: 'fake',
+    modelId,
+    doGenerate: async () => {
+      calls++;
+      await beforeReply?.(calls);
+      const reply = replies[Math.min(calls, replies.length) - 1] ?? { text: 'Done.' };
+      if ('error' in reply) throw reply.error;
+      if ('toolCalls' in reply) {
+        return {
+          content: reply.toolCalls.map((call, i) => ({
+            type: 'tool-call' as const,
+            toolCallId: `call-${calls}-${i}`,
+            toolName: call.toolName,
+            input: JSON.stringify(call.input),
+          })),
+          finishReason: { unified: 'tool-calls' as const, raw: 'tool_calls' },
+          usage,
+          warnings: [],
+        };
+      }
+      return {
+        content: [{ type: 'text' as const, text: reply.text }],
+        finishReason: { unified: 'stop' as const, raw: 'stop' },
+        usage,
+        warnings: [],
+      };
+    },
+  });
+}
+
 export function createFakeEmbeddingModel(modelId = 'fake-embedding') {
   return new MockEmbeddingModelV3({
     provider: 'fake',
