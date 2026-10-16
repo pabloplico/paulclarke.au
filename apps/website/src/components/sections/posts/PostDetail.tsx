@@ -48,9 +48,16 @@ export function PostDetail({ slug }: { slug: string }) {
         </div>
       </header>
 
-      <div className="prose prose-invert max-w-none prose-headings:tracking-tight prose-a:text-primary">
-        <ReactMarkdown>{post.content}</ReactMarkdown>
-      </div>
+      <PostBody content={post.content} />
     </article>
+  );
+}
+
+/** A post's Markdown, rendered. */
+export function PostBody({ content }: { content: string }) {
+  return (
+    <div className="prose prose-invert max-w-none prose-headings:tracking-tight prose-a:text-primary">
+      <ReactMarkdown>{content}</ReactMarkdown>
+    </div>
   );
 }
