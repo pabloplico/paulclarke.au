@@ -155,8 +155,8 @@ The website needs none. The admin portal's settings live in **`.env.docker`** (r
 Key vars (see `.env.docker.example` for full list):
 - `DATABASE_URL` — Postgres connection string; `with-dev-env` builds it for localhost from the `POSTGRES_*` values
 - `REDIS_URL` — Redis connection string; `with-dev-env` builds it for localhost from `REDIS_PASSWORD`
-- `AI_PROVIDER` — `anthropic`, `openai`, or `gemini`
-- `AI_MODEL` — Model ID (e.g. `claude-sonnet-4-6`, `gpt-4o`, `gpt-5.2`)
+- `AI_PROVIDER` — `openai` (default), `anthropic` or `gemini`
+- `AI_MODEL` — Model ID (default `gpt-4.1-mini`; the demo uses `gpt-4.1-nano`). Spend only counts towards the daily caps for models priced in `lib/ai/pricing.ts`
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — API keys for chosen provider
 - `AUTH_SECRET` — JWT signing secret for session auth (required for login/signup to work; if unset, middleware skips auth)
 - `DB_DRIVER` — `postgres` (default, `DATABASE_URL`) or `pglite` (embedded Postgres in the Node process; in memory, or in `PGLITE_DATA_DIR`; `PGLITE_SNAPSHOT` seeds a new database from a `dumpDataDir()` tarball)
