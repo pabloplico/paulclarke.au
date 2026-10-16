@@ -33,20 +33,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
-    # For the admin-portal contract tests: the BullMQ queue and Redis rate
-    # limiter run the same suites as their in-memory versions. Nothing else
-    # uses it (the integration test runs on PGlite with in-process queues)
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
     steps:
       - uses: actions/checkout@v7
         with:
@@ -87,8 +73,6 @@ jobs:
 
       - name: Unit tests
         run: pnpm exec nx "$NX_RUN" -t test
-        env:
-          TEST_REDIS_URL: redis://localhost:6379
 
       # The same tests in a random order, to catch tests that depend on each
       # other. Non-blocking for now: a failure shows as a warning on the run.
@@ -101,10 +85,8 @@ jobs:
           echo "Shuffle seed: $SEED"
           echo "Shuffle seed: \`$SEED\`" >> "$GITHUB_STEP_SUMMARY"
           pnpm exec nx "$NX_RUN" -t test -- --sequence.shuffle --sequence.seed="$SEED"
-        env:
-          TEST_REDIS_URL: redis://localhost:6379
 
-      # Admin-portal E2E is skipped for now: it needs Postgres and Redis
+      # Admin-portal E2E is skipped for now: it needs Postgres
       - name: Build
         run: pnpm exec nx "$NX_RUN" -t build
 

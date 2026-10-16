@@ -5,8 +5,7 @@ import { expect, test } from '@playwright/test';
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - BullMQ workers running (document-processing + workspace-routing)
- *  - Redis available
+ *  - The in-process document-processing and workspace-routing workers (they start with the server)
  *  - Seeded workspaces exist
  */
 

@@ -20,7 +20,6 @@ import { join } from 'node:path';
 
 // Before any app module loads: a private in-memory app with sign-in off
 process.env.DB_DRIVER = 'pglite';
-process.env.QUEUE_DRIVER = 'memory';
 process.env.AUTH_ENABLED = 'false';
 process.env.NEXT_RUNTIME = 'nodejs';
 delete process.env.PGLITE_DATA_DIR;

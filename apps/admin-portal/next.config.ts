@@ -34,8 +34,6 @@ const nextConfig: NextConfig = {
     '@electric-sql/pglite',
     '@electric-sql/pglite-pgvector',
     'postgres',
-    'bullmq',
-    'ioredis',
     'pdf-parse',
     '@mastra/core',
   ],
