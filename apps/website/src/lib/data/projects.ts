@@ -48,7 +48,6 @@ export const PROJECTS: Project[] = [
       'TypeScript (strict)',
       'Postgres + pgvector',
       'Drizzle',
-      'Redis/BullMQ',
       'AI SDK',
       'Vitest',
       'Playwright',
