@@ -71,13 +71,9 @@ OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo   # Next.js on 3003: demo m
 
 `dev:demo` (`scripts/dev-demo.ts`) runs `DEMO_MODE=true` signed in as `DEV_ACCESS_IDENTITY` (default `visitor@example.com`) instead of through Cloudflare Access, on a fresh PGlite database in `.pglite/demo` every start, with OpenAI `gpt-4.1-nano`. The first request seeds that visitor. It needs `OPENAI_API_KEY` (demo mode checks the AI setup at start-up; AI features spend on it). It uses port 3003 and its own build folder (`NEXT_DIST_DIR=.next/demo`), so it can run beside `dev:lite` or `dev:full`, which use `.next/dev`.
 
-**What doesn't run under `QUEUE_DRIVER=memory`.** Document processing and workspace routing run in-process. These need Redis (BullMQ repeatable jobs or pub/sub) and don't start:
+**Everything runs under `QUEUE_DRIVER=memory`.** Document processing, workspace routing and the research agents (`lib/agents/`) all run in-process. Research is off in demo mode. The agents have no cron schedules (a run starts only when a user triggers it) and no live log stream (the research toolbar polls the run log in the database). Cancelling a run marks it `cancelled`, and the worker stops the agent after the step in progress. On boot, `lib/queue/recover.ts` marks runs a restart cut off as `failed` ("interrupted by restart") rather than running them again. Feeds, backups, cron schedules and the Redis live log are at the `full-stack-v1` tag.
 
-- **Research agents:** the Mastra research, ingestion and analysis agents (`lib/agents/`), their cron schedules and the live run log (Redis pub/sub).
-
-Feeds and backups used to be on this list. They were removed; the full version is at the `full-stack-v1` tag.
-
-`RATE_LIMIT_DRIVER=redis` also needs `QUEUE_DRIVER=bullmq`.
+`RATE_LIMIT_DRIVER=redis` needs `QUEUE_DRIVER=bullmq`.
 
 ### Admin portal: full stack (`dev:full`)
 
@@ -160,7 +156,7 @@ Key vars (see `.env.docker.example` for full list):
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — API keys for chosen provider
 - `AUTH_SECRET` — JWT signing secret for session auth (required for login/signup to work; if unset, middleware skips auth)
 - `DB_DRIVER` — `postgres` (default, `DATABASE_URL`) or `pglite` (embedded Postgres in the Node process; in memory, or in `PGLITE_DATA_DIR`; `PGLITE_SNAPSHOT` seeds a new database from a `dumpDataDir()` tarball)
-- `QUEUE_DRIVER` — `bullmq` (default, `REDIS_URL`) or `memory` (in-process queues; nothing connects to Redis, and the Redis-only research-agent workers don't start)
+- `QUEUE_DRIVER` — `bullmq` (default, `REDIS_URL`) or `memory` (in-process queues; nothing connects to Redis)
 - `RATE_LIMIT_DRIVER` — `memory` (default, per process) or `redis` (shared; needs `QUEUE_DRIVER=bullmq`)
 - `DEMO_MODE`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `DEV_ACCESS_IDENTITY` — demo mode and Cloudflare Access (see Demo mode below)
 - `AI_MAX_OUTPUT_TOKENS`, `AI_DAILY_BUDGET_USD`, `AI_USER_DAILY_BUDGET_USD`, `AI_USER_REQUESTS`, `AI_USER_WINDOW_MINUTES` — AI cost controls (see `.env.docker.example`)
@@ -231,7 +227,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 ### Infrastructure
 
 - **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal. `DB_DRIVER=pglite` swaps in PGlite (Postgres compiled to WASM, with pgvector) for the single-instance demo; `lib/db/index.ts` is the one place the client is created, lazily, so `next build` never connects.
-- **Queue**: BullMQ + Redis for the admin-portal workers. Document processing and workspace routing sit behind the `JobQueue` interface (`lib/queue/`), with an in-process implementation for `QUEUE_DRIVER=memory`; the research agents stay on BullMQ (repeatable jobs, pub/sub). Feeds and backups were removed (the full version is at the `full-stack-v1` tag); their tables (`admin_feeds`, `admin_feed_items`) and the `'feed'` document source stay for existing databases. `lib/redis.ts` is the only place that opens Redis connections, on first use, and it throws when Redis is off.
+- **Queue**: BullMQ + Redis for the admin-portal workers. Document processing and workspace routing sit behind the `JobQueue` interface (`lib/queue/`), with an in-process implementation for `QUEUE_DRIVER=memory`; the three research-agent queues (`lib/agents/queue/`) use it too. Feeds, backups, agent cron schedules and the live run-log stream were removed (the full version is at the `full-stack-v1` tag); their tables (`admin_feeds`, `admin_feed_items`) and the `'feed'` document source stay for existing databases. `lib/redis.ts` is the only place that opens Redis connections, on first use, and it throws when Redis is off.
 - **AI**: Vercel AI SDK (`ai@^6`, 6.0.x installed) with configurable provider (Anthropic, OpenAI, Gemini or Ollama) for admin-portal. Mastra (`@mastra/core`) drives the research agents.
 - **Storage**: Local filesystem (`./uploads/`) via `StorageProvider` abstraction (admin-portal only).
 - **Cloudflare Workers**: Website deployed as a single Worker with the Static Assets binding. No backend services — contact uses `mailto:`, assessment results download as PDF via `window.print()`.

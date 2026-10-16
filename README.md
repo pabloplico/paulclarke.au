@@ -94,7 +94,7 @@ The admin portal is being cut down to run as a single process, with no Redis. Th
 - the research agents on cron schedules;
 - the live research run log, streamed over Redis pub/sub.
 
-Feeds and backups have been removed from `main`. Redis, BullMQ, the scheduled research and the live log stream are still here until the research agents move to the in-process queue.
+On `main`, feeds, backups, the cron schedules and the live log stream have been removed, and the research agents run on the in-process queue. Redis and BullMQ are still here as the optional `QUEUE_DRIVER=bullmq` driver until they're removed too.
 
 ## Getting started
 
@@ -133,7 +133,7 @@ pnpm nx run admin-portal:dev:full            # Next.js on :3001
 
 The admin dev servers listen on 127.0.0.1 only. To open them from another device on your network, start them with `DEV_HOST=0.0.0.0` and list that device's IP in `ALLOWED_DEV_ORIGINS` (details in `CLAUDE.md`).
 
-`dev:lite` is the everyday setup, and it's what `pnpm dev` runs. Under it, document processing and workspace routing run in-process, but the Redis-only research agents don't start (with their cron schedules and live run logs). Use `dev:full` for those.
+`dev:lite` is the everyday setup, and it's what `pnpm dev` runs. Under it, document processing, workspace routing and the research agents all run in-process.
 
 The website needs no environment variables or secrets. Admin-portal settings are documented in `.env.docker.example` and `CLAUDE.md`.
 
