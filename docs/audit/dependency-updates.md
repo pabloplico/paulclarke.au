@@ -128,7 +128,7 @@ In order. Each merges before the next starts, so a failure points at one change.
 | 1 | ✅ Remove unused admin deps — #41, 2026-10-16; audit 1/33/52/7 → 1/32/51/7, `fast-xml-parser` advisories → 0 | `@mastra/ai-sdk`, `@tanstack/react-query` (admin only; the website uses it), `fast-xml-parser`, `recharts` | Low | new (backlog S8) |
 | P | **Prerequisite: admin E2E can fail** | none (tests only) | — | new (test-audit-report §8 item 7) |
 | 2 | ✅ Next 16.4 — #36, 2026-10-16; audit 4/55/66/10 → 1/33/52/7 (critical/high/moderate/low), `next` advisories 31 → 0 | `next` 16.2.1 → 16.4.2 | Med | part of 1 |
-| 3 | In-range batch | everything in range **except** Mastra, `hono` and Playwright | Low–med | 1 |
+| 3 | ✅ In-range batch — 2026-10-16, PR pending; audit 1/32/51/7 → 1/19/48/6, `mammoth`/`xmldom` advisories → 0 | everything in range **except** Mastra, `hono` and Playwright | Low–med | 1 |
 | 3a | Playwright 1.64 | `playwright` + `@playwright/test` 1.58.2 → 1.64.1 | Low–med | part of 1 |
 | 4 | drizzle 0.45 | `drizzle-orm` 0.44.7 → 0.45.4, `drizzle-kit` 0.31.11 | Low–med | part of 1 |
 | 5 | Mastra 1.78 | `@mastra/core` 1.16 → 1.78 | Med–high | 4 |
