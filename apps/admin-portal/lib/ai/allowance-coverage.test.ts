@@ -9,12 +9,15 @@ import { describe, expect, it } from 'vitest';
  * forgets the check fails here:
  *
  * - the route, or anything it imports from the app, calls the AI SDK
- *   (generateText, generateObject, streamText, embed...), or
+ *   (generateText, generateObject, streamText, embed...) or runs a Mastra
+ *   agent (agent.generate(), agent.stream()), or
  * - it imports a module that queues AI jobs (document processing, routing,
  *   research agents), whose AI calls happen later in a worker.
  */
 const root = join(__dirname, '..', '..');
 const AI_CALL = /\b(generateText|generateObject|streamText|streamObject|embedMany|embed)\s*\(/;
+// A Mastra agent's generate() and stream() call the model: researchAgent.generate(...)
+const AGENT_CALL = /\b\w*[aA]gent\s*\.\s*(generate|stream)\s*\(/;
 const ENQUEUES_AI = [
   'lib/document-processing/queue.ts',
   'lib/workspace-routing/queue.ts',
@@ -24,7 +27,7 @@ const ENQUEUES_AI = [
 /** Routes that reach AI code through their imports but never start AI work. */
 const EXEMPT: Record<string, string> = {
   'app/api/workspaces/[id]/research/agent-runs/[runId]/cancel/route.ts':
-    'stops a research run: it imports the agent queues only to remove jobs',
+    'cancels a research run: it only writes the run status and makes no AI call',
 };
 
 function resolveImport(from: string, spec: string): string | null {
@@ -45,7 +48,10 @@ function startsAiWork(file: string, visiting = new Set<string>()): boolean {
   if (visiting.has(file)) return false;
   visiting.add(file);
   const source = readFileSync(file, 'utf8');
-  let result = ENQUEUES_AI.includes(file) || (AI_CALL.test(source) && source.includes("from 'ai'"));
+  let result =
+    ENQUEUES_AI.includes(file) ||
+    (AI_CALL.test(source) && source.includes("from 'ai'")) ||
+    AGENT_CALL.test(source);
   if (!result) {
     for (const match of source.matchAll(/(?:from|import\()\s*'([^']+)'/g)) {
       const target = resolveImport(file, match[1] ?? '');
@@ -77,6 +83,16 @@ describe('AI allowance coverage', () => {
     expect(names).toContain('workspaces/[id]/sections/[sectionId]/ai-edit/route.ts');
     expect(names).toContain('find-source/route.ts');
     expect(aiRoutes.length).toBeGreaterThan(20);
+  });
+
+  it('counts code that runs a Mastra agent as AI work, not only code that queues it', () => {
+    for (const path of [
+      'lib/agents/queue/research-queue.ts',
+      'lib/agents/queue/ingestion-queue.ts',
+      'lib/agents/queue/analysis-queue.ts',
+    ]) {
+      expect(startsAiWork(join(root, path)), path).toBe(true);
+    }
   });
 
   it('has every AI route call requireAiAllowance', () => {
