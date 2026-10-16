@@ -126,7 +126,7 @@ In order. Each merges before the next starts, so a failure points at one change.
 |---|---|---|---|---|
 | 0 | ✅ hono 4.13 (website, live) — #35, 2026-10-16; the admin portal's hono 4.12.8 via `@mastra/core` stays until step 5 | `hono` 4.12.8 → 4.13.13, a one-line PR | Low | part of 1 |
 | 1 | ✅ Remove unused admin deps — #41, 2026-10-16; audit 1/33/52/7 → 1/32/51/7, `fast-xml-parser` advisories → 0 | `@mastra/ai-sdk`, `@tanstack/react-query` (admin only; the website uses it), `fast-xml-parser`, `recharts` | Low | new (backlog S8) |
-| P | **Prerequisite: admin E2E can fail** | none (tests only) | — | new (test-audit-report §8 item 7) |
+| P | ✅ Prerequisite: admin E2E can fail — #34, 2026-10-16; no bare skips or fixed waits, on `dev:lite`, and in CI since #37 | none (tests only) | — | new (test-audit-report §8 item 7) |
 | 2 | ✅ Next 16.4 — #36, 2026-10-16; audit 4/55/66/10 → 1/33/52/7 (critical/high/moderate/low), `next` advisories 31 → 0 | `next` 16.2.1 → 16.4.2 | Med | part of 1 |
 | 3 | ✅ In-range batch — #45, 2026-10-16; audit 1/32/51/7 → 1/19/48/6, `mammoth`/`xmldom` advisories → 0 | everything in range **except** Mastra, `hono` and Playwright | Low–med | 1 |
 | 3a | Playwright 1.64 | `playwright` + `@playwright/test` 1.58.2 → 1.64.1 | Low–med | part of 1 |
@@ -153,7 +153,7 @@ In order. Each merges before the next starts, so a failure points at one change.
 - Gate, with `pnpm build` (the standalone trace) and the audit count (expect the `fast-xml-*` advisories to go).
 - It's small, and doing it first means the batch doesn't bump packages that are about to go.
 
-### Prerequisite (before step 2): admin E2E can fail
+### Prerequisite (before step 2): admin E2E can fail (done, #34)
 
 - Until this merges, the admin E2E suite **isn't a gate**: it passes by skipping.
 - Do test-audit-report §8 item 7:

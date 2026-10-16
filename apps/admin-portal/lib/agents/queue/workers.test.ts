@@ -4,7 +4,7 @@ import type { ScriptedReply } from '@/test/fake-ai';
 /**
  * The three agent workers (research, ingestion, analysis). Written as
  * characterisation tests before they moved from BullMQ to the JobQueue seam
- * (docs/audit/queue-decoupling.md); the assertions marked MOVE recorded bugs
+ * (PRs #24 and #26); the assertions marked MOVE recorded bugs
  * that the move fixed: spend now counts against the user who triggered the
  * run, a cancelled run stays cancelled, and start-up recovery fails runs a
  * restart cut off.

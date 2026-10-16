@@ -1,10 +1,10 @@
 # Test audit against the test architecture guide (2026-10-16)
 
-Read-only audit of `origin/main` at `425d3f4` (#18 merged, Vitest 5.0.5, Biome 2.4.4, Playwright 1.58.2, NX 23.3.0), checked against `docs/audit/testauditinstruct.md`, with each rule ID used as a checklist item.
+Read-only audit of `origin/main` at `425d3f4` (#18 merged, Vitest 5.0.5, Biome 2.4.4, Playwright 1.58.2, NX 23.3.0), checked against `docs/audit/test-guide.md` (then `testauditinstruct.md`), with each rule ID used as a checklist item.
 
 **Scope and method**
 
-- The audit ran in a throwaway detached worktree in the session scratchpad. No repo code, config or test was changed. The only files written in the repo are this report and the corrections to `testauditinstruct.md` (listed in §9).
+- The audit ran in a throwaway detached worktree in the session scratchpad. No repo code, config or test was changed. The only files written in the repo are this report and the corrections to `test-guide.md` (listed in §9).
 - `@vitest/coverage-v8@5.0.5` was added **in that worktree only** to run coverage. The repo still has no coverage provider.
 - No real AI provider was called, and `ai:smoke` wasn't run. Every Vitest run had `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `REDIS_URL`, `DATABASE_URL`, `TEST_REDIS_URL` and `TEST_DATABASE_URL` unset. No services were started.
 - **Admin E2E was skipped.** Postgres and Redis are running (the dev compose stack), but nothing is serving on 3001. Its `webServer` is `dev:full`, which reads `.env.docker`, so the AI specs would call the real provider and the specs would write into the dev Postgres volume. I reviewed it by reading the code.
@@ -599,7 +599,7 @@ Effort: **S** = up to 2 hours, **M** = half a day to a day, **L** = more than a 
 
 ---
 
-## 9. Edits made to `testauditinstruct.md`
+## 9. Edits made to `test-guide.md` (then `testauditinstruct.md`)
 
 No rule's text or intent changed. Every edit corrects a path, location or list to match the repo.
 
