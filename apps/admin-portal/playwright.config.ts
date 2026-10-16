@@ -7,6 +7,9 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
+  // Two workers: the default (half the cores) maxes out a dev laptop with a
+  // Next dev server and a browser per worker, and isn't much faster
+  workers: 2,
   // A committed test.only would silently skip the rest of the suite in CI
   forbidOnly: !!process.env.CI,
   retries: 0,

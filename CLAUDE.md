@@ -180,7 +180,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Root scripts** (`pnpm lint`, `check-types`, `test`, `build`, `test:e2e`, `dev`) call `nx run-many -t …`. The root `package.json` is itself a project (`paulclarke.au`) that only exposes `lint:root` (`nx.includedScripts`), so root scripts can't recurse.
 - **Website posts:** `prebuild:posts` is its own cached target (output `server/posts.generated.ts`); the website's `build` and `check-types` depend on it via `targetDefaults` entries filtered to `website`. The `website` scripts `build`/`check-types` no longer run it themselves, so build through NX (`nx run website:build`), as `deploy` and the Playwright `webServer` do. `dev` still runs it inline.
 - **Cache:** local only. `neverConnectToCloud: true` and `analytics: false` in `nx.json`; CI sets `NX_NO_CLOUD=true`. NX 23 keeps the cache in `~/.nx/<repo-id>/cache`, shared by every checkout and worktree of the repo; `nx reset` clears it. Script targets hash all external dependencies, so any lockfile change invalidates every task.
-- **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`, then deploy the website if it changed (see Production Builds). Runners are pinned to `ubuntu-24.04`.
+- **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`, then deploy the website if it changed (see Production Builds). Admin E2E is its own job; the website deploy doesn't wait for it. Runners are pinned to `ubuntu-24.04`.
 
 ### Apps
 
