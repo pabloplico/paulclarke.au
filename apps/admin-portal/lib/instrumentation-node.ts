@@ -31,17 +31,13 @@ export async function registerNode(): Promise<void> {
     return;
   }
 
-  // Backups, feeds and research agents are switched off in the demo
-  // (lib/demo.ts), whichever queue driver it runs on: their cron schedules
-  // would otherwise run even though their pages and APIs are gone
+  // Research agents are switched off in the demo (lib/demo.ts), whichever
+  // queue driver it runs on: their cron schedules would otherwise run even
+  // though their pages and APIs are gone
   const { isDemoMode } = await import('./demo');
   if (isDemoMode()) return;
 
-  // Redis only: these use repeatable jobs (backups, feeds, agent schedules)
-  const { startBackupWorker } = await import('./db/backup-worker');
-  const { startFeedWorker } = await import('./feeds/worker');
+  // Redis only: the agent schedules are repeatable jobs
   const { startAgentQueues } = await import('./agents/queue/init');
-  startBackupWorker();
-  startFeedWorker();
   startAgentQueues();
 }

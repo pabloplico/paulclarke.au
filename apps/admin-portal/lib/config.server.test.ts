@@ -61,13 +61,6 @@ vi.mock('@/lib/config', async (importOriginal) => {
           removeOnFail: 200,
           concurrency: 1,
         },
-        feedMonitor: {
-          attempts: 2,
-          backoffDelay: 5000,
-          removeOnComplete: 50,
-          removeOnFail: 100,
-          concurrency: 1,
-        },
       },
     },
   };

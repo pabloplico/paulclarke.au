@@ -50,9 +50,9 @@ describe('demo route table', () => {
   });
 
   it('matches whole segments only', () => {
-    expect(matchesRoute('/api/feeds/**', '/api/feeds')).toBe(true);
-    expect(matchesRoute('/api/feeds/**', '/api/feeds/12/check')).toBe(true);
-    expect(matchesRoute('/api/feeds/**', '/api/feedsX')).toBe(false);
+    expect(matchesRoute('/api/communications/**', '/api/communications')).toBe(true);
+    expect(matchesRoute('/api/communications/**', '/api/communications/12/notes')).toBe(true);
+    expect(matchesRoute('/api/communications/**', '/api/communicationsX')).toBe(false);
     expect(matchesRoute('/api/settings', '/api/settings/extra')).toBe(false);
   });
 
@@ -69,7 +69,7 @@ describe('demo mode', () => {
     for (const value of [undefined, '', 'false', '1', 'TRUE']) {
       if (value === undefined) delete process.env.DEMO_MODE;
       else process.env.DEMO_MODE = value;
-      expect(isDemoRouteDisabled('/api/backups')).toBe(false);
+      expect(isDemoRouteDisabled('/api/communications')).toBe(false);
       expect(isDemoRequestBlocked('/api/settings', 'PATCH')).toBeNull();
     }
   });
@@ -77,10 +77,6 @@ describe('demo mode', () => {
   it('switches off the brief’s features, pages and APIs alike', () => {
     process.env.DEMO_MODE = 'true';
     for (const path of [
-      '/backups',
-      '/api/backups/dump.sql',
-      '/feeds',
-      '/api/feeds/3/check',
       '/api/workspaces/1/research/agent-tasks/2/trigger',
       '/api/workspaces/1/research/agent-runs/9/logs',
       '/api/outreach/personalise',

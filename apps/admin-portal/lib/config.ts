@@ -59,13 +59,6 @@ export type AppConfig = {
       removeOnFail: number;
       concurrency: number;
     };
-    feedMonitor: {
-      attempts: number;
-      backoffDelay: number;
-      removeOnComplete: number;
-      removeOnFail: number;
-      concurrency: number;
-    };
   };
   marketResearch: {
     defaultCronSchedule: string;
@@ -143,13 +136,6 @@ export const config: AppConfig = {
       removeOnFail: 200,
       concurrency: 1,
     },
-    feedMonitor: {
-      attempts: 2,
-      backoffDelay: 10000,
-      removeOnComplete: 50,
-      removeOnFail: 100,
-      concurrency: 1,
-    },
   },
 
   marketResearch: {
@@ -196,11 +182,6 @@ export const SETTING_KEYS = [
   'queue.routing.removeOnComplete',
   'queue.routing.removeOnFail',
   'queue.routing.concurrency',
-  'queue.feedMonitor.attempts',
-  'queue.feedMonitor.backoffDelay',
-  'queue.feedMonitor.removeOnComplete',
-  'queue.feedMonitor.removeOnFail',
-  'queue.feedMonitor.concurrency',
   'marketResearch.defaultCronSchedule',
   'marketResearch.maxResearchSteps',
   'marketResearch.minCompositeScore',
@@ -244,11 +225,6 @@ export const SETTING_TYPES: Record<(typeof SETTING_KEYS)[number], 'string' | 'nu
     'queue.routing.removeOnComplete': 'number',
     'queue.routing.removeOnFail': 'number',
     'queue.routing.concurrency': 'number',
-    'queue.feedMonitor.attempts': 'number',
-    'queue.feedMonitor.backoffDelay': 'number',
-    'queue.feedMonitor.removeOnComplete': 'number',
-    'queue.feedMonitor.removeOnFail': 'number',
-    'queue.feedMonitor.concurrency': 'number',
     'marketResearch.defaultCronSchedule': 'string',
     'marketResearch.maxResearchSteps': 'number',
     'marketResearch.minCompositeScore': 'number',

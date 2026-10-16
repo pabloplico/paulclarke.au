@@ -76,7 +76,13 @@ describe('middleware in demo mode', () => {
   });
 
   it('returns 404 for switched-off features, even with a valid token', async () => {
-    for (const path of ['/backups', '/api/backups', '/api/feeds', '/api/auth/signup', '/login']) {
+    for (const path of [
+      '/communications',
+      '/api/communications',
+      '/api/models',
+      '/api/auth/signup',
+      '/login',
+    ]) {
       expect((await call(path, { token: validToken })).status, path).toBe(404);
     }
   });

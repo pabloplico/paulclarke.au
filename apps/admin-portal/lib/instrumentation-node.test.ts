@@ -3,24 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * Which workers start at boot. Demo mode on BullMQ (the managed Postgres +
  * Redis fallback) must still start only the two queues the demo uses: no
- * backup, feed or research-agent workers, and no cron schedules.
+ * research-agent workers and no cron schedules.
  */
 const started = vi.hoisted(() => ({ names: [] as string[], schedules: 0 }));
 
 vi.mock('./startup-checks', () => ({ runStartupChecks: () => {} }));
 vi.mock('./queue/recover', () => ({ recoverInterruptedJobs: async () => ({}) }));
-vi.mock('./db/backup-worker', () => ({
-  startBackupWorker: () => {
-    started.names.push('backups');
-    started.schedules++;
-  },
-}));
-vi.mock('./feeds/worker', () => ({
-  startFeedWorker: () => {
-    started.names.push('feeds');
-    started.schedules++;
-  },
-}));
 vi.mock('./agents/queue/init', () => ({
   startAgentQueues: () => {
     started.names.push('research-agents');
@@ -52,16 +40,10 @@ describe('registerNode', () => {
     delete process.env.DEMO_MODE;
     const { registerNode } = await import('./instrumentation-node');
     await registerNode();
-    expect(started.names).toEqual([
-      'document-processing',
-      'workspace-routing',
-      'backups',
-      'feeds',
-      'research-agents',
-    ]);
+    expect(started.names).toEqual(['document-processing', 'workspace-routing', 'research-agents']);
   });
 
-  it('starts no backup, feed or research-agent workers in demo mode, even on BullMQ', async () => {
+  it('starts no research-agent workers in demo mode, even on BullMQ', async () => {
     process.env.DEMO_MODE = 'true';
     const { registerNode } = await import('./instrumentation-node');
     await registerNode();
