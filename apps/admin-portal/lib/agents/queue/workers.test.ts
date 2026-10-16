@@ -19,7 +19,6 @@ import type { ScriptedReply } from '@/test/fake-ai';
 process.env.DB_DRIVER = 'pglite';
 delete process.env.PGLITE_DATA_DIR;
 delete process.env.PGLITE_SNAPSHOT;
-process.env.QUEUE_DRIVER = 'memory';
 process.env.AI_PROVIDER = 'openai';
 process.env.AI_MODEL = 'gpt-4.1-mini';
 process.env.OPENAI_API_KEY = 'sk-test';

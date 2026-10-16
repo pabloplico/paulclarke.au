@@ -1,12 +1,11 @@
 /**
  * The job queue seam: what the document-processing, workspace-routing and
- * research-agent queues need, with a BullMQ implementation (QUEUE_DRIVER=bullmq, the dev
- * default) and an in-process one (QUEUE_DRIVER=memory, the single-instance
- * demo). lib/queue/contract.test.ts runs the same behaviour tests on both.
+ * research-agent queues need. Its one implementation is InProcessQueue: the
+ * app is single-instance by design. The interface stays as the test seam;
+ * lib/queue/contract.test.ts holds the behaviour any implementation must have.
  *
  * Not covered: repeatable/cron jobs, queue inspection and pub/sub. Nothing
- * uses them: the research agents run on this seam too, without schedules or
- * a live log stream.
+ * uses them.
  */
 export interface JobContext<T> {
   id: string;
@@ -26,9 +25,6 @@ export interface JobQueueOptions {
   attempts: number;
   /** Retry delay doubles each time: backoffDelayMs, 2×, 4×… */
   backoffDelayMs: number;
-  /** BullMQ only: how many finished jobs to keep in Redis for inspection. */
-  removeOnComplete?: number;
-  removeOnFail?: number;
 }
 
 export interface AddOptions {

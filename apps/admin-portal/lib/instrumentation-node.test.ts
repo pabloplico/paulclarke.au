@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Which workers start at boot. Demo mode on BullMQ (the managed Postgres +
- * Redis fallback) must still start only the two queues the demo uses: no
- * research-agent workers and no cron schedules.
+ * Which workers start at boot, in order. Demo mode starts only the two queues
+ * the demo uses, with no research-agent workers. Recovery runs last, once the
+ * workers are registered.
  */
-const started = vi.hoisted(() => ({ names: [] as string[], schedules: 0 }));
+const started = vi.hoisted(() => ({ names: [] as string[] }));
 
 vi.mock('./startup-checks', () => ({ runStartupChecks: () => {} }));
 vi.mock('./queue/recover', () => ({
@@ -17,14 +17,12 @@ vi.mock('./queue/recover', () => ({
 vi.mock('./agents/queue/init', () => ({
   startAgentQueues: () => {
     started.names.push('research-agents');
-    started.schedules++;
   },
 }));
 
 beforeEach(() => {
   vi.resetModules();
   started.names = [];
-  started.schedules = 0;
   // The two queue workers start as a side effect of being imported. vi.mock
   // runs its factory only once per file, so these are registered again for
   // each test (vi.doMock, after resetModules) and every test sees its imports
@@ -37,31 +35,11 @@ beforeEach(() => {
     return {};
   });
   process.env.DB_DRIVER = 'postgres';
-  process.env.QUEUE_DRIVER = 'bullmq';
 });
 
 describe('registerNode', () => {
-  it('starts every worker in development on BullMQ', async () => {
+  it('starts every worker, then recovers interrupted work', async () => {
     delete process.env.DEMO_MODE;
-    const { registerNode } = await import('./instrumentation-node');
-    await registerNode();
-    expect(started.names).toEqual(['document-processing', 'workspace-routing', 'research-agents']);
-  });
-
-  it('starts no research-agent workers in demo mode, even on BullMQ', async () => {
-    process.env.DEMO_MODE = 'true';
-    const { registerNode } = await import('./instrumentation-node');
-    await registerNode();
-    expect(started.names).toEqual(['document-processing', 'workspace-routing']);
-    expect(started.schedules).toBe(0);
-    delete process.env.DEMO_MODE;
-  });
-
-  it('starts the research agents on the in-process queue, then recovers interrupted work', async () => {
-    delete process.env.DEMO_MODE;
-    process.env.DB_DRIVER = 'pglite';
-    process.env.QUEUE_DRIVER = 'memory';
-    vi.doMock('./db/pglite', () => ({ ensurePgliteReady: async () => {} }));
     const { registerNode } = await import('./instrumentation-node');
     await registerNode();
     expect(started.names).toEqual([
@@ -72,14 +50,24 @@ describe('registerNode', () => {
     ]);
   });
 
-  it('starts no research-agent workers in demo mode on the in-process queue', async () => {
+  it('starts no research-agent workers in demo mode', async () => {
     process.env.DEMO_MODE = 'true';
-    process.env.DB_DRIVER = 'pglite';
-    process.env.QUEUE_DRIVER = 'memory';
-    vi.doMock('./db/pglite', () => ({ ensurePgliteReady: async () => {} }));
     const { registerNode } = await import('./instrumentation-node');
     await registerNode();
     expect(started.names).toEqual(['document-processing', 'workspace-routing', 'recovery']);
     delete process.env.DEMO_MODE;
+  });
+
+  it('readies PGlite before any worker starts', async () => {
+    delete process.env.DEMO_MODE;
+    process.env.DB_DRIVER = 'pglite';
+    vi.doMock('./db/pglite', () => ({
+      ensurePgliteReady: async () => {
+        started.names.push('pglite');
+      },
+    }));
+    const { registerNode } = await import('./instrumentation-node');
+    await registerNode();
+    expect(started.names[0]).toBe('pglite');
   });
 });

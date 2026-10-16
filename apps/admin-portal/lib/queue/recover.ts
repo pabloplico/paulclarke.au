@@ -15,9 +15,8 @@ export const UNFINISHED_DOCUMENT_STATUSES = [
 ] as const;
 
 /**
- * Re-queues work an in-process queue lost when the process stopped
- * (QUEUE_DRIVER=memory only; BullMQ keeps its jobs in Redis). Call once on
- * boot, after the workers are registered.
+ * Re-queues work the in-process queues lost when the process stopped. Call
+ * once on boot, after the workers are registered.
  *
  * - Documents still in an unfinished status are processed again. Processing
  *   starts from the stored file, so a half-processed document is redone.

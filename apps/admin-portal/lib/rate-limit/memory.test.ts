@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryRateLimiter } from './memory';
 
-// Behaviour shared with the Redis limiter is in contract.test.ts
+// The interface's behaviour is in contract.test.ts
 describe('MemoryRateLimiter', () => {
   it('cleanup prunes stale entries', async () => {
     const limiter = new MemoryRateLimiter(3, 50);

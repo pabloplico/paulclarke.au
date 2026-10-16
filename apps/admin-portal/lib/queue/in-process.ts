@@ -3,7 +3,7 @@ import type { AddOptions, JobContext, JobHandler, JobQueue, JobQueueOptions } fr
 type Pending<T> = { id: string; name: string; data: T; attempt: number };
 
 /**
- * In-memory queue for the single-instance demo (QUEUE_DRIVER=memory).
+ * The in-memory job queue: the app runs as a single instance.
  *
  * Jobs live only in this process: anything waiting or running is lost on
  * restart. lib/queue/recover.ts re-queues interrupted work on boot.

@@ -1,32 +1,11 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { closeRedis } from '@/lib/redis';
-import { BullMQQueue } from './bullmq';
+import { afterEach, describe, expect, it } from 'vitest';
 import { InProcessQueue } from './in-process';
 import type { JobContext, JobQueue, JobQueueOptions } from './types';
 
 /**
- * One behaviour suite for both JobQueue implementations. The memory queue
- * always runs; the BullMQ run needs a Redis to talk to:
- *
- *   TEST_REDIS_URL=redis://localhost:6379 pnpm vitest run lib/queue/contract.test.ts
- *
- * CI provides one, so both run there.
+ * What the JobQueue seam promises, run against its one implementation,
+ * InProcessQueue. A new implementation should pass the same suite.
  */
-const redisUrl = process.env.TEST_REDIS_URL;
-
-const drivers = [
-  {
-    driver: 'memory',
-    skip: false,
-    make: <T>(name: string, opts: JobQueueOptions): JobQueue<T> =>
-      new InProcessQueue<T>(name, opts),
-  },
-  {
-    driver: 'bullmq',
-    skip: !redisUrl,
-    make: <T>(name: string, opts: JobQueueOptions): JobQueue<T> => new BullMQQueue<T>(name, opts),
-  },
-];
 
 const fast: JobQueueOptions = { attempts: 3, backoffDelayMs: 10 };
 
@@ -51,32 +30,21 @@ function until(check: () => boolean, ms = 10_000): Promise<void> {
   });
 }
 
-describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) => {
+describe('JobQueue contract: InProcessQueue', () => {
   const queues: JobQueue<unknown>[] = [];
   let seq = 0;
 
   function queue<T>(opts: JobQueueOptions = fast): JobQueue<T> {
-    const q = make<T>(`contract-${driver}-${process.pid}-${Date.now()}-${++seq}`, opts);
+    const q = new InProcessQueue<T>(`contract-${++seq}`, opts);
     queues.push(q as JobQueue<unknown>);
     return q;
   }
-
-  beforeAll(() => {
-    if (driver === 'bullmq' && redisUrl) {
-      process.env.QUEUE_DRIVER = 'bullmq';
-      process.env.REDIS_URL = redisUrl;
-    }
-  });
 
   afterEach(async () => {
     await Promise.all(queues.splice(0).map((q) => q.close()));
   });
 
-  afterAll(async () => {
-    if (driver === 'bullmq') await closeRedis();
-  });
-
-  it.skipIf(skip)('runs a job with its name and data, as attempt 1', async () => {
+  it('runs a job with its name and data, as attempt 1', async () => {
     const q = queue<{ n: number }>();
     const seen: Pick<JobContext<{ n: number }>, 'name' | 'data' | 'attempt'>[] = [];
     q.process(async ({ name, data, attempt }) => {
@@ -87,7 +55,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(seen).toEqual([{ name: 'square', data: { n: 7 }, attempt: 1 }]);
   });
 
-  it.skipIf(skip)('runs jobs added before a processor is registered', async () => {
+  it('runs jobs added before a processor is registered', async () => {
     const q = queue<number>();
     await q.add('early', 1);
     await q.add('early', 2);
@@ -99,7 +67,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(seen.sort()).toEqual([1, 2]);
   });
 
-  it.skipIf(skip)('retries a failing job until it succeeds', async () => {
+  it('retries a failing job until it succeeds', async () => {
     const q = queue<null>();
     const attempts: number[] = [];
     q.process(async ({ attempt }) => {
@@ -112,7 +80,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(attempts).toEqual([1, 2, 3]);
   });
 
-  it.skipIf(skip)('gives up after the configured number of attempts', async () => {
+  it('gives up after the configured number of attempts', async () => {
     const q = queue<null>({ attempts: 2, backoffDelayMs: 10 });
     let tries = 0;
     q.process(async () => {
@@ -126,7 +94,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(tries).toBe(2);
   });
 
-  it.skipIf(skip)('does not retry a job that was discarded before failing', async () => {
+  it('does not retry a job that was discarded before failing', async () => {
     const q = queue<null>();
     let tries = 0;
     q.process(async (job) => {
@@ -141,7 +109,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(tries).toBe(1);
   });
 
-  it.skipIf(skip)('drops a job whose id is already waiting or running', async () => {
+  it('drops a job whose id is already waiting or running', async () => {
     const q = queue<string>();
     const release = gate();
     const seen: string[] = [];
@@ -157,7 +125,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(seen).toEqual(['first']);
   });
 
-  it.skipIf(skip)('accepts an id again once its job has finished', async () => {
+  it('accepts an id again once its job has finished', async () => {
     const q = queue<string>();
     const seen: string[] = [];
     q.process(async ({ data }) => {
@@ -171,7 +139,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(seen).toEqual(['first', 'second']);
   });
 
-  it.skipIf(skip)('runs up to `concurrency` jobs at once', async () => {
+  it('runs up to `concurrency` jobs at once', async () => {
     const q = queue<number>();
     const release = gate();
     let running = 0;
@@ -192,7 +160,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(peak).toBe(2);
   });
 
-  it.skipIf(skip)('drained() waits for retries as well as running jobs', async () => {
+  it('drained() waits for retries as well as running jobs', async () => {
     const q = queue<null>({ attempts: 2, backoffDelayMs: 300 });
     const attempts: number[] = [];
     q.process(async ({ attempt }) => {
@@ -205,7 +173,7 @@ describe.each(drivers)('JobQueue contract: $driver', ({ driver, skip, make }) =>
     expect(attempts).toEqual([1, 2]);
   });
 
-  it.skipIf(skip)('close() waits for a running job to finish', async () => {
+  it('close() waits for a running job to finish', async () => {
     const q = queue<null>();
     let finished = false;
     let started = false;

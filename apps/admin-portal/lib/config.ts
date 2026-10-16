@@ -48,15 +48,11 @@ export type AppConfig = {
     documentProcessing: {
       attempts: number;
       backoffDelay: number;
-      removeOnComplete: number;
-      removeOnFail: number;
       concurrency: number;
     };
     routing: {
       attempts: number;
       backoffDelay: number;
-      removeOnComplete: number;
-      removeOnFail: number;
       concurrency: number;
     };
   };
@@ -125,15 +121,11 @@ export const config: AppConfig = {
     documentProcessing: {
       attempts: 3,
       backoffDelay: 5000,
-      removeOnComplete: 100,
-      removeOnFail: 200,
       concurrency: 2,
     },
     routing: {
       attempts: 2,
       backoffDelay: 5000,
-      removeOnComplete: 100,
-      removeOnFail: 200,
       concurrency: 1,
     },
   },
@@ -174,13 +166,9 @@ export const SETTING_KEYS = [
   'extraction.singleCallThreshold',
   'queue.documentProcessing.attempts',
   'queue.documentProcessing.backoffDelay',
-  'queue.documentProcessing.removeOnComplete',
-  'queue.documentProcessing.removeOnFail',
   'queue.documentProcessing.concurrency',
   'queue.routing.attempts',
   'queue.routing.backoffDelay',
-  'queue.routing.removeOnComplete',
-  'queue.routing.removeOnFail',
   'queue.routing.concurrency',
   'marketResearch.defaultCronSchedule',
   'marketResearch.maxResearchSteps',
@@ -217,13 +205,9 @@ export const SETTING_TYPES: Record<(typeof SETTING_KEYS)[number], 'string' | 'nu
     'extraction.singleCallThreshold': 'number',
     'queue.documentProcessing.attempts': 'number',
     'queue.documentProcessing.backoffDelay': 'number',
-    'queue.documentProcessing.removeOnComplete': 'number',
-    'queue.documentProcessing.removeOnFail': 'number',
     'queue.documentProcessing.concurrency': 'number',
     'queue.routing.attempts': 'number',
     'queue.routing.backoffDelay': 'number',
-    'queue.routing.removeOnComplete': 'number',
-    'queue.routing.removeOnFail': 'number',
     'queue.routing.concurrency': 'number',
     'marketResearch.defaultCronSchedule': 'string',
     'marketResearch.maxResearchSteps': 'number',
