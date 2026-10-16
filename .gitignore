@@ -56,7 +56,7 @@ docs/
 # Playwright MCP screenshots
 .playwright-mcp/
 
-# Database backups (root only; apps/admin-portal has backups route folders that are source)
+# Database backups from the full-stack version (root only); kept so old dumps are never committed
 /backups/
 
 # Firebase service account keys

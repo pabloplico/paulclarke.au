@@ -84,6 +84,18 @@ The repo moved from Turborepo to NX in its first pull request. The task graph, t
 | Ignore the cache           | `pnpm exec nx run-many -t test --skip-nx-cache`     |
 | Clear the cache            | `pnpm exec nx reset`                                |
 
+## The full-stack version
+
+The admin portal is being cut down to run as a single process, with no Redis. The full version is kept at the git tag [`full-stack-v1`](https://github.com/pabloplico/paulclarke.au/tree/full-stack-v1) (`git checkout full-stack-v1`). It has:
+
+- Redis and BullMQ job queues for every worker;
+- RSS and news feeds, fetched on a schedule and ingested as documents;
+- scheduled `pg_dump` database backups, with a page to create, download and delete them;
+- the research agents on cron schedules;
+- the live research run log, streamed over Redis pub/sub.
+
+Feeds and backups have been removed from `main`. Redis, BullMQ, the scheduled research and the live log stream are still here until the research agents move to the in-process queue.
+
 ## Getting started
 
 Requirements: Node 22 and pnpm 10.28 (`corepack enable` picks up the version from `package.json`). Docker is optional.
@@ -121,7 +133,7 @@ pnpm nx run admin-portal:dev:full            # Next.js on :3001
 
 The admin dev servers listen on 127.0.0.1 only. To open them from another device on your network, start them with `DEV_HOST=0.0.0.0` and list that device's IP in `ALLOWED_DEV_ORIGINS` (details in `CLAUDE.md`).
 
-`dev:lite` is the everyday setup, and it's what `pnpm dev` runs. Under it, document processing and workspace routing run in-process, but the Redis-only workers don't start: scheduled feed fetches, database backups and the research agents (with their cron schedules and live run logs). Use `dev:full` for those.
+`dev:lite` is the everyday setup, and it's what `pnpm dev` runs. Under it, document processing and workspace routing run in-process, but the Redis-only research agents don't start (with their cron schedules and live run logs). Use `dev:full` for those.
 
 The website needs no environment variables or secrets. Admin-portal settings are documented in `.env.docker.example` and `CLAUDE.md`.
 
@@ -193,7 +205,7 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 - **Cloudflare Access instead of demo logins:** visitors will sign in with a one-time email PIN. The app verifies the signed Access token on every request and gives each email its own member account.
 - **Real AI, capped:** every model call goes through one guard with an output-token cap, daily spend caps in total and per user, and a per-user rate limit. A test checks that every route that starts AI work applies it. The provider's hard spend limit is the final backstop.
 - **Seeded per visitor, without AI calls:** each visitor gets their own copy of a fictional bakery's workspaces, with a document already processed and routed and saved gap reports. The AI-made parts were produced once by the real pipeline and stored, so seeding costs nothing.
-- **`DEMO_MODE=true`** switches off backups, settings, feeds, research agents and URL ingestion. Every route is listed as on or off, and a test fails if a new one isn't.
+- **`DEMO_MODE=true`** switches off settings, research agents and URL ingestion. Every route is listed as on or off, and a test fails if a new one isn't.
 
 **Allow-list `COPY` in Docker.** The admin image used `COPY . .`. `.dockerignore` patterns only match from the repo root, so nested `node_modules`, `.next`, `uploads`, local database dumps and a service-account key were all in the build context: over 720 MB, and the build failed reading a root-owned folder.
 
