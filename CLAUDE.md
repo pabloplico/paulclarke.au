@@ -181,6 +181,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Website posts:** `prebuild:posts` is its own cached target (output `server/posts.generated.ts`); the website's `build` and `check-types` depend on it via `targetDefaults` entries filtered to `website`. The `website` scripts `build`/`check-types` no longer run it themselves, so build through NX (`nx run website:build`), as `deploy` and the Playwright `webServer` do. `dev` still runs it inline.
 - **Cache:** local only. `neverConnectToCloud: true` and `analytics: false` in `nx.json`; CI sets `NX_NO_CLOUD=true`. NX 23 keeps the cache in `~/.nx/<repo-id>/cache`, shared by every checkout and worktree of the repo; `nx reset` clears it. Script targets hash all external dependencies, so any lockfile change invalidates every task.
 - **CI:** pull requests run `nx affected` (base from `nrwl/nx-set-shas`); pushes to `main` run `nx run-many`, then deploy the website if it changed (see Production Builds). Admin E2E is its own job; the website deploy doesn't wait for it. Runners are pinned to `ubuntu-24.04`.
+- **GitHub settings for `main`** (the "Protect main" ruleset): changes land only through a PR, merged by squash (the only merge method allowed), with zero approvals needed. Two checks are required: "Lint, type-check, test and build" and "Admin DB (fresh PGlite from migrations)". The E2E jobs (admin and website) run on every PR but **don't block the merge, by decision**: don't make them required checks again. Auto-merge is on, and head branches are deleted on merge.
 
 ### Apps
 
@@ -246,3 +247,13 @@ Tests are the spec. Changing one changes what the code is promised to do, so tes
 - **Add tests only for behaviour the change introduces or fixes.** Extend the existing test file for that module rather than starting a new one. Test through the public interface, not private helpers or call counts. Don't add tests that only check a mock returns what it was told to.
 - **Skips need a reason.** Biome's `noSkippedTests` and `noFocusedTests` are errors in test files. A skip that is genuinely conditional (a Playwright project, a missing service) gets a `biome-ignore` comment saying why. A test must fail, not skip, when the feature it tests is broken. The admin E2E specs have no skips: AI calls go to a stub OpenAI server (`test/fake-openai/server.ts`; see TESTING.md), and a request it doesn't recognise fails the run.
 - **`pnpm test:diff [base] [head]`** (defaults: `origin/main`, `HEAD`) prints test files added, changed and deleted, assertion lines removed and added, and new skips. CI writes it to the PR's job summary and warns on each file that loses assertions. Run it before opening a PR and read the test diff first.
+
+## Change tiers
+
+Scale the process to the risk. Decide the tier before starting, and say which in the first line of the PR.
+
+**Full gate.** Dependency upgrades; anything touching a protected test (test guide §3, `docs/audit/testauditinstruct.md`), sign-in or middleware, the AI spend guard or pricing, the job queue, upload validation, or the Dockerfile. Follow "Rules for every agent" and "The gate" in `docs/audit/dependency-updates.md`. Open a draft PR and wait for Paul to merge.
+
+**Fast path.** Everything else: UI, copy, aria-labels, docs, test tidy-ups, small bug fixes. Branch from main, make the change, run `pnpm lint`, `pnpm check-types` and the affected Vitest once. Push, open a PR with `gh pr create --fill`, then `gh pr merge --squash --auto`, and move on. CI runs E2E; if it goes red, fix forward. Don't run E2E locally unless the change touches a page a spec covers, and then run it once with `--workers=2`. Batch small related changes into one PR. Don't wait for Paul.
+
+When unsure, ask in one line, then default to the fast path.
