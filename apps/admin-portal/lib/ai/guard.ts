@@ -94,6 +94,11 @@ async function providerCall<T>(call: () => PromiseLike<T>): Promise<T> {
 }
 
 const aiUser = new AsyncLocalStorage<{ userId: number }>();
+// Node 22's AsyncLocalStorage starts tracking promises only on its first use
+// in the process. An enterAiUser() in the first job would then leak to the
+// caller, whose promise predates the tracking. Using it once at load prevents
+// that; Next.js's own request storage usually has already, but tests don't.
+aiUser.run({ userId: 0 }, () => {});
 
 /**
  * Counts the rest of the current async function's AI calls against `userId`.
