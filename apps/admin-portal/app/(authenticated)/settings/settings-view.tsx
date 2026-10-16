@@ -266,14 +266,6 @@ export function SettingsView({ initialConfig }: SettingsViewProps) {
 
       <Section title="Market Research" description="Settings for automated market research agents.">
         <Grid>
-          <Field label="Default CRON Schedule">
-            <Input
-              className="h-7 text-xs"
-              placeholder="0 2 * * *"
-              value={cfg.marketResearch.defaultCronSchedule}
-              onChange={(e) => set('marketResearch', 'defaultCronSchedule', e.target.value)}
-            />
-          </Field>
           <SliderField
             label="Max Research Steps"
             value={cfg.marketResearch.maxResearchSteps}

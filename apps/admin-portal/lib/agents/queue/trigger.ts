@@ -1,14 +1,14 @@
-import { getAnalysisQueue } from './analysis-queue';
-import { getIngestionQueue } from './ingestion-queue';
-import { getResearchQueue } from './research-queue';
+import { analysisQueue } from './analysis-queue';
+import { ingestionQueue } from './ingestion-queue';
+import { researchQueue } from './research-queue';
+
+// JobQueue.add() returns nothing, so the job id is made here. Unique per
+// call (Date.now()), so a trigger never dedupes against an earlier run
 
 export async function triggerResearchTask(taskId: number, userId: number): Promise<string> {
-  const job = await getResearchQueue().add(
-    'research',
-    { taskId, userId },
-    { jobId: `research-${taskId}-${Date.now()}` }
-  );
-  return job.id!;
+  const jobId = `research-${taskId}-${Date.now()}`;
+  await researchQueue.add('research', { taskId, userId }, { jobId });
+  return jobId;
 }
 
 export async function triggerIngestionTask(
@@ -18,19 +18,17 @@ export async function triggerIngestionTask(
   fileType: 'pdf' | 'csv',
   workspaceId: number
 ): Promise<string> {
-  const job = await getIngestionQueue().add(
+  const jobId = `ingest-${taskId}-${Date.now()}`;
+  await ingestionQueue.add(
     'ingest',
     { taskId, userId, filePath, fileType, workspaceId },
-    { jobId: `ingest-${taskId}-${Date.now()}` }
+    { jobId }
   );
-  return job.id!;
+  return jobId;
 }
 
 export async function triggerAnalysisTask(taskId: number, userId: number): Promise<string> {
-  const job = await getAnalysisQueue().add(
-    'analysis',
-    { taskId, userId },
-    { jobId: `analysis-${taskId}-${Date.now()}` }
-  );
-  return job.id!;
+  const jobId = `analysis-${taskId}-${Date.now()}`;
+  await analysisQueue.add('analysis', { taskId, userId }, { jobId });
+  return jobId;
 }

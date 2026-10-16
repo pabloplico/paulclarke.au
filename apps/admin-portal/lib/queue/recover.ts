@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { adminDocuments, adminInboxItems } from '@/lib/db/schema';
+import { adminAgentRuns, adminDocuments, adminInboxItems } from '@/lib/db/schema';
 import { queueDocument } from '@/lib/document-processing/queue';
 import { queueRouting } from '@/lib/workspace-routing/queue';
 
@@ -25,10 +25,18 @@ export const UNFINISHED_DOCUMENT_STATUSES = [
  *   whose document is already 'ready' finished processing but never got
  *   their routing job. Both are routed again.
  *
+ * - Agent runs still 'started' were cut off mid-run. They're marked 'failed'
+ *   ("interrupted by restart"), not run again: a run spends money, and the
+ *   user can trigger it again.
+ *
  * Uses the same job ids as the normal enqueue path, so anything already
  * queued isn't duplicated.
  */
-export async function recoverInterruptedJobs(): Promise<{ documents: number; inboxItems: number }> {
+export async function recoverInterruptedJobs(): Promise<{
+  documents: number;
+  inboxItems: number;
+  agentRuns: number;
+}> {
   const documents = await db
     .select({ id: adminDocuments.id })
     .from(adminDocuments)
@@ -47,10 +55,25 @@ export async function recoverInterruptedJobs(): Promise<{ documents: number; inb
     );
   for (const { id } of inboxItems) await queueRouting(id);
 
+  const agentRuns = await db
+    .update(adminAgentRuns)
+    .set({ status: 'failed', completedAt: new Date(), errorLog: 'interrupted by restart' })
+    .where(eq(adminAgentRuns.status, 'started'))
+    .returning({ id: adminAgentRuns.id });
+
   if (documents.length || inboxItems.length) {
     console.log(
       `[queue] Re-queued ${documents.length} document(s) and ${inboxItems.length} inbox item(s) interrupted by a restart`
     );
   }
-  return { documents: documents.length, inboxItems: inboxItems.length };
+  if (agentRuns.length) {
+    console.log(
+      `[queue] Marked ${agentRuns.length} agent run(s) interrupted by a restart as failed`
+    );
+  }
+  return {
+    documents: documents.length,
+    inboxItems: inboxItems.length,
+    agentRuns: agentRuns.length,
+  };
 }

@@ -1,12 +1,12 @@
 /**
- * The job queue seam: what the document-processing and workspace-routing
- * queues need, with a BullMQ implementation (QUEUE_DRIVER=bullmq, the dev
+ * The job queue seam: what the document-processing, workspace-routing and
+ * research-agent queues need, with a BullMQ implementation (QUEUE_DRIVER=bullmq, the dev
  * default) and an in-process one (QUEUE_DRIVER=memory, the single-instance
  * demo). lib/queue/contract.test.ts runs the same behaviour tests on both.
  *
- * Not covered: repeatable/cron jobs, queue inspection and pub/sub. The research
- * agents need those, so they stay on BullMQ and only run with
- * QUEUE_DRIVER=bullmq.
+ * Not covered: repeatable/cron jobs, queue inspection and pub/sub. Nothing
+ * uses them: the research agents run on this seam too, without schedules or
+ * a live log stream.
  */
 export interface JobContext<T> {
   id: string;

@@ -1,30 +1,16 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { adminAgentRuns } from '@/lib/db/schema';
-import { redisEnabled } from '@/lib/drivers';
 import { logger } from '@/lib/logger';
-import { getRedis } from '@/lib/redis';
-import { runLogChannel } from './log-channel';
 
 const log = logger.child({ module: 'run-logger' });
 
 /**
- * Publishes to the run's live-log channel. Without Redis (QUEUE_DRIVER=memory)
- * there's no live stream: the log is still saved to the database.
+ * The run log lives in admin_agent_runs.log. There's no live stream: the
+ * research toolbar polls the runs (components/research/research-toolbar.tsx).
  */
-async function publish(runId: number, payload: unknown): Promise<void> {
-  if (!redisEnabled()) return;
-  await getRedis('Live agent logs')
-    .publish(runLogChannel(runId), JSON.stringify(payload))
-    .catch((err: unknown) =>
-      log.warn('Redis publish failed', {
-        runId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    );
-}
 
-/** Append a log entry to the DB and publish to Redis for live SSE. */
+/** Append a log entry to the run's log in the DB. */
 export async function publishRunLog(runId: number, message: string, level = 'info'): Promise<void> {
   const entry = {
     type: 'log' as const,
@@ -46,12 +32,9 @@ export async function publishRunLog(runId: number, message: string, level = 'inf
         error: err instanceof Error ? err.message : String(err),
       })
     );
-
-  // Publish for live SSE subscribers
-  await publish(runId, entry);
 }
 
-/** Append a tool call entry to the DB and publish to Redis. */
+/** Append a tool call entry to the run's log in the DB. */
 export async function publishToolCall(
   runId: number,
   toolName: string,
@@ -80,13 +63,4 @@ export async function publishToolCall(
         error: err instanceof Error ? err.message : String(err),
       })
     );
-
-  await publish(runId, entry);
-}
-
-export async function publishRunComplete(
-  runId: number,
-  status: 'completed' | 'failed'
-): Promise<void> {
-  await publish(runId, { done: true, status });
 }

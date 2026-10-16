@@ -78,7 +78,7 @@ describe('demo mode', () => {
     process.env.DEMO_MODE = 'true';
     for (const path of [
       '/api/workspaces/1/research/agent-tasks/2/trigger',
-      '/api/workspaces/1/research/agent-runs/9/logs',
+      '/api/workspaces/1/research/agent-runs/9/cancel',
       '/api/outreach/personalise',
       '/api/lookup/company',
       '/communications',

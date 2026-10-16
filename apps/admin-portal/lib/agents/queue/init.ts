@@ -1,25 +1,16 @@
 /**
- * Starts the agent queue workers and syncs CRON schedules. Called from
- * instrumentation.ts, and only when Redis is on (QUEUE_DRIVER=bullmq).
+ * Registers the agent queue processors on the JobQueue seam (in-process or
+ * BullMQ, per QUEUE_DRIVER). Called once on boot from
+ * lib/instrumentation-node.ts, except in demo mode, where research is off.
+ * There are no cron schedules: a run starts only when a user triggers it.
  */
 
 import { startAnalysisWorker } from '@/lib/agents/queue/analysis-queue';
 import { startIngestionWorker } from '@/lib/agents/queue/ingestion-queue';
 import { startResearchWorker } from '@/lib/agents/queue/research-queue';
-import { syncSchedules } from '@/lib/agents/queue/scheduler';
-import { logger } from '@/lib/logger';
 
 export function startAgentQueues(): void {
   startResearchWorker();
   startIngestionWorker();
   startAnalysisWorker();
-
-  syncSchedules().catch((err: unknown) => {
-    logger.error('Failed to sync agent schedules on startup', {
-      module: 'agent-queue',
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
 }
-
-export { syncSchedules };
