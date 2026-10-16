@@ -254,6 +254,8 @@ Scale the process to the risk. Decide the tier before starting, and say which in
 
 **Full gate.** Dependency upgrades; anything touching a protected test (test guide §3, `docs/audit/test-guide.md`), sign-in or middleware, the AI spend guard or pricing, the job queue, upload validation, or the Dockerfile. Follow "Rules for every agent" and "The gate" in `docs/audit/dependency-updates.md`. Open a draft PR and wait for Paul to merge.
 
-**Fast path.** Everything else: UI, copy, aria-labels, docs, test tidy-ups, small bug fixes. Branch from main, make the change, run `pnpm lint`, `pnpm check-types` and the affected Vitest once. Push, open a PR with `gh pr create --fill`, then `gh pr merge --squash --auto`, and move on. CI runs E2E; if it goes red, fix forward. Don't run E2E locally unless the change touches a page a spec covers, and then run it once with `--workers=2`. Batch small related changes into one PR. Don't wait for Paul.
+**E2E, either tier:** don't run the E2E suites locally. CI's admin and website E2E jobs are the check, on every PR. Run one locally only to debug a CI failure, once, with `--workers=2`. Skip the Docker build unless the Dockerfile itself changes.
+
+**Fast path.** Everything else: UI, copy, aria-labels, docs, test tidy-ups, small bug fixes. Branch from main, make the change, run `pnpm lint`, `pnpm check-types` and the affected Vitest once. Push, open a PR with `gh pr create --fill`, then `gh pr merge --squash --auto`, and move on. CI runs E2E; if it goes red, fix forward. Batch small related changes into one PR. Don't wait for Paul.
 
 When unsure, ask in one line, then default to the fast path.
