@@ -29,6 +29,7 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
   test('full workflow: add note, wait for routing, approve, verify workspace updated', async ({
     page,
   }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     // ── Step 1: Navigate to Inbox and add a note ───────────────────────────
     await page.goto('/inbox');
@@ -185,6 +186,7 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
   });
 
   test('dismiss removes item from active list', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await page.goto('/inbox');
     await page.waitForLoadState('networkidle');

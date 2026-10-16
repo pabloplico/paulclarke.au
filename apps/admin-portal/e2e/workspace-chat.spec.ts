@@ -52,6 +52,7 @@ test.describe('Workspace Chat', () => {
   });
 
   test('send a message and receive response', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
 

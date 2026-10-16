@@ -45,6 +45,7 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('rewrite action shows diff preview with accept/reject', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
@@ -56,6 +57,7 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('reject AI edit discards changes', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
@@ -69,6 +71,7 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('accept AI edit saves new version', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
@@ -91,6 +94,7 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('custom AI action with prompt', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);

@@ -59,6 +59,7 @@ test.describe('Gap Analysis - Content Detection', () => {
   test('all AI-generated findings have Fix with AI buttons (sectionId matched)', async ({
     page,
   }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
@@ -84,6 +85,7 @@ test.describe('Gap Analysis - Content Detection', () => {
 
 test.describe('Fix with AI - Prose', () => {
   test('shows diff preview, accept saves new version', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'services-offerings');
     await runGapAnalysis(page);
@@ -115,6 +117,7 @@ test.describe('Fix with AI - Prose', () => {
   });
 
   test('reject discards changes', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'services-offerings');
     await runGapAnalysis(page);
@@ -134,6 +137,7 @@ test.describe('Fix with AI - Prose', () => {
   });
 
   test('generates content for empty prose section', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
 
@@ -165,6 +169,7 @@ test.describe('Fix with AI - Prose', () => {
 
 test.describe('Fix with AI - Structured Sections', () => {
   test('table section: generates data that renders as a table, not empty', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
@@ -190,6 +195,7 @@ test.describe('Fix with AI - Structured Sections', () => {
   });
 
   test('cards section: generates data that renders as cards, not empty', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
@@ -215,6 +221,7 @@ test.describe('Fix with AI - Structured Sections', () => {
   test('checklist section: generates data that renders as checklist items, not empty', async ({
     page,
   }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);

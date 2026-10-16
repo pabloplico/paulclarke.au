@@ -45,6 +45,20 @@ async function rowAction(page: Page, name: string, action: string) {
   await page.getByRole('button', { name: action, exact: true }).click();
 }
 
+/** Opens the menu of the first document listed. */
+async function openFirstRowMenu(page: Page) {
+  const first = page.locator('a[href^="/documents/"]').first();
+  await expect(first).toBeVisible();
+  await first.locator('..').getByRole('button').first().click();
+}
+
+/** The detail page of the first Ready document. */
+async function gotoReadyDocDetail(page: Page) {
+  await gotoDocuments(page, 'Ready');
+  await page.locator('a[href^="/documents/"]').first().click();
+  await expect(page).toHaveURL(/\/documents\/\d+$/);
+}
+
 async function gotoDocuments(page: Page, tab = 'All') {
   await page.goto('/documents');
   await page.waitForLoadState('networkidle');
@@ -63,8 +77,16 @@ test.describe('Document Actions', () => {
     }
   });
 
-  test('three-dot dropdown shows all actions for ready document', async () => {
+  test('three-dot dropdown shows all actions for ready document', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
+    await gotoDocuments(page, 'Ready');
+
+    await openFirstRowMenu(page);
+
+    for (const action of ['Archive', 'Reprocess', 'Re-clean text', 'AI clean-up', 'Delete']) {
+      await expect(page.getByRole('button', { name: action, exact: true })).toBeVisible();
+    }
   });
 
   test('archive document from list view', async ({ page }) => {
@@ -101,8 +123,15 @@ test.describe('Document Actions', () => {
     await expect(row(page, name)).not.toBeVisible();
   });
 
-  test('re-clean document from list dropdown', async () => {
+  test('re-clean document from list dropdown', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
+    await gotoDocuments(page, 'Ready');
+    await openFirstRowMenu(page);
+
+    await page.getByRole('button', { name: 'Re-clean text' }).click();
+
+    await expect(page.getByText('Text re-cleaned')).toBeVisible({ timeout: 10_000 });
   });
 
   test('delete document shows confirmation and can cancel', async ({ page }) => {
@@ -118,8 +147,17 @@ test.describe('Document Actions', () => {
     await expect(row(page, name)).toBeVisible();
   });
 
-  test('detail page shows all action buttons for ready doc', async () => {
+  test('detail page shows all action buttons for ready doc', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
+    await gotoReadyDocDetail(page);
+
+    const main = page.locator('main');
+    await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Reprocess' })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Re-clean' })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'AI Clean-up' })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Delete' })).toBeVisible();
   });
 
   test('archive and unarchive from detail page', async ({ page }) => {
@@ -137,8 +175,14 @@ test.describe('Document Actions', () => {
     await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
   });
 
-  test('re-clean from detail page', async () => {
+  test('re-clean from detail page', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
+    await gotoReadyDocDetail(page);
+
+    await page.getByRole('button', { name: 'Re-clean' }).click();
+
+    await expect(page.getByText('Text re-cleaned')).toBeVisible({ timeout: 10_000 });
   });
 
   test('reprocess from detail page', async ({ page }) => {

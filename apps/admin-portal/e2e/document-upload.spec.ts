@@ -74,6 +74,7 @@ test.describe('Document Upload & Processing', () => {
   });
 
   test('document transitions from processing to ready', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
     test.fixme(true, NEEDS_AI);
     // Upload via API for reliable test
     const testContent = `E2E processing test ${Date.now()}. AI consulting services overview.`;
