@@ -13,7 +13,7 @@ import { createJobQueue, type JobContext } from '@/lib/queue';
 import { createAnalysisAgent } from '../mastra/agents/create';
 import { getModel } from '../mastra/provider';
 import { loadResearchSettings } from '../settings';
-import { finishRun, logStopped, runIsStarted, stopWhenCancelled } from './run-control';
+import { finishRun, logStopped, runIsStarted, stopWhen } from './run-control';
 import { publishRunLog } from './run-logger';
 
 /** userId is the user who triggered the run. */
@@ -255,11 +255,12 @@ export async function handleAnalysisJob(job: JobContext<AnalysisJobData>): Promi
       .join('\n');
 
     const agent = createAnalysisAgent(
-      getModel({ provider: settings.aiProvider, model: settings.aiModel })
+      getModel({ provider: settings.aiProvider, model: settings.aiModel }),
+      stopWhen(run.id, 5)
     );
 
-    const result = await agent.generate(
-      `You are updating an existing workspace with research analysis. The workspace "${workspace.title}" (industry: ${industry}) has the following section structure:
+    const result = await agent.generate({
+      prompt: `You are updating an existing workspace with research analysis. The workspace "${workspace.title}" (industry: ${industry}) has the following section structure:
 
 ${sectionTreePrompt}
 
@@ -282,8 +283,7 @@ Content for the sub-section [5][7]...
 
 RESEARCH FINDINGS (${findings.length} total):
 ${findingsSummary}`,
-      { maxSteps: 5, ...stopWhenCancelled(run.id) }
-    );
+    });
     // Write no sections for a run the user cancelled
     if (!(await runIsStarted(run.id))) {
       await logStopped(run.id);
@@ -405,7 +405,7 @@ ${findingsSummary}`,
     const completed = await finishRun(run.id, {
       status: 'completed',
       completedAt: new Date(),
-      tokensUsed: result.usage?.totalTokens ?? 0,
+      tokensUsed: result.totalUsage.totalTokens ?? 0,
     });
     if (!completed) {
       await logStopped(run.id);
@@ -414,7 +414,7 @@ ${findingsSummary}`,
 
     await publishRunLog(
       run.id,
-      `Analysis complete. ${sectionsWritten} sections updated, ${result.usage?.totalTokens ?? 0} tokens used`
+      `Analysis complete. ${sectionsWritten} sections updated, ${result.totalUsage.totalTokens ?? 0} tokens used`
     );
   } catch (error) {
     // A cancel can stop the agent with an abort error: the run stays

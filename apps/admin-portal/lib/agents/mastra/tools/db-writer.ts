@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 import { db } from '@/lib/db';
 import { adminFindings } from '@/lib/db/schema';
 
@@ -13,8 +13,7 @@ export function createDbWriterTool(context: {
   workspaceId: number;
   agentRunId?: number;
 }) {
-  return createTool({
-    id: 'save-finding',
+  return defineTool({
     description: 'Save a market research finding to the database',
     inputSchema: z.object({
       title: z.string().describe('Short title for the finding'),

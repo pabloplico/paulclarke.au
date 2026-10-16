@@ -1,55 +1,46 @@
+import type { StepResult, ToolSet } from 'ai';
 import { publishToolCall } from '@/lib/agents/queue/run-logger';
 
 /**
- * Extract tool calls from an agent generate() result and publish each one
- * as a structured event for the run log viewer.
- * Also returns the agent's text response for persistence.
+ * Publish each tool call from an agent's generate() result as a structured
+ * event for the run log viewer, in the order the agent made them, and return
+ * the agent's text response for persistence.
+ *
+ * A call the tool refused (input it couldn't validate: see define-tool.ts) or
+ * that threw is logged with status 'error'.
  */
-export async function logToolCalls(
+export async function logToolCalls<TOOLS extends ToolSet>(
   runId: number,
-  // biome-ignore lint/suspicious/noExplicitAny: Mastra result type varies
-  result: any
+  result: { text: string; steps: StepResult<TOOLS>[] }
 ): Promise<{ toolCallCount: number; agentResponse: string }> {
   let count = 0;
-  const agentResponse = result?.text ?? '';
 
-  const steps = result?.steps ?? [];
-  for (const step of steps) {
-    const toolCalls = step?.toolCalls ?? [];
-    const toolResults = step?.toolResults ?? [];
-
-    for (let i = 0; i < toolResults.length; i++) {
-      const tr = toolResults[i];
-      if (!tr) continue;
-
-      // Mastra wraps tool results in { payload: { toolName, args, result, ... } }
-      const payload = tr?.payload ?? tr;
-      const toolName =
-        payload?.toolName ?? toolCalls[i]?.toolName ?? toolCalls[i]?.name ?? 'unknown';
-      const args = payload?.args ?? toolCalls[i]?.args ?? {};
-      const toolResult = payload?.result ?? null;
-      const isError = tr?.isError ?? false;
-
-      const input = summarize(args);
-      const output = toolResult ? summarize(toolResult) : null;
-
-      await publishToolCall(runId, toolName, input, output, isError ? 'error' : 'success');
-      count++;
-    }
-
-    // Handle any toolCalls without matching toolResults
-    if (toolResults.length === 0 && toolCalls.length > 0) {
-      for (const call of toolCalls) {
-        if (!call) continue;
-        const toolName = call.toolName ?? call.name ?? 'unknown';
-        const input = summarize(call.args ?? {});
-        await publishToolCall(runId, toolName, input, null, 'success');
+  for (const step of result.steps) {
+    for (const part of step.content) {
+      if (part.type === 'tool-result') {
+        const refused = (part.output as { error?: unknown } | null)?.error === true;
+        await publishToolCall(
+          runId,
+          part.toolName,
+          summarize(part.input),
+          summarize(part.output),
+          refused ? 'error' : 'success'
+        );
+        count++;
+      } else if (part.type === 'tool-error') {
+        await publishToolCall(
+          runId,
+          part.toolName,
+          summarize(part.input),
+          { error: part.error instanceof Error ? part.error.message : String(part.error) },
+          'error'
+        );
         count++;
       }
     }
   }
 
-  return { toolCallCount: count, agentResponse };
+  return { toolCallCount: count, agentResponse: result.text };
 }
 
 function summarize(obj: unknown): Record<string, unknown> {

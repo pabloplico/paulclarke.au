@@ -35,7 +35,6 @@ const nextConfig: NextConfig = {
     '@electric-sql/pglite-pgvector',
     'postgres',
     'pdf-parse',
-    '@mastra/core',
   ],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

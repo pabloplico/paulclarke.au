@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { resolve, sep } from 'node:path';
-import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 import { uploadsDir } from '@/lib/storage';
 
 /** True when `path` is `root` or inside it. */
@@ -27,8 +27,7 @@ async function resolveUpload(filePath: string): Promise<string> {
  * Parse PDF or CSV files and extract text content.
  * Uses pdf-parse for PDFs and csv-parse for CSVs.
  */
-export const fileParserTool = createTool({
-  id: 'file-parser',
+export const fileParserTool = defineTool({
   description: 'Parse a PDF or CSV file and extract text content',
   inputSchema: z.object({
     filePath: z.string().describe('Path to the file'),

@@ -1,6 +1,6 @@
-import { createTool } from '@mastra/core/tools';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 import { db } from '@/lib/db';
 import { adminResearchSources } from '@/lib/db/schema';
 
@@ -18,8 +18,7 @@ export function createSourceScorerTool(context: { userId: number; workspaceId: n
       eq(adminResearchSources.workspaceId, context.workspaceId)
     );
 
-  return createTool({
-    id: 'source-scorer',
+  return defineTool({
     description: 'Update quality scores for a data source based on crawl results',
     inputSchema: z.object({
       sourceId: z.number().describe('Source ID to update'),

@@ -1,12 +1,11 @@
-import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 
 /**
  * Fetch data from public APIs: GDELT, NewsAPI, World Bank, ABS.
  * Each source has its own fetch logic.
  */
-export const apiFetcherTool = createTool({
-  id: 'api-fetcher',
+export const apiFetcherTool = defineTool({
   description: 'Fetch data from public APIs (GDELT, NewsAPI, World Bank, ABS)',
   inputSchema: z.object({
     source: z.enum(['gdelt', 'newsapi', 'worldbank', 'abs']).describe('API source to query'),

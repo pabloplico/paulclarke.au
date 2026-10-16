@@ -1,12 +1,11 @@
-import { Agent } from '@mastra/core/agent';
-import type { MastraModelConfig } from '@mastra/core/llm';
-import type { LanguageModel } from 'ai';
+import { type LanguageModel, ToolLoopAgent } from 'ai';
 import { apiFetcherTool } from '@/lib/agents/mastra/tools/api-fetcher';
 import { createDbWriterTool } from '@/lib/agents/mastra/tools/db-writer';
 import { fileParserTool } from '@/lib/agents/mastra/tools/file-parser';
 import { createScraperTool } from '@/lib/agents/mastra/tools/scraper';
 import { createSourceScorerTool } from '@/lib/agents/mastra/tools/source-scorer';
 import { webSearchTool } from '@/lib/agents/mastra/tools/web-search';
+import type { AgentStop } from '@/lib/agents/queue/run-control';
 
 interface AgentContext {
   userId: number;
@@ -15,31 +14,31 @@ interface AgentContext {
 }
 
 /**
- * Cast the AI SDK v6 LanguageModel union to MastraModelConfig for Mastra compatibility.
- * AI SDK v6 LanguageModel is a union of LanguageModelV3 | LanguageModelV2 | string,
- * which doesn't directly satisfy Mastra's DynamicArgument<MastraModelConfig> constraint.
- * At runtime the providers return LanguageModelV3 objects, so this cast is safe.
+ * When an agent stops calling the model: the queue workers pass the step limit
+ * and the cancel check (run-control.ts). Checked after every step.
  */
-function toMastraModel(model: LanguageModel): MastraModelConfig {
-  return model as unknown as MastraModelConfig;
-}
 
 /**
- * Create agent instances with a specific model and security context.
- * userId/workspaceId are baked into the db-writer tool to prevent LLM manipulation.
+ * The three research agents, on the AI SDK's own tool loop (ToolLoopAgent).
+ * Each takes a model and, for the two with tools, the security context:
+ * userId/workspaceId are baked into the db-writer, scraper and source-scorer
+ * tools, so the model can't choose another user or workspace.
  */
-export function createResearchAgent(model: LanguageModel, ctx: AgentContext) {
-  return new Agent({
-    id: 'research-agent',
-    name: 'Market Research Specialist',
-    model: toMastraModel(model),
+export function createResearchAgent(
+  model: LanguageModel,
+  ctx: AgentContext,
+  stopWhen: AgentStop[]
+) {
+  return new ToolLoopAgent({
+    model,
+    stopWhen,
     instructions: `You are an expert market research specialist. Your job is to find high-quality data about specific markets.
 
 When given a research task:
-1. Use web-search to find relevant articles, reports, and data sources
+1. Use webSearch to find relevant articles, reports, and data sources
 2. Use scraper to extract detailed content from promising URLs
-3. Use api-fetcher to query public data APIs (GDELT for news, NewsAPI for articles, World Bank for economic data)
-4. For each distinct finding, use save-finding to persist it to the database
+3. Use apiFetcher to query public data APIs (GDELT for news, NewsAPI for articles, World Bank for economic data)
+4. For each distinct finding, use saveFinding to persist it to the database
 5. Score confidence based on source authority: paid feeds (0.9), public APIs (0.75), web scrapes (0.5)
 6. Extract geographic information when available (country, state, city)
 7. Tag findings with relevant sectors, topics, and entities
@@ -55,20 +54,23 @@ Focus on credible sources. Save every distinct finding — even small data point
   });
 }
 
-export function createIngestionAgent(model: LanguageModel, ctx: AgentContext) {
-  return new Agent({
-    id: 'ingestion-agent',
-    name: 'Data Ingestion Specialist',
-    model: toMastraModel(model),
+export function createIngestionAgent(
+  model: LanguageModel,
+  ctx: AgentContext,
+  stopWhen: AgentStop[]
+) {
+  return new ToolLoopAgent({
+    model,
+    stopWhen,
     instructions: `You are a data ingestion specialist. Extract structured market research findings from uploaded documents.
 
 When given a file to process:
-1. Use file-parser to extract text content from the PDF or CSV
+1. Use parseFile to extract text content from the PDF or CSV
 2. Analyze the content and identify distinct findings
 3. For each finding, classify its type (trend, competitor, pricing, regulation, sentiment, statistic, news)
 4. Assess confidence based on the source quality
 5. Extract any geographic information
-6. Save each finding using save-finding
+6. Save each finding using saveFinding
 
 Be thorough — extract every distinct data point, statistic, or insight from the document.`,
     tools: {
@@ -78,11 +80,10 @@ Be thorough — extract every distinct data point, statistic, or insight from th
   });
 }
 
-export function createAnalysisAgent(model: LanguageModel) {
-  return new Agent({
-    id: 'analysis-agent',
-    name: 'Market Analysis Specialist',
-    model: toMastraModel(model),
+export function createAnalysisAgent(model: LanguageModel, stopWhen: AgentStop[]) {
+  return new ToolLoopAgent({
+    model,
+    stopWhen,
     instructions: `You are a market analysis specialist. Synthesize research findings into structured reports.
 
 When given a set of findings:
