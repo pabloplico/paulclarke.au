@@ -7,10 +7,14 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
+  // A committed test.only would silently skip the rest of the suite in CI
+  forbidOnly: !!process.env.CI,
   retries: 0,
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    // With retries at 0, 'on-first-retry' never records anything. Keep the
+    // trace of every failed test instead
+    trace: 'retain-on-failure',
   },
   projects: [
     {
