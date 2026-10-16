@@ -8,7 +8,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const started = vi.hoisted(() => ({ names: [] as string[], schedules: 0 }));
 
 vi.mock('./startup-checks', () => ({ runStartupChecks: () => {} }));
-vi.mock('./queue/recover', () => ({ recoverInterruptedJobs: async () => ({}) }));
+vi.mock('./queue/recover', () => ({
+  recoverInterruptedJobs: async () => {
+    started.names.push('recovery');
+    return {};
+  },
+}));
 vi.mock('./agents/queue/init', () => ({
   startAgentQueues: () => {
     started.names.push('research-agents');
@@ -49,6 +54,32 @@ describe('registerNode', () => {
     await registerNode();
     expect(started.names).toEqual(['document-processing', 'workspace-routing']);
     expect(started.schedules).toBe(0);
+    delete process.env.DEMO_MODE;
+  });
+
+  it('starts the research agents on the in-process queue, then recovers interrupted work', async () => {
+    delete process.env.DEMO_MODE;
+    process.env.DB_DRIVER = 'pglite';
+    process.env.QUEUE_DRIVER = 'memory';
+    vi.doMock('./db/pglite', () => ({ ensurePgliteReady: async () => {} }));
+    const { registerNode } = await import('./instrumentation-node');
+    await registerNode();
+    expect(started.names).toEqual([
+      'document-processing',
+      'workspace-routing',
+      'research-agents',
+      'recovery',
+    ]);
+  });
+
+  it('starts no research-agent workers in demo mode on the in-process queue', async () => {
+    process.env.DEMO_MODE = 'true';
+    process.env.DB_DRIVER = 'pglite';
+    process.env.QUEUE_DRIVER = 'memory';
+    vi.doMock('./db/pglite', () => ({ ensurePgliteReady: async () => {} }));
+    const { registerNode } = await import('./instrumentation-node');
+    await registerNode();
+    expect(started.names).toEqual(['document-processing', 'workspace-routing', 'recovery']);
     delete process.env.DEMO_MODE;
   });
 });

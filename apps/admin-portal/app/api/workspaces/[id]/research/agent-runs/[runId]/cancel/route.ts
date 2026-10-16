@@ -1,15 +1,17 @@
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { publishRunComplete, publishRunLog } from '@/lib/agents/queue/run-logger';
+import { publishRunLog } from '@/lib/agents/queue/run-logger';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentRuns, adminAgentTasks } from '@/lib/db/schema';
-import { logger } from '@/lib/logger';
 
 type Params = { params: Promise<{ id: string; runId: string }> };
 
-const log = logger.child({ module: 'research-cancel' });
-
+/**
+ * Cancels a run cooperatively: it only marks the run 'cancelled'. The worker
+ * checks the status between agent steps, stops, and leaves it cancelled
+ * (lib/agents/queue/run-control.ts).
+ */
 export async function POST(_request: Request, { params }: Params) {
   const resolved = await resolveWorkspaceParams(params);
   if (resolved.error) return resolved.error;
@@ -36,42 +38,17 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: 'Run is not in progress' }, { status: 400 });
   }
 
-  // Mark as cancelled in DB
-  await db
+  // Only a run that's still in progress: it may have finished since the check above
+  const cancelled = await db
     .update(adminAgentRuns)
     .set({ status: 'cancelled', completedAt: new Date() })
-    .where(eq(adminAgentRuns.id, runIdNum));
-
-  // Notify SSE subscribers
-  await publishRunLog(runIdNum, 'Run cancelled by user', 'warn');
-  await publishRunComplete(runIdNum, 'failed');
-
-  // Attempt to remove the BullMQ job (best-effort)
-  try {
-    const { getResearchQueue } = await import('@/lib/agents/queue/research-queue');
-    const { getIngestionQueue } = await import('@/lib/agents/queue/ingestion-queue');
-    const { getAnalysisQueue } = await import('@/lib/agents/queue/analysis-queue');
-
-    for (const queue of [getResearchQueue(), getIngestionQueue(), getAnalysisQueue()]) {
-      const jobs = await queue.getJobs(['active', 'waiting', 'delayed']);
-      for (const job of jobs) {
-        if (job.data?.taskId === result.run.taskId) {
-          await job.remove().catch((err: unknown) =>
-            log.warn('Job removal failed (best-effort)', {
-              jobId: job.id,
-              taskId: result.run.taskId,
-              error: err instanceof Error ? err.message : String(err),
-            })
-          );
-        }
-      }
-    }
-  } catch (err) {
-    log.warn('Queue cleanup failed', {
-      runId: runIdNum,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    .where(and(eq(adminAgentRuns.id, runIdNum), eq(adminAgentRuns.status, 'started')))
+    .returning({ id: adminAgentRuns.id });
+  if (cancelled.length === 0) {
+    return NextResponse.json({ error: 'Run is not in progress' }, { status: 400 });
   }
+
+  await publishRunLog(runIdNum, 'Run cancelled by user', 'warn');
 
   return NextResponse.json({ cancelled: true, runId: runIdNum });
 }

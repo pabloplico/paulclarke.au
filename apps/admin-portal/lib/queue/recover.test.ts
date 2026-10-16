@@ -12,7 +12,15 @@ vi.mock('@/lib/workspace-routing/queue', () => ({ queueRouting }));
 
 const { db } = await import('@/lib/db');
 const { ensurePgliteReady, getPglite } = await import('@/lib/db/pglite');
-const { adminDocuments, adminInboxItems, adminUsers } = await import('@/lib/db/schema');
+const {
+  adminAgentRuns,
+  adminAgentTasks,
+  adminDocuments,
+  adminInboxItems,
+  adminUsers,
+  adminWorkspaces,
+} = await import('@/lib/db/schema');
+const { eq } = await import('drizzle-orm');
 const { recoverInterruptedJobs } = await import('./recover');
 
 beforeAll(async () => {
@@ -66,12 +74,54 @@ describe('recoverInterruptedJobs', () => {
 
     const result = await recoverInterruptedJobs();
 
-    expect(result).toEqual({ documents: 3, inboxItems: 2 });
+    expect(result).toEqual({ documents: 3, inboxItems: 2, agentRuns: 0 });
     expect(queueDocument.mock.calls.map(([id]) => id).sort()).toEqual(
       [docId(0), docId(1), docId(2)].sort()
     );
     expect(queueRouting.mock.calls.map(([id]) => id).sort()).toEqual(
       [itemId('routing'), itemId('lost')].sort()
     );
+  });
+
+  it('fails agent runs a restart cut off, without running them again', async () => {
+    const [user] = await db
+      .insert(adminUsers)
+      .values({ email: 'recover-runs@example.com', passwordHash: 'x', name: 'Runs' })
+      .returning();
+    const [workspace] = await db
+      .insert(adminWorkspaces)
+      .values({ slug: 'recover-runs', title: 'Runs', userId: user!.id })
+      .returning();
+    const [task] = await db
+      .insert(adminAgentTasks)
+      .values({ userId: user!.id, workspaceId: workspace!.id, agentType: 'research', name: 'r' })
+      .returning();
+    const runs = await db
+      .insert(adminAgentRuns)
+      .values(
+        (['started', 'completed', 'cancelled', 'failed'] as const).map((status) => ({
+          taskId: task!.id,
+          userId: user!.id,
+          status,
+        }))
+      )
+      .returning({ id: adminAgentRuns.id, status: adminAgentRuns.status });
+
+    const result = await recoverInterruptedJobs();
+
+    expect(result.agentRuns).toBe(1);
+    const after = await db
+      .select({ status: adminAgentRuns.status, errorLog: adminAgentRuns.errorLog })
+      .from(adminAgentRuns)
+      .where(eq(adminAgentRuns.taskId, task!.id))
+      .orderBy(adminAgentRuns.id);
+    expect(after).toEqual([
+      { status: 'failed', errorLog: 'interrupted by restart' },
+      { status: 'completed', errorLog: null },
+      { status: 'cancelled', errorLog: null },
+      { status: 'failed', errorLog: null },
+    ]);
+    // Not re-run: no new run row for the task
+    expect(after).toHaveLength(runs.length);
   });
 });

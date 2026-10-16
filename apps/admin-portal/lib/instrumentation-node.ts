@@ -24,20 +24,17 @@ export async function registerNode(): Promise<void> {
   await import('./document-processing/worker');
   await import('./workspace-routing/worker');
 
+  // Research agents are switched off in the demo (lib/demo.ts), whichever
+  // queue driver it runs on
+  const { isDemoMode } = await import('./demo');
+  if (!isDemoMode()) {
+    const { startAgentQueues } = await import('./agents/queue/init');
+    startAgentQueues();
+  }
+
   if (!redisEnabled()) {
     // In-process jobs don't survive a restart; pick up what was interrupted
     const { recoverInterruptedJobs } = await import('./queue/recover');
     await recoverInterruptedJobs();
-    return;
   }
-
-  // Research agents are switched off in the demo (lib/demo.ts), whichever
-  // queue driver it runs on: their cron schedules would otherwise run even
-  // though their pages and APIs are gone
-  const { isDemoMode } = await import('./demo');
-  if (isDemoMode()) return;
-
-  // Redis only: the agent schedules are repeatable jobs
-  const { startAgentQueues } = await import('./agents/queue/init');
-  startAgentQueues();
 }

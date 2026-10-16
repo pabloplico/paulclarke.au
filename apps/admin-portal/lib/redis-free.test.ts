@@ -39,10 +39,8 @@ const modules = [
   '@/lib/agents/queue/ingestion-queue',
   '@/lib/agents/queue/analysis-queue',
   '@/lib/agents/queue/run-logger',
-  '@/lib/agents/queue/scheduler',
   '@/lib/agents/queue/trigger',
   '@/lib/agents/queue/init',
-  '@/app/api/workspaces/[id]/research/agent-runs/[runId]/logs/route',
   '@/app/api/workspaces/[id]/research/agent-runs/[runId]/cancel/route',
 ];
 
@@ -63,15 +61,17 @@ describe('demo drivers (pglite + memory) never touch Redis', () => {
     expect(opened).toEqual({ ioredis: 0, queues: 0, workers: 0 });
   }, 30_000);
 
-  it('publishing an agent log is a no-op rather than a connection', async () => {
-    const { publishRunComplete } = await import('@/lib/agents/queue/run-logger');
-    await publishRunComplete(1, 'completed');
+  it('writing an agent log entry opens no connection', async () => {
+    const { publishRunLog } = await import('@/lib/agents/queue/run-logger');
+    await publishRunLog(1, 'a log entry');
     expect(opened.ioredis).toBe(0);
   });
 
-  it('a Redis-only feature fails loudly instead of connecting', async () => {
-    const { getResearchQueue } = await import('@/lib/agents/queue/research-queue');
-    expect(() => getResearchQueue()).toThrow('needs Redis, which is off (QUEUE_DRIVER=memory)');
+  it('asking for Redis fails loudly instead of connecting', async () => {
+    const { getRedis } = await import('@/lib/redis');
+    expect(() => getRedis('Shared rate limiting')).toThrow(
+      'needs Redis, which is off (QUEUE_DRIVER=memory)'
+    );
     expect(opened).toEqual({ ioredis: 0, queues: 0, workers: 0 });
   });
 });
