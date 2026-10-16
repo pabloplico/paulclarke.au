@@ -2,16 +2,20 @@
  * Prices in US dollars per 1M tokens, for the daily spend cap.
  *
  * From OpenAI's pricing page (developers.openai.com/api/docs/pricing),
- * standard tier, checked 2026-10-12. Update when the demo's model changes:
- * demo mode refuses to start with a model that has no price here, because
- * the spend cap can't count what it can't price.
+ * standard tier, checked 2026-10-12 (gpt-4o and gpt-4.1 added 2026-10-16).
+ * Update when the default, demo or offered models change: demo mode refuses
+ * to start with a model that has no price here, and elsewhere an unpriced
+ * model's calls don't count towards the cap, because it can't count what it
+ * can't price. pricing.test.ts checks the defaults and the offered models.
  */
 type Price = { input: number; cachedInput: number; output: number };
 
 export const MODEL_PRICES: Record<string, Price> = {
   'gpt-4.1-nano': { input: 0.1, cachedInput: 0.025, output: 0.4 },
   'gpt-4.1-mini': { input: 0.4, cachedInput: 0.1, output: 1.6 },
+  'gpt-4.1': { input: 2.0, cachedInput: 0.5, output: 8.0 },
   'gpt-4o-mini': { input: 0.15, cachedInput: 0.075, output: 0.6 },
+  'gpt-4o': { input: 2.5, cachedInput: 1.25, output: 10.0 },
   'gpt-5-nano': { input: 0.05, cachedInput: 0.005, output: 0.4 },
   'gpt-5-mini': { input: 0.25, cachedInput: 0.025, output: 2.0 },
   'gpt-6-luna': { input: 0.1, cachedInput: 0.01, output: 0.5 },

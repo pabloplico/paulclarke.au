@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { FALLBACK_MODELS } from '@/lib/ai/fallback-models';
 import { requireAuthApi } from '@/lib/auth/server';
 import { config } from '@/lib/config';
 
@@ -14,28 +15,6 @@ type CacheEntry = {
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let cache: CacheEntry | null = null;
-
-/** Fallback models used when API fetch fails. */
-const FALLBACK_MODELS: Record<string, { id: string; name: string }[]> = {
-  anthropic: [
-    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
-    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' },
-    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
-  ],
-  openai: [
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'gpt-4o', name: 'GPT-4o' },
-    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
-    { id: 'gpt-4.1', name: 'GPT-4.1' },
-  ],
-  gemini: [
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  ],
-  ollama: [],
-  'ollama-remote': [],
-};
 
 async function fetchOpenAIModels(apiKey: string): Promise<{ id: string; name: string }[]> {
   const res = await fetch('https://api.openai.com/v1/models', {

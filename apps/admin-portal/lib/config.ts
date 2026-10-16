@@ -77,8 +77,10 @@ export type AppConfig = {
 /** Static defaults — safe for module-level / synchronous usage (queues, etc.). */
 export const config: AppConfig = {
   ai: {
-    provider: (process.env.AI_PROVIDER ?? 'anthropic') as AIProvider,
-    model: process.env.AI_MODEL ?? 'claude-sonnet-4-6',
+    // OpenAI by default: embeddings need an OpenAI key in every setup anyway,
+    // and every OpenAI model the app offers has a price in lib/ai/pricing.ts
+    provider: (process.env.AI_PROVIDER ?? 'openai') as AIProvider,
+    model: process.env.AI_MODEL ?? 'gpt-4.1-mini',
     fallbackProvider: 'openai' as const,
     fallbackModel: 'gpt-4o-mini',
     embedding: {

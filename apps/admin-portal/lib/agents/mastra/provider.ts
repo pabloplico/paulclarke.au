@@ -3,10 +3,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import type { EmbeddingModel, LanguageModel } from 'ai';
 import { guardEmbeddingModel, guardLanguageModel } from '@/lib/ai/guard';
-import type { AIProvider } from '@/lib/config';
-
-const AI_PROVIDER = (process.env.AI_PROVIDER ?? 'openai') as AIProvider;
-const AI_MODEL = process.env.AI_MODEL ?? 'gpt-4o';
+import { type AIProvider, config } from '@/lib/config';
 
 function createOllamaProvider(baseUrl: string) {
   return createOpenAI({ baseURL: `${baseUrl}/v1`, apiKey: 'ollama' });
@@ -22,8 +19,9 @@ export function getModel(override?: { provider: AIProvider; model: string }): La
 }
 
 function createModel(override?: { provider: AIProvider; model: string }): LanguageModel {
-  const provider = override?.provider ?? AI_PROVIDER;
-  const model = override?.model ?? AI_MODEL;
+  // Same default as the rest of the app (lib/config.ts), so it always has a price
+  const provider = override?.provider ?? config.ai.provider;
+  const model = override?.model ?? config.ai.model;
 
   if (provider === 'openai' && process.env.OPENAI_API_KEY) return openai(model);
   if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) return anthropic(model);
