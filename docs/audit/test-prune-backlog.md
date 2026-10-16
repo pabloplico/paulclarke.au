@@ -23,7 +23,7 @@ To see exactly what the branch did: `git show archive/prune-delete-set~1` (the d
   - "Rules for every agent" and "The gate" in `dependency-updates.md` apply.
   - Draft PR, and wait for Paul to merge.
   - Every deleted test is listed in the PR body with its reason. `pnpm test:diff` will show the assertion loss.
-  - None of the files below is a protected test (`testauditinstruct.md` §3).
+  - None of the files below is a protected test (`test-guide.md` §3).
 - **Replace, don't just delete, the fake-DB route tests for user isolation and for `inbox/[id]/approve`.** They get PGlite replacements in the same PR, per `test-audit-report.md` §8 "After upgrades": "Replace the 23–33 fake-DB route tests with PGlite route tests (TEST_AUDIT.md's REWRITE LATER list), starting with user isolation and `inbox/[id]/approve`".
   - **User isolation:** `app/api/clients/route.test.ts` (TC-011 `where`-shape checks, the only check that lists are scoped to the user) and `lib/api/resolve-params.test.ts` (ownership resolution, mocked). Extend `test/isolation.integration.test.ts` (on `main` since #20) rather than starting a new file.
   - **`app/api/inbox/[id]/approve/route.test.ts`** (28 tests, mocked DB): rebuild on PGlite, with one case per section template plus the status transitions.
@@ -31,6 +31,7 @@ To see exactly what the branch did: `git show archive/prune-delete-set~1` (the d
 - **Two more replacements to keep in view:**
   - `parsers/pdf.test.ts` and `parsers/docx.test.ts` mock `pdf-parse` and `mammoth`. `TEST_AUDIT.md` says to replace them with real fixtures (§3 gap 6).
   - Dependency step 8 (pdf-parse 2) relies on PDF coverage, so the PDF fixture test must exist before the mocked one goes.
+- **Delete `TEST_AUDIT.md` in this PR.** It was trimmed to its classification (2026-10-16) only so this PR could work from it. Move any REWRITE LATER rows still open after the PR into `STATUS.md` "Backlog" first.
 - **Timing:** step 4 (drizzle) leans on PGlite tests rather than the fake-operator route tests, so the PGlite replacements are worth having before step 4, not only before this prune.
 
 ## Files deleted (24, commit `2ed11db`)

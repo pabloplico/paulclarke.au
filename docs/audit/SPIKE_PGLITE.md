@@ -5,7 +5,7 @@
 - **Options compared:**
   - **A:** PGlite plus an in-process queue, on one Cloud Run instance.
   - **B:** Neon plus Upstash (managed Postgres and Redis), keeping BullMQ.
-- **Since then:** option A was chosen and built (#3). Condition 6 below (port the inbox routing queue) is done; feeds, backups and research agents stay on BullMQ and don't start under `QUEUE_DRIVER=memory`. Jobquest is no longer file-based: it moves to D1 (`IMPORT_PLAN.md`), which fixes its counter-reset problem.
+- **Since then:** option A was chosen and built (#3). Condition 6 below (port the inbox routing queue) is done. Redis and BullMQ are gone: feeds and backups were removed (#25), the research agents run on the in-process `JobQueue` (#26), and Redis went in #28, so the in-process queue is the only one (no `QUEUE_DRIVER`). Option B's managed Redis is no longer needed. Jobquest is no longer file-based: it moves to D1 (`IMPORT_PLAN.md`), which fixes its counter-reset problem.
 
 ## 4. Measurements
 
