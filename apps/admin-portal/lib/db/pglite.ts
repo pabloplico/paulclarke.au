@@ -34,6 +34,11 @@ export function getPglite(): PGlite {
       dataDir,
       loadDataDir: snapshot && isNew ? new Blob([readFileSync(snapshot)]) : undefined,
       extensions: { vector },
+      // PGlite takes the host's time zone. The timestamp columns have no time
+      // zone, and defaultNow() would store local time that Drizzle reads back
+      // as UTC: 10 hours ahead in AEST. Run the server in UTC, as Postgres in
+      // Docker does, so stored and read values agree
+      startParams: [...PGlite.defaultStartParams, '-c', 'TimeZone=UTC'],
     });
   }
   return g._pglite;
