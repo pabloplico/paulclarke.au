@@ -8,14 +8,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const started = vi.hoisted(() => ({ names: [] as string[], schedules: 0 }));
 
 vi.mock('./startup-checks', () => ({ runStartupChecks: () => {} }));
-vi.mock('./document-processing/worker', () => {
-  started.names.push('document-processing');
-  return {};
-});
-vi.mock('./workspace-routing/worker', () => {
-  started.names.push('workspace-routing');
-  return {};
-});
 vi.mock('./queue/recover', () => ({ recoverInterruptedJobs: async () => ({}) }));
 vi.mock('./db/backup-worker', () => ({
   startBackupWorker: () => {
@@ -40,6 +32,17 @@ beforeEach(() => {
   vi.resetModules();
   started.names = [];
   started.schedules = 0;
+  // The two queue workers start as a side effect of being imported. vi.mock
+  // runs its factory only once per file, so these are registered again for
+  // each test (vi.doMock, after resetModules) and every test sees its imports
+  vi.doMock('./document-processing/worker', () => {
+    started.names.push('document-processing');
+    return {};
+  });
+  vi.doMock('./workspace-routing/worker', () => {
+    started.names.push('workspace-routing');
+    return {};
+  });
   process.env.DB_DRIVER = 'postgres';
   process.env.QUEUE_DRIVER = 'bullmq';
 });
@@ -62,11 +65,7 @@ describe('registerNode', () => {
     process.env.DEMO_MODE = 'true';
     const { registerNode } = await import('./instrumentation-node');
     await registerNode();
-    // (vitest runs a mock factory once, so the two queue workers' import is
-    // recorded only by the first test; this one checks nothing else starts)
-    expect(started.names).not.toContain('backups');
-    expect(started.names).not.toContain('feeds');
-    expect(started.names).not.toContain('research-agents');
+    expect(started.names).toEqual(['document-processing', 'workspace-routing']);
     expect(started.schedules).toBe(0);
     delete process.env.DEMO_MODE;
   });
