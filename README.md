@@ -5,21 +5,21 @@
 A pnpm + NX monorepo with two apps:
 
 - **My developer portfolio** (`apps/website`): projects, an AI readiness assessment demo, writing and contact. A React SPA plus a small Hono API, deployed as one Cloudflare Worker.
-- **A document workspace platform** (`apps/admin-portal`): upload documents, have them parsed and routed into structured workspaces, and edit sections with AI, previewing each change as a diff. Next.js with Postgres, Redis job queues and the Vercel AI SDK. It can also run with no other services: an embedded Postgres (PGlite) and in-process queues.
+- **A document workspace platform** (`apps/admin-portal`): upload documents, have them parsed and routed into structured workspaces, and edit sections with AI, previewing each change as a diff. Next.js with Postgres, in-process job queues and the Vercel AI SDK. It can also run with no other services, on an embedded Postgres (PGlite).
 
 Both are written in strict TypeScript and share UI and tooling packages.
 
 ## What's in here
 
-| Path                         | What it is                                                                         | Stack                                                                                          |
-| ---------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `apps/website`               | Developer portfolio                                                                | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers               |
-| `apps/admin-portal`          | Document workspace platform                                                        | Next.js 16, Drizzle + Postgres/pgvector or PGlite, BullMQ + Redis or in-process queues, AI SDK |
-| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                     | React, Tailwind, Radix primitives                                                              |
-| `packages/tailwind-theme`    | Shared Tailwind theme: design tokens, base body styles, focus ring, reduced motion | Tailwind v4 (CSS only)                                                                         |
-| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library`      | TypeScript                                                                                     |
-| `packages/biome-config`      | Shared lint and format rules                                                       | Biome                                                                                          |
-| `packages/prettier-config`   | Markdown formatting                                                                | Prettier                                                                                       |
+| Path                         | What it is                                                                         | Stack                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `apps/website`               | Developer portfolio                                                                | React 19, Vite, TanStack Router + Query, Tailwind v4, Hono on Cloudflare Workers |
+| `apps/admin-portal`          | Document workspace platform                                                        | Next.js 16, Drizzle + Postgres/pgvector or PGlite, in-process job queues, AI SDK |
+| `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                     | React, Tailwind, Radix primitives                                                |
+| `packages/tailwind-theme`    | Shared Tailwind theme: design tokens, base body styles, focus ring, reduced motion | Tailwind v4 (CSS only)                                                           |
+| `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library`      | TypeScript                                                                       |
+| `packages/biome-config`      | Shared lint and format rules                                                       | Biome                                                                            |
+| `packages/prettier-config`   | Markdown formatting                                                                | Prettier                                                                         |
 
 ## Architecture
 
@@ -86,7 +86,7 @@ The repo moved from Turborepo to NX in its first pull request. The task graph, t
 
 ## The full-stack version
 
-The admin portal is being cut down to run as a single process, with no Redis. The full version is kept at the git tag [`full-stack-v1`](https://github.com/pabloplico/paulclarke.au/tree/full-stack-v1) (`git checkout full-stack-v1`). It has:
+The admin portal now runs as a single process, with no Redis. The full version is kept at the git tag [`full-stack-v1`](https://github.com/pabloplico/paulclarke.au/tree/full-stack-v1) (`git checkout full-stack-v1`). It has:
 
 - Redis and BullMQ job queues for every worker;
 - RSS and news feeds, fetched on a schedule and ingested as documents;
@@ -94,7 +94,7 @@ The admin portal is being cut down to run as a single process, with no Redis. Th
 - the research agents on cron schedules;
 - the live research run log, streamed over Redis pub/sub.
 
-On `main`, feeds, backups, the cron schedules and the live log stream have been removed, and the research agents run on the in-process queue. Redis and BullMQ are still here as the optional `QUEUE_DRIVER=bullmq` driver until they're removed too.
+On `main`, all of these have been removed. Every job, the research agents included, runs on an in-process queue, and rate limits are counted per process. Queued jobs don't survive a restart: on boot the app re-queues unfinished documents and inbox items, and marks interrupted research runs as failed.
 
 ## Getting started
 
@@ -120,13 +120,13 @@ pnpm nx run admin-portal:dev:lite
 # a fresh database seeded with a fictional bakery. Needs an OpenAI key
 OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo
 
-# Admin portal on the full stack: Postgres + pgvector and Redis (for the
-# BullMQ workers) from the services-only compose file, or native Postgres 15
-# and Redis 7 on the same ports. The app itself still runs on the host
+# Admin portal on Postgres + pgvector instead of PGlite, from the
+# services-only compose file or a native Postgres 15 on the same port. The
+# app itself still runs on the host
 cp .env.docker.example .env.docker      # then fill in section 1
 cd apps/admin-portal
 export COMPOSE_ENV_FILES=../../.env.docker   # compose reads its ${VARS} from here
-docker compose up -d                         # Postgres :5432, Redis :6379
+docker compose up -d                         # Postgres :5432
 pnpm with-dev-env pnpm db:migrate            # loads .env.docker for host commands
 pnpm nx run admin-portal:dev:full            # Next.js on :3001
 ```
@@ -156,7 +156,7 @@ pnpm --filter website test:e2e   # Playwright + axe against the production build
 - **Website E2E:** Playwright on a desktop and a mobile viewport.
 - **Accessibility:** automated checks with axe on every website page.
 
-CI runs it all except admin-portal E2E, which needs Postgres and Redis. It also builds a fresh database from the migrations and checks it matches the schema. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
+CI runs it all except admin-portal E2E, which needs Postgres. It also builds a fresh database from the migrations and checks it matches the schema. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
 
 ## Deployment
 
@@ -201,7 +201,7 @@ docker build -t admin-portal -f apps/admin-portal/Dockerfile .
 
 **Admin-portal demo: one container, a gate, and real AI with caps.** The admin portal is being prepared as a public demo.
 
-- **No external services:** `DB_DRIVER=pglite` and `QUEUE_DRIVER=memory` run the database and job queues inside the Node process, so the demo is one container on one instance. Postgres and Redis remain the default, behind the same interfaces.
+- **No external services:** `DB_DRIVER=pglite` runs the database inside the Node process, and the job queues always run there, so the demo is one container on one instance. Postgres remains the default, behind the same interface.
 - **Cloudflare Access instead of demo logins:** visitors will sign in with a one-time email PIN. The app verifies the signed Access token on every request and gives each email its own member account.
 - **Real AI, capped:** every model call goes through one guard with an output-token cap, daily spend caps in total and per user, and a per-user rate limit. A test checks that every route that starts AI work applies it. The provider's hard spend limit is the final backstop.
 - **Seeded per visitor, without AI calls:** each visitor gets their own copy of a fictional bakery's workspaces, with a document already processed and routed and saved gap reports. The AI-made parts were produced once by the real pipeline and stored, so seeding costs nothing.
