@@ -17,8 +17,6 @@ export function isDemoMode(): boolean {
 
 /** Features the demo switches off, with why. */
 export const DEMO_DISABLED_FEATURES = {
-  backups: 'Database dumps of every user’s data',
-  feeds: 'Fetches arbitrary feed URLs on a schedule',
   research: 'Autonomous research agents: outbound fetches, long AI runs, cron schedules',
   outreach: 'AI-personalised email drafts',
   companyLookup: 'Paid third-party lookups (ABN, Google Places, company search)',
@@ -54,8 +52,6 @@ export const ROUTES: Record<string, RouteFeature> = {
   '/todos/**': 'core',
   '/login/**': 'passwordAccounts',
   '/signup/**': 'passwordAccounts',
-  '/backups/**': 'backups',
-  '/feeds/**': 'feeds',
   '/communications/**': 'communications',
   '/email-templates/**': 'emailTemplates',
   '/scheduler/**': 'scheduler',
@@ -83,8 +79,6 @@ export const ROUTES: Record<string, RouteFeature> = {
   '/api/todos/**': 'core',
   // GET is core; PATCH is refused in demo mode (see isDemoRequestBlocked)
   '/api/settings': 'core',
-  '/api/backups/**': 'backups',
-  '/api/feeds/**': 'feeds',
   '/api/outreach/**': 'outreach',
   '/api/lookup/**': 'companyLookup',
   '/api/communications/**': 'communications',

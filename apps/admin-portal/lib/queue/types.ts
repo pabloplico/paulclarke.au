@@ -4,9 +4,9 @@
  * default) and an in-process one (QUEUE_DRIVER=memory, the single-instance
  * demo). lib/queue/contract.test.ts runs the same behaviour tests on both.
  *
- * Not covered: repeatable/cron jobs, queue inspection and pub/sub. The queues
- * that need those (feeds, backups, research agents) stay on BullMQ and only
- * run with QUEUE_DRIVER=bullmq.
+ * Not covered: repeatable/cron jobs, queue inspection and pub/sub. The research
+ * agents need those, so they stay on BullMQ and only run with
+ * QUEUE_DRIVER=bullmq.
  */
 export interface JobContext<T> {
   id: string;

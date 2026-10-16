@@ -1,10 +1,9 @@
 /**
  * Runs after `next build`: keeps data out of .next/standalone.
  *
- * lib/db/backup.ts and the storage layer resolve backups/ and uploads/ at
- * runtime, so Next's file tracer copies whatever is in them (real pg_dump
- * files, users' uploads) into the standalone output that the Docker image
- * ships. outputFileTracingExcludes in next.config.ts stops it for the route
+ * The storage layer resolves uploads/ at runtime, so Next's file tracer
+ * copies whatever is in it (users' uploads) into the standalone output that
+ * the Docker image ships. outputFileTracingExcludes in next.config.ts stops it for the route
  * traces, but its keys are routes, and the same files also arrive through
  * the instrumentation and server traces, which it can't reach. So this
  * removes them, then fails the build if anything data-like is left.
@@ -18,7 +17,7 @@ if (!existsSync(standalone)) {
   process.exit(0);
 }
 
-const DATA_DIRS = ['backups', 'apps/admin-portal/backups', 'uploads', 'apps/admin-portal/uploads'];
+const DATA_DIRS = ['uploads', 'apps/admin-portal/uploads'];
 for (const dir of DATA_DIRS) {
   const path = join(standalone, dir);
   if (existsSync(path)) {
@@ -34,10 +33,7 @@ function walk(dir) {
     if (name === 'node_modules') continue;
     const path = join(dir, name);
     if (statSync(path).isDirectory()) {
-      if (name === 'backups' || name === 'uploads') {
-        // The Next route bundles for the backups pages are code, not data
-        if (!path.includes(join('.next', 'server'))) leftovers.push(path);
-      }
+      if (name === 'uploads') leftovers.push(path);
       walk(path);
     } else if (
       /\.(sql|dump)(\.gz)?$/.test(name) &&
@@ -53,4 +49,4 @@ if (leftovers.length) {
   for (const path of leftovers) console.error(`  ${relative(process.cwd(), path)}`);
   process.exit(1);
 }
-console.log('[prune-standalone] no backups or uploads in .next/standalone');
+console.log('[prune-standalone] no uploads or database dumps in .next/standalone');

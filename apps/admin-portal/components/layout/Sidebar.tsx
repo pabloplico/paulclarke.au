@@ -7,14 +7,12 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronLeft,
-  Database,
   FileText,
   GripVertical,
   Inbox,
   Layers,
   MailPlus,
   MessageSquare,
-  Rss,
   ScanSearch,
   Settings,
   Users,
@@ -33,7 +31,6 @@ const DEFAULT_KNOWLEDGE_NAV: NavItem[] = [
   { label: 'Gap Analysis', href: '/gap-analysis', icon: ScanSearch },
   { label: 'Documents', href: '/documents', icon: FileText },
   { label: 'Knowledge Base', href: '/knowledge-base', icon: BookOpen },
-  { label: 'Feeds', href: '/feeds', icon: Rss },
 ];
 
 const DEFAULT_OPERATIONS_NAV: NavItem[] = [
@@ -44,10 +41,7 @@ const DEFAULT_OPERATIONS_NAV: NavItem[] = [
   { label: 'Email Templates', href: '/email-templates', icon: MailPlus },
 ];
 
-const SYSTEM_NAV: NavItem[] = [
-  { label: 'Backups', href: '/backups', icon: Database, adminOnly: true },
-  { label: 'Settings', href: '/settings', icon: Settings },
-];
+const SYSTEM_NAV: NavItem[] = [{ label: 'Settings', href: '/settings', icon: Settings }];
 
 // Maps href to its NavItem definition (for restoring icons after rehydrating from localStorage)
 const ALL_ITEMS = [...DEFAULT_KNOWLEDGE_NAV, ...DEFAULT_OPERATIONS_NAV, ...SYSTEM_NAV];
