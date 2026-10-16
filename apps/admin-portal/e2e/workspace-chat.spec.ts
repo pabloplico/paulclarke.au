@@ -16,9 +16,21 @@ const NEEDS_AI =
 
 const WORKSPACE_SLUG = 'e2e-test-workspace';
 
+/**
+ * Opens the workspace and waits for the chat to resume its last conversation
+ * (setScope → resumeLastConversation): if that load lands after a message is
+ * sent, it replaces the conversation, message and all.
+ */
 async function goToWorkspace(page: import('@playwright/test').Page) {
+  const lastConversation = page.waitForResponse(
+    (res) => res.url().includes('/api/chat/conversations?') && res.url().includes('limit=1')
+  );
+  const messagesLoaded = page
+    .waitForResponse((res) => /\/api\/chat\/conversations\/\d+\/messages/.test(res.url()))
+    .catch(() => undefined);
   await page.goto(`/workspaces/${WORKSPACE_SLUG}`);
   await page.waitForLoadState('networkidle');
+  if ((await (await lastConversation).json()).length > 0) await messagesLoaded;
 }
 
 test.describe('Workspace Chat', () => {
