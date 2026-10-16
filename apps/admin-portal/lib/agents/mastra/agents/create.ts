@@ -5,7 +5,7 @@ import { apiFetcherTool } from '@/lib/agents/mastra/tools/api-fetcher';
 import { createDbWriterTool } from '@/lib/agents/mastra/tools/db-writer';
 import { fileParserTool } from '@/lib/agents/mastra/tools/file-parser';
 import { createScraperTool } from '@/lib/agents/mastra/tools/scraper';
-import { sourceScorerTool } from '@/lib/agents/mastra/tools/source-scorer';
+import { createSourceScorerTool } from '@/lib/agents/mastra/tools/source-scorer';
 import { webSearchTool } from '@/lib/agents/mastra/tools/web-search';
 
 interface AgentContext {
@@ -50,7 +50,7 @@ Focus on credible sources. Save every distinct finding — even small data point
       scraper: createScraperTool({ userId: ctx.userId, workspaceId: ctx.workspaceId }),
       apiFetcher: apiFetcherTool,
       saveFinding: createDbWriterTool(ctx),
-      scoreSource: sourceScorerTool,
+      scoreSource: createSourceScorerTool({ userId: ctx.userId, workspaceId: ctx.workspaceId }),
     },
   });
 }
