@@ -56,6 +56,36 @@ function scopeParams(scope: ConversationScope): string {
   return 'scope_type=general';
 }
 
+/**
+ * Moves on whenever the user changes the conversation (send, new chat, clear,
+ * scope change, picking one from history). A background resume that finds it
+ * moved since it started drops its result, so it can't replace a conversation
+ * the user has already started.
+ */
+let conversationGeneration = 0;
+
+type LoadedConversation = Pick<ChatState, 'conversationId' | 'messages' | 'scope'>;
+
+/** A conversation and its messages, as the store holds them; null if it can't be loaded. */
+async function fetchConversation(
+  id: number,
+  fallbackScope: ConversationScope
+): Promise<LoadedConversation | null> {
+  const res = await fetch(`/api/chat/conversations/${id}/messages`);
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const messages: ChatMessage[] = data.messages.map(
+    (m: { role: string; content: string; sources?: Record<string, unknown>[] }) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+      sources: m.sources,
+    })
+  );
+  const conv = data.conversation;
+  return { conversationId: conv.id, messages, scope: conv.scope ?? fallbackScope };
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
   open: false,
   expanded: false,
@@ -101,6 +131,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         scope.knowledgeBaseId !== current.knowledgeBaseId);
 
     if (changed) {
+      conversationGeneration++;
       set({
         scope,
         conversationId: null,
@@ -112,8 +143,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  clear: () => set({ conversationId: null, messages: [], contextTruncated: false }),
-  newChat: () => set({ conversationId: null, messages: [], contextTruncated: false }),
+  clear: () => {
+    conversationGeneration++;
+    set({ conversationId: null, messages: [], contextTruncated: false });
+  },
+  newChat: () => {
+    conversationGeneration++;
+    set({ conversationId: null, messages: [], contextTruncated: false });
+  },
 
   fetchConversations: async () => {
     const { scope } = get();
@@ -130,28 +167,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadConversation: async (id: number) => {
+    conversationGeneration++;
     set({ loading: true });
     try {
-      const res = await fetch(`/api/chat/conversations/${id}/messages`);
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const messages: ChatMessage[] = data.messages.map(
-        (m: { role: string; content: string; sources?: Record<string, unknown>[] }) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          sources: m.sources,
-        })
-      );
-
-      const conv = data.conversation;
-      set({
-        conversationId: conv.id,
-        messages,
-        scope: conv.scope ?? get().scope,
-        contextTruncated: false,
-        historyOpen: false,
-      });
+      const loaded = await fetchConversation(id, get().scope);
+      if (loaded) set({ ...loaded, contextTruncated: false, historyOpen: false });
     } finally {
       set({ loading: false });
     }
@@ -170,13 +190,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   resumeLastConversation: async () => {
+    // In the background: it doesn't set loading (which would block sending),
+    // and it gives up if the user has changed the conversation meanwhile
+    const generation = conversationGeneration;
     const { scope } = get();
     try {
       const res = await fetch(`/api/chat/conversations?${scopeParams(scope)}&limit=1`);
-      if (!res.ok) return;
+      if (!res.ok || generation !== conversationGeneration) return;
       const data = await res.json();
-      if (data.length > 0) {
-        await get().loadConversation(data[0].id);
+      if (data.length === 0 || generation !== conversationGeneration) return;
+      const loaded = await fetchConversation(data[0].id, scope);
+      if (loaded && generation === conversationGeneration) {
+        set({ ...loaded, contextTruncated: false });
       }
     } catch {
       // Silently fail — user just gets a fresh chat
@@ -184,6 +209,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   send: async (message: string) => {
+    conversationGeneration++;
     const { scope, conversationId, messages } = get();
 
     const userMsg: ChatMessage = { role: 'user', content: message };
