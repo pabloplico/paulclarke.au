@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { STUB_CHAT_ANSWER } from '../test/fake-openai/constants';
 
 /**
  * E2E tests for workspace-scoped chat panel.
@@ -6,13 +7,9 @@ import { expect, test } from '@playwright/test';
  * Pre-conditions:
  *  - Dev server running on localhost:3001
  *  - The E2E Test Workspace from auth.setup.ts
- *
- * The E2E run has no AI provider, so a reply never arrives: the test that
- * waits for one is test.fixme.
+ *  - The stub OpenAI server (test/fake-openai), which streams a canned answer
+ *    after half a second
  */
-
-const NEEDS_AI =
-  'Needs an AI provider to reply; the E2E run has none (no fake provider exists for E2E yet)';
 
 const WORKSPACE_SLUG = 'e2e-test-workspace';
 
@@ -46,9 +43,14 @@ test.describe('Workspace Chat', () => {
   });
 
   test('send a message and receive response', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page);
+    // A workspace of its own, so the panel has no earlier conversation to reopen
+    const slug = `e2e-chat-${Date.now()}`;
+    const created = await page.request.post('/api/workspaces', {
+      data: { title: `E2E Chat ${slug}`, slug, templateId: 'client-project' },
+    });
+    expect(created.ok()).toBe(true);
+    await page.goto(`/workspaces/${slug}`);
+    await page.waitForLoadState('networkidle');
 
     // Open chat
     const chatBtn = page.getByRole('button', { name: 'Open chat' });
@@ -56,6 +58,7 @@ test.describe('Workspace Chat', () => {
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
     await expect(input).toBeVisible({ timeout: 3_000 });
+    const panel = page.getByRole('dialog', { name: 'Chat panel' });
 
     // Type a message
     await input.fill('What is the project overview?');
@@ -65,22 +68,18 @@ test.describe('Workspace Chat', () => {
     await sendBtn.click();
 
     // User message should appear
-    await expect(page.getByText('What is the project overview?')).toBeVisible();
+    await expect(panel.getByText('What is the project overview?')).toBeVisible();
 
-    // Loading indicator should appear
-    await expect(page.locator('svg.lucide-loader-2')).toBeVisible({ timeout: 3_000 });
+    // Loading indicator should appear (the stub waits half a second before answering)
+    await expect(panel.getByRole('status', { name: 'Waiting for the answer' })).toBeVisible({
+      timeout: 3_000,
+    });
 
-    // AI response should appear (wait for AI to respond)
-    // Look for any assistant message (the empty state should be gone)
-    await expect(page.getByText('Ask anything about this workspace')).not.toBeVisible({
+    // The streamed answer appears, once, after the question
+    await expect(panel.getByText(STUB_CHAT_ANSWER)).toHaveCount(1, {
       timeout: 30_000,
     });
-
-    // Should have at least 2 messages (user + assistant)
-    const messages = page.locator('[class*="rounded-lg"][class*="border"]').filter({
-      has: page.locator('p, div'),
-    });
-    await expect(messages).toHaveCount(2, { timeout: 30_000 });
+    await expect(page.getByText('Ask anything about this workspace')).not.toBeVisible();
   });
 
   test('clear chat removes messages', async ({ page }) => {

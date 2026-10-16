@@ -375,7 +375,11 @@ export function FloatingChat({ workspaceMap, workspaces, knowledgeBases }: Float
 
               {loading && messages[messages.length - 1]?.content === '' && (
                 <div className="flex justify-start">
-                  <div className="rounded-lg bg-white/[0.03] border border-border px-3 py-2">
+                  <div
+                    role="status"
+                    aria-label="Waiting for the answer"
+                    className="rounded-lg bg-white/[0.03] border border-border px-3 py-2"
+                  >
                     <Loader2 size={14} className="animate-spin text-muted-foreground" />
                   </div>
                 </div>

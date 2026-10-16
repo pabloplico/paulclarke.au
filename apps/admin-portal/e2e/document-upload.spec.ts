@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { SLOW_MARKER } from '../test/fake-openai/constants';
 
 /**
  * E2E tests for document upload and processing workflow.
@@ -8,10 +9,8 @@ import { expect, test } from '@playwright/test';
  * Pre-conditions:
  *  - Dev server running on localhost:3001
  *  - The in-process document-processing worker (it starts with the server)
+ *  - The stub OpenAI server (test/fake-openai) for embeddings and analysis
  */
-
-const NEEDS_AI =
-  'Needs a Ready document: processing calls the embedding model, and the E2E run has no AI provider (no fake provider exists for E2E yet)';
 
 test.describe('Document Upload & Processing', () => {
   test('documents page has upload drop zone', async ({ page }) => {
@@ -51,12 +50,16 @@ test.describe('Document Upload & Processing', () => {
   });
 
   test('uploaded document shows processing status', async ({ page }) => {
-    // A document of its own, still working through its stages (it retries for
-    // a while before failing without an AI provider)
+    // A document of its own, held part-way through processing: the stub
+    // OpenAI server waits 10 s before embedding text with its slow marker
     const name = `e2e-processing-${Date.now()}.md`;
     const res = await page.request.post('/api/documents', {
       multipart: {
-        file: { name, mimeType: 'text/markdown', buffer: Buffer.from('# Stage\n\nText.') },
+        file: {
+          name,
+          mimeType: 'text/markdown',
+          buffer: Buffer.from(`# Stage\n\nText. ${SLOW_MARKER}`),
+        },
       },
     });
     const { id } = await res.json();
@@ -74,9 +77,7 @@ test.describe('Document Upload & Processing', () => {
   });
 
   test('document transitions from processing to ready', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    // Upload via API for reliable test
+    // Upload through the panel
     const testContent = `E2E processing test ${Date.now()}. AI consulting services overview.`;
     const tmpFile = path.join('/tmp', `e2e-proc-test-${Date.now()}.md`);
     fs.writeFileSync(tmpFile, testContent);
@@ -92,21 +93,14 @@ test.describe('Document Upload & Processing', () => {
       await page.locator('input[type="file"]').setInputFiles(tmpFile);
       // The panel's own Upload (submit) button
       await page.locator('form').getByRole('button', { name: 'Upload' }).click();
-      await uploaded;
+      const { id } = await (await uploaded).json();
 
-      // Poll for document to become ready
-      await expect(async () => {
-        const res = await page.request.get('/api/documents');
-        const docs = await res.json();
-        const testDoc = docs.find((d: { originalName: string }) =>
-          d.originalName?.includes('e2e-proc-test')
-        );
-        if (!testDoc) {
-          // Document may not be in list yet
-          return;
-        }
-        expect(['ready', 'processing']).toContain(testDoc.status);
-      }).toPass({ timeout: 30_000 });
+      // Processing finishes: parsed, chunked, embedded and analysed
+      await expect
+        .poll(async () => (await (await page.request.get(`/api/documents/${id}`)).json()).status, {
+          timeout: 45_000,
+        })
+        .toBe('ready');
     } finally {
       fs.unlinkSync(tmpFile);
     }

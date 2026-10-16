@@ -6,14 +6,9 @@ import { expect, test } from '@playwright/test';
  * Pre-conditions:
  *  - Dev server running on localhost:3001
  *  - The in-process document-processing and workspace-routing workers (they start with the server)
- *  - Seeded workspaces exist
- *
- * Both tests wait for AI routing to finish ("routed"). The E2E run has no AI
- * provider, so routing fails: they're test.fixme until it has one.
+ *  - The stub OpenAI server (test/fake-openai), which routes every note to
+ *    the first section of the user's first workspace (Getting Started)
  */
-
-const NEEDS_AI =
-  'Needs an AI provider to route the note; the E2E run has none (no fake provider exists for E2E yet)';
 
 const TEST_NOTE_TITLE = `E2E Test Note ${Date.now()}`;
 const TEST_NOTE_CONTENT = `
@@ -29,8 +24,6 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
   test('full workflow: add note, wait for routing, approve, verify workspace updated', async ({
     page,
   }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     // ── Step 1: Navigate to Inbox and add a note ───────────────────────────
     await page.goto('/inbox');
     await page.waitForLoadState('networkidle');
@@ -155,7 +148,11 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
     await page.waitForLoadState('networkidle');
 
     // The target section should have content (not show empty placeholder)
-    const sectionHeading = page.getByRole('heading', { name: target.sectionTitle });
+    const sectionHeading = page.getByRole('heading', {
+      name: target.sectionTitle,
+      level: 3,
+      exact: true,
+    });
     await expect(sectionHeading).toBeVisible({ timeout: 5_000 });
 
     // Verify no "empty" message is shown for this section
@@ -175,19 +172,21 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
     console.log(`Workspace section "${target.sectionTitle}" has content`);
 
     // ── Step 10: Check version history shows AI Ingest ──────────────────────
-    const historyBtn = sectionContainer.getByRole('button', { name: 'History' });
-    if (await historyBtn.isVisible().catch(() => false)) {
-      await historyBtn.click();
-      await expect(page.getByText('AI Ingest').first()).toBeVisible({ timeout: 5_000 });
-      console.log('Version history shows AI Ingest badge');
-    }
+    await page
+      .locator('main div.rounded-lg.border')
+      .filter({
+        has: page.getByRole('heading', { name: target.sectionTitle, level: 3, exact: true }),
+      })
+      .last()
+      .getByRole('button', { name: 'More actions' })
+      .click();
+    await page.getByRole('menuitem', { name: 'History', exact: true }).click();
+    await expect(page.getByText('AI Ingest').first()).toBeVisible({ timeout: 5_000 });
 
     console.log('PASS: Full inbox workflow verified end-to-end');
   });
 
   test('dismiss removes item from active list', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     await page.goto('/inbox');
     await page.waitForLoadState('networkidle');
 

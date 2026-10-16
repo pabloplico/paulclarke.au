@@ -1,11 +1,11 @@
 # Testing
 
-| Layer         | Tool                                                                | Website                                                              | Admin portal                               |
-| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------ |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)                          |
-| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 18 spec files, on `dev:lite` (no services) |
-| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                                    |
-| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)                   |
+| Layer         | Tool                                                                | Website                                                              | Admin portal                                                             |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)                                                        |
+| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 19 spec files, on `dev:lite` (no services), AI from a stub OpenAI server |
+| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Button and link names only (`e2e/accessibility.spec.ts`)                 |
+| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)                                                 |
 
 CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus three parallel jobs: the website E2E suite, the admin E2E suite (on `dev:lite`, with no services), and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`).
 
@@ -101,7 +101,20 @@ FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… \
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
-These need no services. `playwright.config.ts` targets `http://localhost:3001` and, if nothing is running there, starts `pnpm dev:lite` with sign-in on (`AUTH_ENABLED=true` and a test `AUTH_SECRET`), a fresh PGlite database in `.pglite/e2e` and its own build folder (`.next/e2e`). AI calls go to a closed local port with a fake key, so no provider is ever called: they fail fast. Tests that need an AI result (the AI edit previews, chat replies, inbox routing, Fix with AI, a document reaching Ready) are `test.fixme` with that reason. If you already have `dev:lite` running on 3001, Playwright reuses it, with sign-in off and your data, so stop it first. Selected specs:
+These need no services. `playwright.config.ts` targets `http://localhost:3001` and, if nothing is running there, starts `pnpm dev:lite` with sign-in on (`AUTH_ENABLED=true` and a test `AUTH_SECRET`), a fresh PGlite database in `.pglite/e2e` and its own build folder (`.next/e2e`). AI calls go to a stub of the OpenAI API, `test/fake-openai/server.ts`, which Playwright starts first on port 4010. No provider is ever called.
+
+- **What reaches the stub:** the app talks to it through the real `@ai-sdk/openai` provider and the AI guard, with `AI_MODEL=gpt-4.1-mini` and the default embedding model, both priced, so the guard records their spend.
+- **Its replies:** canned, keyed by a phrase from each call site's prompt (`REPLIES` in `server.ts`):
+  - an edit gets the section's text marked `Revised:`;
+  - routing gets the first section of the user's first workspace;
+  - gap analysis reports one finding per empty section;
+  - Fix with AI on an empty section gets content in that section template's shape;
+  - chat streams a canned answer;
+  - embeddings are the bag-of-words vectors from `test/fake-ai.ts`.
+- **Anything it doesn't recognise:** a 500, which is also recorded. The global teardown (`e2e/global-teardown.ts`) fails the run if there was any, because gap analysis and a few other call sites carry on without AI.
+- **When an AI test fails:** run the stub's own test first, `test/fake-openai/server.test.ts`. It drives the stub through the app's real routing, metadata and embedding code and checks the spend is recorded. If it passes, the app is wrong; if it fails, the stub is. A new AI call site needs a reply added to `REPLIES`.
+
+If you already have `dev:lite` running on 3001, Playwright reuses it, with sign-in off and your data, so stop it first. Selected specs:
 
 | File                           | What it covers                                              |
 | ------------------------------ | ----------------------------------------------------------- |
