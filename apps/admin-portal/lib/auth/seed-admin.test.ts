@@ -49,10 +49,16 @@ describe('seedAdminUser', () => {
     );
   });
 
+  // Seeds its own account first, so it doesn't depend on the test above
+  // (bcrypt at the production cost of 12, hence the longer timeout)
   it('leaves an existing account alone', async () => {
-    const again = await seedAdminUser({ email: 'owner@example.com', password: 'Another-pass-1' });
-    expect(again).toEqual({ email: 'owner@example.com', created: false });
-  });
+    await seedAdminUser({ email: 'existing@example.com', password: 'First-pass-1' });
+    const again = await seedAdminUser({
+      email: 'existing@example.com',
+      password: 'Another-pass-1',
+    });
+    expect(again).toEqual({ email: 'existing@example.com', created: false });
+  }, 20_000);
 
   it('creates new rows as members unless they are seeded admins', async () => {
     const [row] = await db

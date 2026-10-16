@@ -43,11 +43,12 @@ describe('PGlite driver', () => {
   });
 
   it('commits and rolls back transactions', async () => {
-    const [user] = await db
-      .select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, 'driver@example.com'));
-    if (!user) throw new Error('user missing');
+    // Its own user, so it doesn't depend on the test above
+    const [inserted] = await db
+      .insert(adminUsers)
+      .values({ email: 'transactions@example.com', passwordHash: 'x', name: 'Transactions' })
+      .returning();
+    const user = inserted!;
 
     await db.transaction(async (tx) => {
       await tx.insert(adminWorkspaces).values({ slug: 'kept', title: 'Kept', userId: user.id });
@@ -61,9 +62,12 @@ describe('PGlite driver', () => {
       })
     ).rejects.toThrow('roll back');
 
-    const slugs = (await db.select({ slug: adminWorkspaces.slug }).from(adminWorkspaces)).map(
-      (w) => w.slug
-    );
+    const slugs = (
+      await db
+        .select({ slug: adminWorkspaces.slug })
+        .from(adminWorkspaces)
+        .where(eq(adminWorkspaces.userId, user.id))
+    ).map((w) => w.slug);
     expect(slugs).toEqual(['kept']);
   });
 });

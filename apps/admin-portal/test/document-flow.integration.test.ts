@@ -121,7 +121,12 @@ afterAll(async () => {
   }
 });
 
-describe(`inbox flow (${onDevDrivers ? 'Postgres + BullMQ' : 'PGlite + in-process queues'})`, () => {
+const FLOW = `inbox flow (${onDevDrivers ? 'Postgres + BullMQ' : 'PGlite + in-process queues'})`;
+
+// One journey in five steps: each step reads what the one before it made
+// (documentId, inboxItemId, the processed rows), so the steps keep their
+// order even when the run is shuffled (--sequence.shuffle)
+describe(FLOW, { shuffle: false }, () => {
   let documentId = 0;
   let inboxItemId = 0;
 

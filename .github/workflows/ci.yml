@@ -90,6 +90,20 @@ jobs:
         env:
           TEST_REDIS_URL: redis://localhost:6379
 
+      # The same tests in a random order, to catch tests that depend on each
+      # other. Non-blocking for now: a failure shows as a warning on the run.
+      # The seed is printed here and by Vitest ("Running tests with seed"); rerun
+      # locally with: vitest run --sequence.shuffle --sequence.seed=<seed>
+      - name: Unit tests, shuffled (non-blocking)
+        continue-on-error: true
+        run: |
+          SEED=$(( (RANDOM << 15) | RANDOM ))
+          echo "Shuffle seed: $SEED"
+          echo "Shuffle seed: \`$SEED\`" >> "$GITHUB_STEP_SUMMARY"
+          pnpm exec nx "$NX_RUN" -t test -- --sequence.shuffle --sequence.seed="$SEED"
+        env:
+          TEST_REDIS_URL: redis://localhost:6379
+
       # Admin-portal E2E is skipped for now: it needs Postgres and Redis
       - name: Build
         run: pnpm exec nx "$NX_RUN" -t build
