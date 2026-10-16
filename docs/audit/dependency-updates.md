@@ -131,7 +131,7 @@ In order. Each merges before the next starts, so a failure points at one change.
 | 3 | ✅ In-range batch — #45, 2026-10-16; audit 1/32/51/7 → 1/19/48/6, `mammoth`/`xmldom` advisories → 0 | everything in range **except** Mastra, `hono` and Playwright | Low–med | 1 |
 | 3a | ✅ Playwright 1.64 — 2026-10-16 | `playwright` + `@playwright/test` 1.58.2 → 1.64.1 | Low–med | part of 1 |
 | 4 | drizzle 0.45 | `drizzle-orm` 0.44.7 → 0.45.4, `drizzle-kit` 0.31.11 | Low–med | part of 1 |
-| 5 | Mastra 1.78 | `@mastra/core` 1.16 → 1.78 | Med–high | 4 |
+| 5 | ✅ ~~Mastra 1.78~~ Replaced: Mastra removed, the research agents run on the AI SDK's `ToolLoopAgent` — 2026-10-16; audit 1/19/48/6 → 0/1/2/0 | `@mastra/core` removed | — | 4 |
 | 6 | AI SDK 7 | `ai` 6 → 7, `@ai-sdk/*` 3 → 4 | High | 8 |
 | 7 | Small runtime majors | `csv-parse` 6 → 7, `diff` 8 → 9 | Med | 5 (rest) |
 | 8 | pdf-parse 2 (PDF support kept) | `pdf-parse` 1.1.4 → 2.4.5, drop `@types/pdf-parse` | High | 6 |
@@ -200,7 +200,10 @@ In order. Each merges before the next starts, so a failure points at one change.
 - Check that `pnpm with-dev-env pnpm db:generate` (or the `db:check-fresh` drift check) produces **no new migration**, plus the PGlite tests and `test/document-flow.integration.test.ts`.
 - **drizzle 1.0:** don't take the RC. Read its migration guide when 1.0 reaches `latest`, and plan it as its own step.
 
-### 5. Mastra 1.78
+### 5. Mastra 1.78 (replaced, 2026-10-16)
+
+**Done differently:** Mastra was removed instead of upgraded. The three research agents are AI SDK `ToolLoopAgent`s, and the six tools are AI SDK tools built by `lib/agents/define-tool.ts`, which keeps Mastra's input validation. Cancelling is a stop condition (`run-control.ts`), not an abort signal, so a cancelled run still returns what it did. `workers.test.ts` and the tool tests passed unchanged. Below is the original plan, kept for reference.
+
 
 - 62 releases. Read the changelog for `Agent`, `createTool` and `agent.generate` options.
 - Known so far:
@@ -227,6 +230,7 @@ What applies here:
 - **Fake models:** `test/fake-ai.ts` uses `MockLanguageModelV3`/`MockEmbeddingModelV3`. Move to the V4 mocks, or the guard tests pass against the wrong spec. This is a test-infrastructure change, so list it in the PR.
 - **`system` → `instructions`:** deprecated, not removed, at about 12 call sites (`router.ts`, `metadata.ts`, `chunk-analysis.ts`, `suggest-sources.ts`, `gap-to-inbox.ts`, the organise, content-audit, clean and batch routes). The codemod does it.
 - **Google provider rename:** `createGoogleGenerativeAI` → `createGoogle` (`lib/agents/mastra/provider.ts:2`, and wherever else it's imported).
+- **Research agents (since Mastra's removal):** they're `ToolLoopAgent`s (`lib/agents/mastra/agents/create.ts`) with tools from `lib/agents/define-tool.ts`. Check the v7 names for `ToolLoopAgent`, `stopWhen` and the `Tool` type, and that `workers.test.ts` passes unchanged. The three queue workers read `result.totalUsage`: in v6, `usage` is the last step only. If v7 makes `usage` the total and deprecates `totalUsage`, switch back.
 - **ESM-only:** the admin `package.json` has no `"type": "module"`. Check that `next build`, Vitest and the `tsx` scripts (`ai:smoke`, `demo:build-seed`) still load `ai`. Add the field only if needed.
 - **System messages:** these are rejected inside `messages` by default. The chat route sends history as user/assistant rows (`route.ts:211`) and the system prompt separately. The new chat-route test covers it.
 - **Multi-step usage:** `usage` now totals all steps, and `totalUsage` is deprecated. Our `generateObject` calls are single-step, and Mastra runs its own loop. Spend is counted in the guard per model call, so it isn't affected. Check anyway.
