@@ -1,6 +1,8 @@
 {
   "extends": "@repo/typescript-config/vite.json",
   "compilerOptions": {
+    // Lets the tests import scripts/posts.mjs with its JSDoc types (checked by // @ts-check)
+    "allowJs": true,
     "paths": {
       "@/*": ["./src/*"]
     }

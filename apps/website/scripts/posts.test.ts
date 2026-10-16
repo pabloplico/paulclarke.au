@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { parseFrontmatter, readPosts } from './build-posts.mjs';
+import { POSTS_DIR, parseFrontmatter, readPosts } from './posts.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'build-posts-'));
 
@@ -77,10 +77,20 @@ describe('readPosts', () => {
     ]);
   });
 
-  it('reads the published posts with a title, an ISO date and tags', () => {
-    const posts = readPosts();
+  it('uses only text for title, date and excerpt, falling back when one is a list', () => {
+    const own = join(dir, 'lists');
+    mkdirSync(own);
+    writeFileSync(join(own, 'listed.md'), '---\ntitle: [A, B]\nexcerpt: [x]\n---\nBody');
 
-    expect(posts.map((p) => p.slug).sort()).toEqual(['ai-adoption-gap', 'thinking-about-thinking']);
+    expect(readPosts(own)).toMatchObject([{ slug: 'listed', title: 'listed', excerpt: '' }]);
+  });
+
+  it('reads every published post, each with a title, an ISO date and tags', () => {
+    const posts = readPosts();
+    const files = readdirSync(POSTS_DIR).filter((f) => f.endsWith('.md'));
+
+    expect(posts.map((p) => `${p.slug}.md`).sort()).toEqual(files.sort());
+    expect(posts.length).toBeGreaterThan(0);
     for (const p of posts) {
       expect(p.title).not.toBe(p.slug);
       expect(p.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);

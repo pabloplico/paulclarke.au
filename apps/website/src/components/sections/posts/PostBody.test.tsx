@@ -2,16 +2,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { parseFrontmatter, readPosts } from '../../../../scripts/build-posts.mjs';
+import { parseFrontmatter, readPosts } from '../../../../scripts/posts.mjs';
 import { PostBody } from './PostDetail';
 
 /**
- * How the published posts render, so a react-markdown upgrade that changes
- * the output fails here. The fixture covers what posts may use beyond them.
+ * How posts render, so a react-markdown upgrade that changes the output fails
+ * here. Every published post is checked against its own Markdown source, so
+ * editing or adding a post doesn't touch this file. The fixture pins the exact
+ * HTML for what posts may use beyond them.
  */
 
 /** The structure of a rendered post. */
-function outline(content: string) {
+function renderedOutline(content: string) {
   const { container } = render(<PostBody content={content} />);
   const root = container.firstElementChild as HTMLElement;
   return {
@@ -26,54 +28,70 @@ function outline(content: string) {
   };
 }
 
-const post = (slug: string) => {
-  const found = readPosts().find((p) => p.slug === slug);
-  if (!found) throw new Error(`no post ${slug}`);
-  return found.content;
-};
+const BULLET = /^[-*+]\s/;
+const NUMBERED = /^\d+\.\s/;
+
+/** Inline Markdown reduced to its text: [text](url) -> text, emphasis and code marks dropped. */
+const plain = (line: string) => line.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '');
+
+/**
+ * The same structure, read from the Markdown source (CommonMark, as PostBody
+ * renders it). Enough for the posts' own syntax: headings, links, flat lists,
+ * rules and paragraphs. Blank lines between items keep a list together.
+ */
+function sourceOutline(markdown: string) {
+  const headings: string[] = [];
+  const orderedListItems: number[] = [];
+  const unorderedListItems: number[] = [];
+  let paragraphs = 0;
+  let previous: 'ol' | 'ul' | 'other' = 'other';
+
+  for (const block of markdown.trim().split(/\n\s*\n/)) {
+    const lines = block.split('\n');
+    const heading = lines.length === 1 ? lines[0]?.match(/^(#{1,6})\s+(.+)$/) : null;
+    if (heading) {
+      headings.push(`h${heading[1]?.length} ${plain(heading[2] ?? '')}`);
+      previous = 'other';
+    } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(block.trim())) {
+      previous = 'other';
+    } else {
+      // A paragraph, optionally followed by a list that interrupts it
+      const firstItem = lines.findIndex((l) => BULLET.test(l) || NUMBERED.test(l));
+      if (firstItem !== 0) paragraphs++;
+      if (firstItem === -1) {
+        previous = 'other';
+        continue;
+      }
+      const kind = BULLET.test(lines[firstItem] ?? '') ? 'ul' : 'ol';
+      const pattern = kind === 'ul' ? BULLET : NUMBERED;
+      const items = lines.filter((l) => pattern.test(l)).length;
+      const counts = kind === 'ul' ? unorderedListItems : orderedListItems;
+      // A list after a blank line continues the one before it
+      if (previous === kind && firstItem === 0) counts.push((counts.pop() ?? 0) + items);
+      else counts.push(items);
+      previous = kind;
+    }
+  }
+
+  return {
+    headings,
+    links: [...markdown.matchAll(/(?<!!)\[[^\]]*\]\(([^)\s]+)\)/g)].map((m) => m[1]),
+    orderedListItems,
+    unorderedListItems,
+    paragraphs,
+  };
+}
 
 describe('PostBody', () => {
-  it('renders "The AI Adoption Gap"', () => {
-    const rendered = outline(post('ai-adoption-gap'));
+  it.each(
+    readPosts().map((post) => [post.slug, post.content])
+  )('renders %s as its Markdown says', (_slug, content) => {
+    const expected = sourceOutline(content);
+    const { root: _root, ...rendered } = renderedOutline(content);
 
-    expect(rendered.headings).toEqual([
-      'h2 The Numbers Tell a Story',
-      "h2 It's Not a Technology Problem — It's a People Problem",
-      'h2 Industry Patterns Matter',
-      'h2 The Australian Workforce Picture',
-      'h2 Where Government Stands',
-      'h2 The Real Barriers for SMBs',
-      'h2 What Actually Works',
-      'h2 The Window Is Still Open',
-    ]);
-    expect(rendered.links).toEqual([
-      'https://businesschamberqld.com.au/article/queensland-businesses-need-support-to-embrace-ai/',
-      'https://hbr.org/2026/02/why-ai-adoption-stalls-according-to-industry-data',
-      'https://www.jobsandskills.gov.au/studies/generative-artificial-intelligence-capacity-study/industry-data-on-ai-exposure',
-      'https://www.qrida.qld.gov.au/artificial-intelligence-transparency-statement',
-      '/#contact',
-    ]);
-    expect(rendered.orderedListItems).toEqual([]);
-    expect(rendered.unorderedListItems).toEqual([3, 5]);
-    expect(rendered.paragraphs).toBe(27);
-  });
-
-  it('renders "Your AI Tool Isn’t Thinking"', () => {
-    const rendered = outline(post('thinking-about-thinking'));
-
-    expect(rendered.headings).toEqual([
-      'h2 What AI tools are actually doing',
-      'h2 "But it shows its working" — the chain of thought problem',
-      'h2 The information problem',
-      'h2 Where it goes wrong in business settings',
-      'h2 So what is it actually good for?',
-      'h2 Three questions to ask before using AI in your business',
-      'h2 The bottom line',
-    ]);
-    expect(rendered.links).toEqual(['https://linkedin.com/in/georgemontanez']);
-    expect(rendered.orderedListItems).toEqual([3]);
-    expect(rendered.unorderedListItems).toEqual([5, 7]);
-    expect(rendered.paragraphs).toBe(26);
+    expect(expected.headings.length).toBeGreaterThan(0);
+    expect(expected.paragraphs).toBeGreaterThan(0);
+    expect(rendered).toEqual(expected);
   });
 
   it('renders code, quotes and rules; tables, raw HTML and bare URLs stay text (no GFM)', () => {
@@ -82,7 +100,7 @@ describe('PostBody', () => {
       'utf8'
     );
 
-    const { root } = outline(parseFrontmatter(fixture).content);
+    const { root } = renderedOutline(parseFrontmatter(fixture).content);
 
     expect(root.innerHTML).toBe(
       [

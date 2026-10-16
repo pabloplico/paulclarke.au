@@ -27,6 +27,7 @@
       "inputs": [
         "{projectRoot}/content/posts/**/*",
         "{projectRoot}/scripts/build-posts.mjs",
+        "{projectRoot}/scripts/posts.mjs",
         "sharedGlobals"
       ],
       "outputs": ["{projectRoot}/server/posts.generated.ts"]
