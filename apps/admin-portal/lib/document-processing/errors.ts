@@ -35,7 +35,7 @@ export class PermanentProcessingError extends ProcessingError {
 
 /**
  * Error that may resolve on retry (network timeout, rate limit, temporary service outage).
- * Worker should allow BullMQ retry logic.
+ * The worker lets the job queue retry it.
  */
 export class TransientProcessingError extends ProcessingError {
   constructor(message: string, code: string, stage?: string) {

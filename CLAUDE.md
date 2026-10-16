@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Deployment Overview
 
 - **`apps/website`** — Stateless Vite SPA + Hono Worker. No database. Deployed to **Cloudflare Workers** with the Static Assets binding. Domain: `paulclarke.au`.
-- **`apps/admin-portal`** — Next.js + postgres + redis. Deployed via Docker. Optional Playwright for URL scraping.
+- **`apps/admin-portal`** — Next.js + Postgres (or embedded PGlite), single-instance with in-process job queues. Deployed via Docker. Optional Playwright for URL scraping.
 
 ## Production Builds
 
@@ -44,7 +44,7 @@ Next.js uses `output: 'standalone'` — the prod image contains only traced depe
 
 ## Development
 
-Everything runs on the host: Node 22 and pnpm (`corepack enable`). Docker is optional and only provides Postgres, Redis and Ollama for the admin portal's full stack. There is no app container. Run commands from the repo root unless noted.
+Everything runs on the host: Node 22 and pnpm (`corepack enable`). Docker is optional and only provides Postgres and Ollama for the admin portal's full stack. There is no app container. Run commands from the repo root unless noted.
 
 A fresh clone needs one command after `pnpm install`: `pnpm dev` runs `website:dev` and `admin-portal:dev`, which is `dev:lite`.
 
@@ -67,31 +67,29 @@ pnpm nx run admin-portal:dev:lite     # Next.js on 127.0.0.1:3001: PGlite + in-p
 OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo   # Next.js on 3003: demo mode as a visitor sees it
 ```
 
-`dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) needs nothing else installed or running. It sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `QUEUE_DRIVER=memory`, `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
+`dev:lite` (`apps/admin-portal/scripts/dev-lite.ts`) needs nothing else installed or running. It sets `DB_DRIVER=pglite` with the database in `apps/admin-portal/.pglite/data` (gitignored; delete the folder to start again), `UPLOADS_DIR=.pglite/uploads` and `AUTH_ENABLED=false`. On an empty database it creates `dev@localhost.test` with the Getting Started workspace. Variables already set win, so pass `OPENAI_API_KEY`, `AI_PROVIDER` and `AI_MODEL` for AI features; a mismatched AI config is a start-up warning in development, not an error.
 
 `dev:demo` (`scripts/dev-demo.ts`) runs `DEMO_MODE=true` signed in as `DEV_ACCESS_IDENTITY` (default `visitor@example.com`) instead of through Cloudflare Access, on a fresh PGlite database in `.pglite/demo` every start, with OpenAI `gpt-4.1-nano`. The first request seeds that visitor. It needs `OPENAI_API_KEY` (demo mode checks the AI setup at start-up; AI features spend on it). It uses port 3003 and its own build folder (`NEXT_DIST_DIR=.next/demo`), so it can run beside `dev:lite` or `dev:full`, which use `.next/dev`.
 
-**Everything runs under `QUEUE_DRIVER=memory`.** Document processing, workspace routing and the research agents (`lib/agents/`) all run in-process. Research is off in demo mode. The agents have no cron schedules (a run starts only when a user triggers it) and no live log stream (the research toolbar polls the run log in the database). Cancelling a run marks it `cancelled`, and the worker stops the agent after the step in progress. On boot, `lib/queue/recover.ts` marks runs a restart cut off as `failed` ("interrupted by restart") rather than running them again. Feeds, backups, cron schedules and the Redis live log are at the `full-stack-v1` tag.
-
-`RATE_LIMIT_DRIVER=redis` needs `QUEUE_DRIVER=bullmq`.
+**Single-instance by design.** Every dev server, and production, runs one Node process. Document processing, workspace routing and the research agents (`lib/agents/`) all run on the in-process job queue (`lib/queue/`), and rate limits are counted per process. Queued jobs are lost on restart; on boot, `lib/queue/recover.ts` re-queues unfinished documents and inbox items and fails interrupted agent runs. Research is off in demo mode. The agents have no cron schedules (a run starts only when a user triggers it) and no live log stream (the research toolbar polls the run log in the database). Cancelling a run marks it `cancelled`, and the worker stops the agent after the step in progress. On boot, `lib/queue/recover.ts` marks runs a restart cut off as `failed` ("interrupted by restart") rather than running them again. Redis, BullMQ, feeds, backups, cron schedules and the live log stream are at the `full-stack-v1` tag.
 
 ### Admin portal: full stack (`dev:full`)
 
-Postgres 15 + pgvector and Redis 7, with the BullMQ workers. Start the services-only compose stack (or use native Postgres 15 with pgvector and Redis 7 on the same ports), then run the app on the host:
+The same app as `dev:lite`, on Postgres 15 + pgvector instead of PGlite, with sign-in on. Start the services-only compose stack (or use a native Postgres 15 with pgvector on the same port), then run the app on the host:
 
 ```bash
 cp .env.docker.example .env.docker          # once; fill in section 1
 cd apps/admin-portal
 export COMPOSE_ENV_FILES=../../.env.docker  # once per shell: compose reads its ${VARS} from here
-docker compose up -d                        # Postgres on 5432, Redis on 6379
+docker compose up -d                        # Postgres on 5432
 docker compose --profile ai up -d           # also Ollama on 11434
 docker compose down                         # stop (data stays in the volumes)
 
 pnpm with-dev-env pnpm db:migrate           # first time, and after new migrations
-pnpm nx run admin-portal:dev:full           # Next.js on 3001 against Postgres + Redis
+pnpm nx run admin-portal:dev:full           # Next.js on 3001 against Postgres
 ```
 
-`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` and `REDIS_URL` for localhost (from `POSTGRES_*` and `REDIS_PASSWORD`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` and `REDIS_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001 --hostname ${DEV_HOST:-127.0.0.1}`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it.
+`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` for localhost (from `POSTGRES_*`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001 --hostname ${DEV_HOST:-127.0.0.1}`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it.
 
 Host requirements for the full stack: `pnpm exec playwright install chromium` (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) for URL scraping.
 
@@ -146,18 +144,15 @@ pnpm with-dev-env pnpm db:migrate                # then later migrations
 
 ### Environment variables
 
-The website needs none. The admin portal's settings live in **`.env.docker`** (root of repo, gitignored; the name predates host development). Copy `.env.docker.example` to `.env.docker` to set up. Two things read it: Docker Compose, for the `${POSTGRES_PASSWORD}` and `${REDIS_PASSWORD}` that set up the service containers (export `COMPOSE_ENV_FILES=../../.env.docker` in `apps/admin-portal` first, or every `docker compose` command there fails with "required variable POSTGRES_PASSWORD is missing a value"), and `with-dev-env` / `dev:full` on the host. `dev:lite` and `dev:demo` don't read it: they take their settings from the shell. Do **not** create `.env` or `.env.local` files in app directories: Next.js would load them into every command, builds included.
+The website needs none. The admin portal's settings live in **`.env.docker`** (root of repo, gitignored; the name predates host development). Copy `.env.docker.example` to `.env.docker` to set up. Two things read it: Docker Compose, for the `${POSTGRES_PASSWORD}` that sets up the database container (export `COMPOSE_ENV_FILES=../../.env.docker` in `apps/admin-portal` first, or every `docker compose` command there fails with "required variable POSTGRES_PASSWORD is missing a value"), and `with-dev-env` / `dev:full` on the host. `dev:lite` and `dev:demo` don't read it: they take their settings from the shell. Do **not** create `.env` or `.env.local` files in app directories: Next.js would load them into every command, builds included.
 
 Key vars (see `.env.docker.example` for full list):
 - `DATABASE_URL` — Postgres connection string; `with-dev-env` builds it for localhost from the `POSTGRES_*` values
-- `REDIS_URL` — Redis connection string; `with-dev-env` builds it for localhost from `REDIS_PASSWORD`
 - `AI_PROVIDER` — `openai` (default), `anthropic` or `gemini`
 - `AI_MODEL` — Model ID (default `gpt-4.1-mini`; the demo uses `gpt-4.1-nano`). Spend only counts towards the daily caps for models priced in `lib/ai/pricing.ts`
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — API keys for chosen provider
 - `AUTH_SECRET` — JWT signing secret for session auth (required for login/signup to work; if unset, middleware skips auth)
 - `DB_DRIVER` — `postgres` (default, `DATABASE_URL`) or `pglite` (embedded Postgres in the Node process; in memory, or in `PGLITE_DATA_DIR`; `PGLITE_SNAPSHOT` seeds a new database from a `dumpDataDir()` tarball)
-- `QUEUE_DRIVER` — `bullmq` (default, `REDIS_URL`) or `memory` (in-process queues; nothing connects to Redis)
-- `RATE_LIMIT_DRIVER` — `memory` (default, per process) or `redis` (shared; needs `QUEUE_DRIVER=bullmq`)
 - `DEMO_MODE`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `DEV_ACCESS_IDENTITY` — demo mode and Cloudflare Access (see Demo mode below)
 - `AI_MAX_OUTPUT_TOKENS`, `AI_DAILY_BUDGET_USD`, `AI_USER_DAILY_BUDGET_USD`, `AI_USER_REQUESTS`, `AI_USER_WINDOW_MINUTES` — AI cost controls (see `.env.docker.example`)
 
@@ -170,7 +165,6 @@ Key vars (see `.env.docker.example` for full list):
 | Admin Portal (`dev`/`dev:lite` or `dev:full`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3001 |
 | Admin Portal (demo mode, `dev:demo`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3003 |
 | PostgreSQL 15 (pgvector) | admin-portal | `admin-portal-dev-postgres` | 5432 |
-| Redis 7 | admin-portal | `admin-portal-dev-redis` | 6379 |
 | Ollama (optional, `--profile ai`) | admin-portal | `admin-portal-dev-ollama` | 11434 |
 
 DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` in `.env.docker`.
@@ -192,7 +186,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 | App | Framework | Production | Dev | Role |
 |-----|-----------|-----------|-----|------|
 | `apps/website` | Vite SPA + Hono Worker | Cloudflare Workers (paulclarke.au) | Host (Vite 3004, wrangler 3005) | Developer portfolio: projects, assessment demo, writing |
-| `apps/admin-portal` | Next.js 16 | Docker | Host (port 3001); Postgres + Redis optionally in Docker | Internal: workspace knowledge management, document processing, inbox routing, gap analysis |
+| `apps/admin-portal` | Next.js 16 | Docker | Host (port 3001); Postgres optionally in Docker | Internal: workspace knowledge management, document processing, inbox routing, gap analysis |
 
 ### Packages
 
@@ -218,7 +212,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Demo seed** — each Access visitor is seeded on first sign-in, in the same transaction as their user row (`findOrCreateAccessUser` → `lib/demo-seed/seed.ts`): Getting Started plus a fictional Cairns bakery (Harbourside Bakery) with workspaces and version history, clients, jobs, todos, a processed and routed inbox document and saved gap reports. Hand-written content is in `lib/demo-seed/content.ts`; the AI-made parts are in `generated.json`, built once by `pnpm demo:build-seed` (paid: it runs the real pipeline with `OPENAI_API_KEY`; re-run it after changing the content and commit the result). Sample files for visitors to upload are in `public/demo/`. A visitor can have 20 documents of their own on top of the seeded one (`lib/document-processing/demo-upload-limit.ts`, counted from the database).
 - **Onboarding** — New users get a "Getting Started" workspace seeded on signup (`lib/onboarding/seed-default-workspace.ts`) with example sections for each template type. Guide page at `/guide` explains all features.
 - **Workspaces** — Structured knowledge base with typed sections (prose, cards, table, checklist, kv-pairs). Version history per section. Tables prefixed `admin_*`. Pages live under `app/(authenticated)/` route group.
-- **Inbox** — File upload drop zone → document processing pipeline (PDF/DOCX/CSV/MD parsing, chunking, embedding) → AI-powered workspace routing via BullMQ workers.
+- **Inbox** — File upload drop zone → document processing pipeline (PDF/DOCX/CSV/MD parsing, chunking, embedding) → AI-powered workspace routing, on the in-process job queue.
 - **AI Editing** — Inline text selection → floating toolbar → AI rewrite → diff preview → accept/reject.
 - **Gap Analysis** — Rule-based + AI checks for missing content, health badges, "Fix with AI".
 - **RAG Search** — pgvector embeddings (1536d via OpenAI `text-embedding-3-small`), vector similarity search.
@@ -227,11 +221,11 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 ### Infrastructure
 
 - **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal. `DB_DRIVER=pglite` swaps in PGlite (Postgres compiled to WASM, with pgvector) for the single-instance demo; `lib/db/index.ts` is the one place the client is created, lazily, so `next build` never connects.
-- **Queue**: BullMQ + Redis for the admin-portal workers. Document processing and workspace routing sit behind the `JobQueue` interface (`lib/queue/`), with an in-process implementation for `QUEUE_DRIVER=memory`; the three research-agent queues (`lib/agents/queue/`) use it too. Feeds, backups, agent cron schedules and the live run-log stream were removed (the full version is at the `full-stack-v1` tag); their tables (`admin_feeds`, `admin_feed_items`) and the `'feed'` document source stay for existing databases. `lib/redis.ts` is the only place that opens Redis connections, on first use, and it throws when Redis is off.
+- **Queue**: in-process. Document processing, workspace routing and the three research-agent queues (`lib/agents/queue/`) use the `JobQueue` interface (`lib/queue/`), whose one implementation is `InProcessQueue`; the interface stays as the test seam (`lib/queue/contract.test.ts`). Rate limits are in memory too (`lib/rate-limit/`). The app is single-instance by design: queued jobs are lost on restart, and boot recovery (`lib/queue/recover.ts`) re-queues documents and inbox items and fails interrupted agent runs. Redis, BullMQ, feeds, backups, agent cron schedules and the live run-log stream were removed (the full version is at the `full-stack-v1` tag); the feed tables (`admin_feeds`, `admin_feed_items`) and the `'feed'` document source stay for existing databases.
 - **AI**: Vercel AI SDK (`ai@^6`, 6.0.x installed) with configurable provider (Anthropic, OpenAI, Gemini or Ollama) for admin-portal. Mastra (`@mastra/core`) drives the research agents.
 - **Storage**: Local filesystem (`./uploads/`) via `StorageProvider` abstraction (admin-portal only).
 - **Cloudflare Workers**: Website deployed as a single Worker with the Static Assets binding. No backend services — contact uses `mailto:`, assessment results download as PDF via `window.print()`.
-- **Docker**: Admin-portal production image only (`Dockerfile`, `node:22-alpine`). In development, `apps/admin-portal/docker-compose.yml` is a services-only stack (Postgres, Redis, optional Ollama); the apps run on the host. The website has no container: production is `wrangler deploy`.
+- **Docker**: Admin-portal production image only (`Dockerfile`, `node:22-alpine`). In development, `apps/admin-portal/docker-compose.yml` is a services-only stack (Postgres, optional Ollama); the apps run on the host. The website has no container: production is `wrangler deploy`.
 
 ## Code Style & Conventions
 

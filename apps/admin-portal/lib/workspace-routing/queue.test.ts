@@ -15,8 +15,6 @@ vi.mock('@/lib/config', () => ({
       routing: {
         attempts: 3,
         backoffDelay: 5000,
-        removeOnComplete: 100,
-        removeOnFail: 50,
       },
     },
   },
@@ -76,8 +74,6 @@ describe('queueRouting', () => {
     expect(createJobQueue).toHaveBeenCalledWith('workspace-routing', {
       attempts: 3,
       backoffDelayMs: 5000,
-      removeOnComplete: 100,
-      removeOnFail: 50,
     });
   });
 });

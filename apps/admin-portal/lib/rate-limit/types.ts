@@ -1,7 +1,7 @@
 /**
- * Sliding-window rate limiter. Implementations: in-memory (per process; the
- * default, and correct for a single instance) and Redis (shared across
- * instances). lib/rate-limit/contract.test.ts runs the same tests on both.
+ * Sliding-window rate limiter. Its one implementation is in-memory, counted
+ * per process, which is correct for a single instance.
+ * lib/rate-limit/contract.test.ts holds the behaviour it must have.
  */
 export interface RateLimitResult {
   allowed: boolean;

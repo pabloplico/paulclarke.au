@@ -7,8 +7,7 @@ import { expect, test } from '@playwright/test';
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - BullMQ workers running (document-processing)
- *  - Redis available
+ *  - The in-process document-processing worker (it starts with the server)
  */
 
 test.describe('Document Upload & Processing', () => {

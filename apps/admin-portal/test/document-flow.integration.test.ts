@@ -8,26 +8,22 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
  * workers and database: upload -> parse -> chunk -> embed -> analyse ->
  * route, then search.
  *
- * Default: PGlite + in-process queues, no services, so it runs in CI.
- * FLOW_DRIVERS=postgres runs the same flow on the dev setup instead,
- * Postgres + BullMQ, against TEST_DATABASE_URL (an empty, throwaway
- * database) and TEST_REDIS_URL.
+ * Default: PGlite, no services, so it runs in CI. FLOW_DRIVERS=postgres runs
+ * the same flow on Postgres instead, against TEST_DATABASE_URL (an empty,
+ * throwaway database). Jobs run in-process either way.
  *
  * Only two things are faked: the AI models (test/fake-ai.ts, deterministic
  * and offline) and the signed-in user (cookies don't exist here).
  */
 const onDevDrivers = process.env.FLOW_DRIVERS === 'postgres';
 if (onDevDrivers) {
-  if (!process.env.TEST_DATABASE_URL || !process.env.TEST_REDIS_URL) {
-    throw new Error('FLOW_DRIVERS=postgres needs TEST_DATABASE_URL and TEST_REDIS_URL');
+  if (!process.env.TEST_DATABASE_URL) {
+    throw new Error('FLOW_DRIVERS=postgres needs TEST_DATABASE_URL');
   }
   process.env.DB_DRIVER = 'postgres';
-  process.env.QUEUE_DRIVER = 'bullmq';
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
-  process.env.REDIS_URL = process.env.TEST_REDIS_URL;
 } else {
   process.env.DB_DRIVER = 'pglite';
-  process.env.QUEUE_DRIVER = 'memory';
   delete process.env.PGLITE_DATA_DIR;
   delete process.env.PGLITE_SNAPSHOT;
 }
@@ -112,16 +108,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   rmSync(uploadsDir, { recursive: true, force: true });
-  if (onDevDrivers) {
-    const { closeRedis } = await import('@/lib/redis');
-    await closeRedis();
-  } else {
+  if (!onDevDrivers) {
     const { getPglite } = await import('@/lib/db/pglite');
     await getPglite().close();
   }
 });
 
-const FLOW = `inbox flow (${onDevDrivers ? 'Postgres + BullMQ' : 'PGlite + in-process queues'})`;
+const FLOW = `inbox flow (${onDevDrivers ? 'Postgres' : 'PGlite'})`;
 
 // One journey in five steps: each step reads what the one before it made
 // (documentId, inboxItemId, the processed rows), so the steps keep their

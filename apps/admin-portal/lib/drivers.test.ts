@@ -1,50 +1,26 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { dbDriver, queueDriver, rateLimitDriver, redisEnabled } from './drivers';
+import { dbDriver } from './drivers';
 
-const saved = {
-  DB_DRIVER: process.env.DB_DRIVER,
-  QUEUE_DRIVER: process.env.QUEUE_DRIVER,
-  RATE_LIMIT_DRIVER: process.env.RATE_LIMIT_DRIVER,
-};
+const saved = process.env.DB_DRIVER;
 
 afterEach(() => {
-  for (const [key, value] of Object.entries(saved)) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
+  if (saved === undefined) delete process.env.DB_DRIVER;
+  else process.env.DB_DRIVER = saved;
 });
 
 describe('drivers', () => {
-  it('defaults to the dev setup: Postgres and BullMQ', () => {
+  it('defaults to Postgres', () => {
     delete process.env.DB_DRIVER;
-    delete process.env.QUEUE_DRIVER;
     expect(dbDriver()).toBe('postgres');
-    expect(queueDriver()).toBe('bullmq');
-    expect(redisEnabled()).toBe(true);
   });
 
-  it('reads the demo setup: PGlite and in-memory queues, with Redis off', () => {
+  it('reads PGlite', () => {
     process.env.DB_DRIVER = 'pglite';
-    process.env.QUEUE_DRIVER = 'memory';
     expect(dbDriver()).toBe('pglite');
-    expect(queueDriver()).toBe('memory');
-    expect(redisEnabled()).toBe(false);
   });
 
   it('throws on an unknown value instead of falling back', () => {
     process.env.DB_DRIVER = 'sqlite';
     expect(() => dbDriver()).toThrow('DB_DRIVER=sqlite is not supported');
-    process.env.QUEUE_DRIVER = 'Memory';
-    expect(() => queueDriver()).toThrow('QUEUE_DRIVER=Memory is not supported');
-  });
-
-  it('counts rate limits in memory unless told to use Redis, which needs Redis on', () => {
-    delete process.env.QUEUE_DRIVER;
-    delete process.env.RATE_LIMIT_DRIVER;
-    expect(rateLimitDriver()).toBe('memory');
-    process.env.RATE_LIMIT_DRIVER = 'redis';
-    expect(rateLimitDriver()).toBe('redis');
-    process.env.QUEUE_DRIVER = 'memory';
-    expect(() => rateLimitDriver()).toThrow('RATE_LIMIT_DRIVER=redis needs Redis');
   });
 });

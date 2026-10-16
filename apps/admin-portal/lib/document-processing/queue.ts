@@ -8,8 +8,6 @@ const cfg = config.queue.documentProcessing;
 export const documentQueue = createJobQueue<DocumentJob>('document-processing', {
   attempts: cfg.attempts,
   backoffDelayMs: cfg.backoffDelay,
-  removeOnComplete: cfg.removeOnComplete,
-  removeOnFail: cfg.removeOnFail,
 });
 
 /**

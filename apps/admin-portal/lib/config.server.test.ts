@@ -50,15 +50,11 @@ vi.mock('@/lib/config', async (importOriginal) => {
         documentProcessing: {
           attempts: 3,
           backoffDelay: 1000,
-          removeOnComplete: 100,
-          removeOnFail: 200,
           concurrency: 2,
         },
         routing: {
           attempts: 2,
           backoffDelay: 1000,
-          removeOnComplete: 100,
-          removeOnFail: 200,
           concurrency: 1,
         },
       },

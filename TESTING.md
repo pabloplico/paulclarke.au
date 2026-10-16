@@ -1,13 +1,13 @@
 # Testing
 
-| Layer         | Tool                                                                | Website                                                              | Admin portal                          |
-| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)                     |
-| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 20 spec files, needs Postgres + Redis |
-| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                               |
-| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)              |
+| Layer         | Tool                                                                | Website                                                              | Admin portal                  |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------- |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)             |
+| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 18 spec files, needs Postgres |
+| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                       |
+| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)      |
 
-CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus two parallel jobs: the website E2E suite, and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`). The unit-test step has a Redis service so the BullMQ and Redis contract runs (below) execute too. Admin-portal E2E isn't in CI yet because it needs database services.
+CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus two parallel jobs: the website E2E suite, and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`). Admin-portal E2E isn't in CI yet because it needs database services.
 
 ## Quick start
 
@@ -68,27 +68,20 @@ Co-located with their source files. Pure-function tests need no mocking; modules
 
 ### Drivers: contract and integration tests
 
-The admin portal runs on two sets of backends: Postgres + BullMQ + Redis (dev, the default) and PGlite + in-process queues (the single-instance demo). These tests keep the two interchangeable:
+The admin portal runs on Postgres (dev, the default) or PGlite (the single-instance demo), with in-process job queues and rate limits on both. These tests cover the seams:
 
-| File                                     | What it covers                                                                                                                                                                       |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `lib/queue/contract.test.ts`             | One behaviour suite for both `JobQueue` drivers: data and attempt numbers, retries with backoff, giving up, `discard()`, job-id deduplication, concurrency, `drained()`, `close()`   |
-| `lib/rate-limit/contract.test.ts`        | One suite for both `RateLimiter` drivers: limits, separate keys, the sliding window, reset                                                                                           |
-| `lib/db/pglite.test.ts`                  | The real PGlite driver built from `drizzle/`, through the lazy `db` proxy: query builder, `db.query`, transactions                                                                   |
-| `lib/queue/recover.test.ts`              | On boot with in-process queues, interrupted documents and inbox items are queued again, and finished ones aren't                                                                     |
-| `lib/redis-free.test.ts`                 | With PGlite + in-process queues, importing the modules that used to connect to Redis, and booting through `instrumentation.ts`, never constructs a Redis connection or BullMQ object |
-| `test/document-flow.integration.test.ts` | The inbox flow through the real route handlers, workers and database: upload, parse, chunk, embed, analyse, route, then search                                                       |
+| File                                     | What it covers                                                                                                                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/queue/contract.test.ts`             | What any `JobQueue` must do, run on `InProcessQueue`: data and attempt numbers, retries with backoff, giving up, `discard()`, job-id deduplication, concurrency, `drained()`, `close()` |
+| `lib/rate-limit/contract.test.ts`        | What any `RateLimiter` must do, run on the memory limiter: limits, separate keys, the sliding window, reset                                                                             |
+| `lib/db/pglite.test.ts`                  | The real PGlite driver built from `drizzle/`, through the lazy `db` proxy: query builder, `db.query`, transactions                                                                      |
+| `lib/queue/recover.test.ts`              | On boot, interrupted documents and inbox items are queued again, finished ones aren't, and interrupted agent runs are marked failed                                                     |
+| `test/document-flow.integration.test.ts` | The inbox flow through the real route handlers, workers and database: upload, parse, chunk, embed, analyse, route, then search                                                          |
 
-The memory runs always happen. The BullMQ and Redis runs need a Redis to talk to, and are skipped (shown as skipped) without one:
-
-```bash
-TEST_REDIS_URL=redis://localhost:6379 pnpm --filter admin-portal test
-```
-
-The integration test fakes only the AI models and the signed-in user. `test/fake-ai.ts` has a deterministic bag-of-words embedding and a chat model that answers `generateObject` with the smallest object the requested JSON schema allows; tests inject them with `vi.mock('@/lib/ai/models')`, so the app has no fake provider to select. By default the test runs on PGlite with in-process queues. To run the same flow on the dev backends, point it at an empty throwaway database:
+The integration test fakes only the AI models and the signed-in user. `test/fake-ai.ts` has a deterministic bag-of-words embedding and a chat model that answers `generateObject` with the smallest object the requested JSON schema allows; tests inject them with `vi.mock('@/lib/ai/models')`, so the app has no fake provider to select. By default the test runs on PGlite. To run the same flow on Postgres, point it at an empty throwaway database:
 
 ```bash
-FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… TEST_REDIS_URL=redis://… \
+FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… \
   pnpm --filter admin-portal exec vitest run test/document-flow.integration.test.ts
 ```
 
@@ -108,7 +101,7 @@ FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… TEST_REDIS_URL=redis://�
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
-These need the admin portal's full stack: Postgres and Redis (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`, or native services) and `.env.docker`. `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev:full` on the host if nothing is running. Selected specs:
+These need the admin portal's full stack: Postgres (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`, or a native Postgres) and `.env.docker`. `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev:full` on the host if nothing is running. Selected specs:
 
 | File                           | What it covers                                              |
 | ------------------------------ | ----------------------------------------------------------- |

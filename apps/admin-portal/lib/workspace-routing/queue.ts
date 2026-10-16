@@ -7,8 +7,6 @@ const cfg = config.queue.routing;
 export const routingQueue = createJobQueue<RoutingJobData>('workspace-routing', {
   attempts: cfg.attempts,
   backoffDelayMs: cfg.backoffDelay,
-  removeOnComplete: cfg.removeOnComplete,
-  removeOnFail: cfg.removeOnFail,
 });
 
 /**

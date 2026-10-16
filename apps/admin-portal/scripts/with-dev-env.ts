@@ -6,9 +6,9 @@
  *   pnpm with-dev-env pnpm db:migrate           (any command, from apps/admin-portal)
  *
  * - Reads ../../.env.docker. Anything already set in the environment wins.
- * - Fills in what the old app container set for itself: DATABASE_URL and
- *   REDIS_URL from the POSTGRES_* and REDIS_PASSWORD values, OLLAMA_URL, and
- *   OPENAI_API_KEY from ADMIN_PORTAL_OPENAI_API_KEY.
+ * - Fills in what the old app container set for itself: DATABASE_URL from
+ *   the POSTGRES_* values, OLLAMA_URL, and OPENAI_API_KEY from
+ *   ADMIN_PORTAL_OPENAI_API_KEY.
  * - Only for local commands: lint, check-types, test and build never need it,
  *   and CI has no .env.docker.
  */
@@ -27,10 +27,8 @@ const env = process.env;
 const user = env.POSTGRES_USER || 'business_portal';
 const database = env.POSTGRES_DB || 'business_portal';
 const pgPassword = encodeURIComponent(env.POSTGRES_PASSWORD ?? '');
-const redisPassword = encodeURIComponent(env.REDIS_PASSWORD ?? '');
 
 env.DATABASE_URL ??= `postgresql://${user}:${pgPassword}@localhost:5432/${database}`;
-env.REDIS_URL ??= `redis://:${redisPassword}@localhost:6379`;
 env.OLLAMA_URL ??= 'http://localhost:11434';
 if (env.ADMIN_PORTAL_OPENAI_API_KEY) env.OPENAI_API_KEY ??= env.ADMIN_PORTAL_OPENAI_API_KEY;
 

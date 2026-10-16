@@ -23,7 +23,6 @@ const defaults: Record<string, string> = {
   DEMO_MODE: 'true',
   DEV_ACCESS_IDENTITY: 'visitor@example.com',
   DB_DRIVER: 'pglite',
-  QUEUE_DRIVER: 'memory',
   AI_PROVIDER: 'openai',
   AI_MODEL: 'gpt-4.1-nano',
   // Its own build folder: next dev locks .next/dev, and the Docker dev server uses that

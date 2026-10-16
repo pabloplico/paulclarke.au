@@ -36,7 +36,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // The full stack on the host: .env.docker against Postgres + Redis (see CLAUDE.md)
+    // The full stack on the host: .env.docker against Postgres (see CLAUDE.md)
     command: 'pnpm dev:full',
     url: baseURL,
     reuseExistingServer: !process.env.CI,

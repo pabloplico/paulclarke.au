@@ -1,6 +1,6 @@
 /**
- * Registers the agent queue processors on the JobQueue seam (in-process or
- * BullMQ, per QUEUE_DRIVER). Called once on boot from
+ * Registers the agent queue processors on the in-process JobQueue. Called
+ * once on boot from
  * lib/instrumentation-node.ts, except in demo mode, where research is off.
  * There are no cron schedules: a run starts only when a user triggers it.
  */

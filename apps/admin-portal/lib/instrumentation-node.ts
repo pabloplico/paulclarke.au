@@ -14,13 +14,13 @@ export async function registerNode(): Promise<void> {
     process.exit(1);
   }
 
-  const { dbDriver, redisEnabled } = await import('./drivers');
+  const { dbDriver } = await import('./drivers');
   if (dbDriver() === 'pglite') {
     const { ensurePgliteReady } = await import('./db/pglite');
     await ensurePgliteReady();
   }
 
-  // On the JobQueue seam: BullMQ or in-process, per QUEUE_DRIVER
+  // On the in-process JobQueue
   await import('./document-processing/worker');
   await import('./workspace-routing/worker');
 
@@ -32,9 +32,7 @@ export async function registerNode(): Promise<void> {
     startAgentQueues();
   }
 
-  if (!redisEnabled()) {
-    // In-process jobs don't survive a restart; pick up what was interrupted
-    const { recoverInterruptedJobs } = await import('./queue/recover');
-    await recoverInterruptedJobs();
-  }
+  // In-process jobs don't survive a restart; pick up what was interrupted
+  const { recoverInterruptedJobs } = await import('./queue/recover');
+  await recoverInterruptedJobs();
 }

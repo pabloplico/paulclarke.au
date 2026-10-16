@@ -1,12 +1,12 @@
 # =============================================================================
-# Admin Portal — development services (Postgres, Redis, optional Ollama)
+# Admin Portal — development services (Postgres, optional Ollama)
 # =============================================================================
 # The app itself runs on the host (see CLAUDE.md). This stack is only needed for
-# the full setup: Postgres + pgvector and Redis for the BullMQ workers.
+# the full setup: Postgres + pgvector.
 #
 # Usage (from apps/admin-portal):
 #   export COMPOSE_ENV_FILES=../../.env.docker   # compose reads its ${VARS} here
-#   docker compose up -d                         # Postgres 5432 + Redis 6379
+#   docker compose up -d                         # Postgres 5432
 #   docker compose --profile ai up -d            # also Ollama on 11434
 #   docker compose down                          # stop (data stays in volumes)
 #
@@ -38,23 +38,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: admin-portal-dev-redis
-    restart: unless-stopped
-    mem_limit: 256m
-    memswap_limit: 256m
-    command: redis-server --requirepass ${REDIS_PASSWORD:?Redis password required}
-    ports:
-      - '127.0.0.1:6379:6379'
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   ollama:
     image: ollama/ollama:latest
     container_name: admin-portal-dev-ollama
@@ -68,5 +51,4 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   ollama_data:

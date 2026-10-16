@@ -12,8 +12,6 @@ vi.mock('@/lib/config', () => ({
       documentProcessing: {
         attempts: 3,
         backoffDelay: 5000,
-        removeOnComplete: 100,
-        removeOnFail: 50,
       },
     },
   },

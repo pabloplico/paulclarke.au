@@ -1,5 +1,5 @@
 /**
- * Local development with nothing else running: no Docker, Postgres or Redis.
+ * Local development with nothing else running: no Docker or Postgres.
  *
  *   pnpm nx run admin-portal:dev:lite     (or pnpm dev:lite in apps/admin-portal)
  *
@@ -8,7 +8,6 @@
  *
  * - The database is PGlite, kept in apps/admin-portal/.pglite between runs
  *   (delete the folder to start again). Uploads go in .pglite/uploads.
- * - Jobs run in-process (QUEUE_DRIVER=memory).
  * - Sign-in is off (AUTH_ENABLED=false): you're the first user, which this
  *   script creates on an empty database, with the onboarding workspace.
  * - Anything already set in the environment wins, so you can still pass
@@ -21,7 +20,6 @@ const defaults: Record<string, string> = {
   DB_DRIVER: 'pglite',
   PGLITE_DATA_DIR: join(process.cwd(), '.pglite', 'data'),
   UPLOADS_DIR: join(process.cwd(), '.pglite', 'uploads'),
-  QUEUE_DRIVER: 'memory',
   AUTH_ENABLED: 'false',
 };
 for (const [key, value] of Object.entries(defaults)) process.env[key] ??= value;

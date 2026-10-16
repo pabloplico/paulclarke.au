@@ -706,7 +706,7 @@ describe('document processing worker', () => {
       const processor = capturedProcessor.current as (job: unknown) => Promise<void>;
       await processor(makeJobWithDiscard(1));
 
-      // force=true gives each run a unique BullMQ job id, so reprocessing a
+      // force=true gives each run a unique job id, so reprocessing a
       // document re-routes its inbox item instead of being deduplicated
       expect(queueRouting).toHaveBeenCalledWith(99, true);
     });

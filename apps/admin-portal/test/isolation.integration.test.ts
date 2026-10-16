@@ -13,7 +13,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
  * user and the AI models are faked.
  */
 process.env.DB_DRIVER = 'pglite';
-process.env.QUEUE_DRIVER = 'memory';
 process.env.NEXT_RUNTIME = 'nodejs';
 delete process.env.PGLITE_DATA_DIR;
 delete process.env.PGLITE_SNAPSHOT;
