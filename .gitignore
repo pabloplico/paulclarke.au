@@ -50,9 +50,6 @@ uploads/
 # Docker volumes
 docker/data/
 
-# Research documents (PDFs, summaries)
-docs/
-
 # Playwright MCP screenshots
 .playwright-mcp/
 
@@ -73,3 +70,6 @@ docs/
 # Next.js 16.4+ writes this when `next dev` runs under an AI coding agent
 # (managed agent rules). Not committed: CLAUDE.md is the repo's agent guide
 /apps/admin-portal/AGENTS.md
+
+# Local-only notes kept beside the tracked docs (e.g. docs/audit/role-fit.local.md)
+*.local.md
