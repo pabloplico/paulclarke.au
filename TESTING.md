@@ -178,3 +178,45 @@ afterEach(() => {
   process.env = { ...originalEnv };
 });
 ```
+
+## Protected tests
+
+These guard money, data or security. Their assertions change only with Paul's explicit sign-off in the PR, never to get an upgrade or refactor green. A PR that changes an assertion, removes a case, adds a mock or adds a skip in one of them says so in its description and asks for review. Add new money, data-loss or security invariants here when they're written.
+
+| Test                                                                                                          | Guards                                                            |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `apps/admin-portal/lib/ai/allowance-coverage.test.ts`                                                         | Every API route that can start AI work calls `requireAiAllowance` |
+| `apps/admin-portal/lib/ai/guard.test.ts`                                                                      | Token caps and spend accounting                                   |
+| `apps/admin-portal/lib/ai/pricing.test.ts`                                                                    | Cost calculation per model                                        |
+| `db:check-fresh` (`apps/admin-portal/scripts/db/check-fresh-db.ts` + `expected-schema.ts`; CI job "Admin DB") | Migrations build a fresh database and match the schema            |
+
+## Full-gate changes
+
+For the changes CLAUDE.md "Change tiers" calls full gate: dependency upgrades, protected tests, sign-in or middleware, the AI spend guard or pricing, the job queue, upload validation and the Dockerfile.
+
+**Rules:**
+
+- Branch from an up-to-date `main`, one commit per logical change (conventional commits), draft PR with `gh`, and wait for Paul to merge.
+- **Never weaken a test to get a change through:** no `skip`/`todo`, loosened assertions, extra mocks or deleted cases. If a test fails, either the code needs migrating or the test checked an implementation detail that legitimately changed. Say which in the PR, and list every test change with one line on why.
+- No `--force`, `pnpm.overrides`, `resolutions`, `@ts-ignore`/`@ts-expect-error` or new `biome-ignore` to get green, and no overrides to silence `pnpm audit`. If one is truly needed, stop and ask.
+- Don't hand-edit `pnpm-lock.yaml`: change ranges, then `pnpm install`.
+- For an upgrade, read the release notes or migration guide of every version in between **before** changing code, and list the breaking changes that affect this repo in the PR.
+- Resolve the peer-dependency warnings from `pnpm install`, or explain in the PR why they're harmless.
+- Touch only what the change names. Note other problems in the PR; don't fix them.
+
+**The gate** (paste the summary into the PR, and say plainly what was skipped):
+
+```bash
+pnpm install                 # read the peer-dependency warnings
+pnpm audit --prod            # before and after counts, for an upgrade
+pnpm lint
+pnpm check-types
+pnpm test                    # and once shuffled: pnpm --filter <app> exec vitest run --sequence.shuffle
+pnpm build
+pnpm --filter admin-portal db:check-fresh
+pnpm -s test:diff            # read the test diff before opening the PR
+# only when the Dockerfile itself changes:
+docker build -t admin-portal -f apps/admin-portal/Dockerfile .
+```
+
+E2E isn't run locally: CI's admin and website E2E jobs run on every PR and are the check. Run a suite locally only to debug a CI failure, once, with `--workers=2`.

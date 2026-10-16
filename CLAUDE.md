@@ -252,7 +252,7 @@ Tests are the spec. Changing one changes what the code is promised to do, so tes
 
 Scale the process to the risk. Decide the tier before starting, and say which in the first line of the PR.
 
-**Full gate.** Dependency upgrades; anything touching a protected test (test guide §3, `docs/audit/test-guide.md`), sign-in or middleware, the AI spend guard or pricing, the job queue, upload validation, or the Dockerfile. Follow "Rules for every agent" and "The gate" in `docs/audit/dependency-updates.md`. Open a draft PR and wait for Paul to merge.
+**Full gate.** Dependency upgrades; anything touching a protected test (TESTING.md "Protected tests"), sign-in or middleware, the AI spend guard or pricing, the job queue, upload validation, or the Dockerfile. Follow the rules and the gate in TESTING.md "Full-gate changes". Open a draft PR and wait for Paul to merge.
 
 **E2E, either tier:** don't run the E2E suites locally. CI's admin and website E2E jobs are the check, on every PR. Run one locally only to debug a CI failure, once, with `--workers=2`. Skip the Docker build unless the Dockerfile itself changes.
 
