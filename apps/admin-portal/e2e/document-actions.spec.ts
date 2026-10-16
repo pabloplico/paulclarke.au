@@ -3,16 +3,13 @@ import { expect, type Page, test } from '@playwright/test';
 /**
  * E2E tests for document actions in the list and on the detail page.
  *
- * Each test uploads its own document. The E2E run has no AI provider, so
- * processing fails at the embedding step and the document ends up in Error,
- * never Ready: actions only offered for Ready documents are test.fixme.
+ * Each test uploads its own document. Processing runs against the stub
+ * OpenAI server (test/fake-openai), so a document reaches Ready; tests of
+ * actions offered only for Ready documents wait for that first.
  */
 
-const NEEDS_AI =
-  'Needs a Ready document: processing calls the embedding model, and the E2E run has no AI provider (no fake provider exists for E2E yet)';
-
 /** Uploads a small Markdown document through the API and returns it. */
-async function uploadDocument(page: Page, status?: 'error') {
+async function uploadDocument(page: Page, status?: 'ready') {
   const name = `e2e-doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.md`;
   const res = await page.request.post('/api/documents', {
     multipart: {
@@ -22,7 +19,7 @@ async function uploadDocument(page: Page, status?: 'error') {
   expect(res.status()).toBe(202);
   const doc: { id: number } = await res.json();
   if (status) {
-    // Processing retries, then gives up without an AI provider
+    // Processing runs against the stub OpenAI server
     await expect
       .poll(
         async () => (await (await page.request.get(`/api/documents/${doc.id}`)).json()).status,
@@ -47,23 +44,6 @@ async function rowAction(page: Page, name: string, action: string) {
   await page.getByRole('button', { name: action, exact: true }).click();
 }
 
-/** Opens the menu of the first document listed. */
-async function openFirstRowMenu(page: Page) {
-  const first = page.locator('a[href^="/documents/"]').first();
-  await expect(first).toBeVisible();
-  await first
-    .locator('..')
-    .getByRole('button', { name: /^Actions for / })
-    .click();
-}
-
-/** The detail page of the first Ready document. */
-async function gotoReadyDocDetail(page: Page) {
-  await gotoDocuments(page, 'Ready');
-  await page.locator('a[href^="/documents/"]').first().click();
-  await expect(page).toHaveURL(/\/documents\/\d+$/);
-}
-
 async function gotoDocuments(page: Page, tab = 'All') {
   await page.goto('/documents');
   await page.waitForLoadState('networkidle');
@@ -83,11 +63,12 @@ test.describe('Document Actions', () => {
   });
 
   test('three-dot dropdown shows all actions for ready document', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
+    const { name } = await uploadDocument(page, 'ready');
     await gotoDocuments(page, 'Ready');
 
-    await openFirstRowMenu(page);
+    await row(page, name)
+      .getByRole('button', { name: /^Actions for / })
+      .click();
 
     for (const action of ['Archive', 'Reprocess', 'Re-clean text', 'AI clean-up', 'Delete']) {
       await expect(page.getByRole('button', { name: action, exact: true })).toBeVisible();
@@ -129,12 +110,10 @@ test.describe('Document Actions', () => {
   });
 
   test('re-clean document from list dropdown', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
+    const { name } = await uploadDocument(page, 'ready');
     await gotoDocuments(page, 'Ready');
-    await openFirstRowMenu(page);
 
-    await page.getByRole('button', { name: 'Re-clean text' }).click();
+    await rowAction(page, name, 'Re-clean text');
 
     await expect(page.getByText('Text re-cleaned')).toBeVisible({ timeout: 10_000 });
   });
@@ -153,9 +132,9 @@ test.describe('Document Actions', () => {
   });
 
   test('detail page shows all action buttons for ready doc', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await gotoReadyDocDetail(page);
+    const { id } = await uploadDocument(page, 'ready');
+    await page.goto(`/documents/${id}`);
+    await page.waitForLoadState('networkidle');
 
     const main = page.locator('main');
     await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
@@ -181,9 +160,9 @@ test.describe('Document Actions', () => {
   });
 
   test('re-clean from detail page', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await gotoReadyDocDetail(page);
+    const { id } = await uploadDocument(page, 'ready');
+    await page.goto(`/documents/${id}`);
+    await page.waitForLoadState('networkidle');
 
     await page.getByRole('button', { name: 'Re-clean' }).click();
 
@@ -191,8 +170,8 @@ test.describe('Document Actions', () => {
   });
 
   test('reprocess from detail page', async ({ page }) => {
-    // Reprocess is offered once processing has stopped (here: failed)
-    const { id } = await uploadDocument(page, 'error');
+    // Reprocess is offered once processing has stopped (here: finished)
+    const { id } = await uploadDocument(page, 'ready');
     await page.goto(`/documents/${id}`);
     await page.waitForLoadState('networkidle');
 

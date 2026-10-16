@@ -7,15 +7,12 @@ import { expect, type Page, test } from '@playwright/test';
  * Pre-conditions:
  *  - Dev server running on localhost:3001
  *  - The E2E Test Workspace from auth.setup.ts (its "Project Overview" prose section)
- *
- * The E2E run has no AI provider, so every test that waits for an AI result
- * is test.fixme. Opening the AI menu needs no model and is tested for real.
+ *  - The stub OpenAI server (test/fake-openai), which answers an edit with
+ *    the section's content marked "Revised:"
  */
 
 const WORKSPACE_SLUG = 'e2e-test-workspace';
 const SECTION = 'Project Overview';
-const NEEDS_AI =
-  'Needs an AI provider for the diff preview; the E2E run has none (no fake provider exists for E2E yet)';
 
 async function goToWorkspace(page: Page) {
   await page.goto(`/workspaces/${WORKSPACE_SLUG}`);
@@ -45,8 +42,6 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('rewrite action shows diff preview with accept/reject', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
 
@@ -57,8 +52,6 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('reject AI edit discards changes', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
     await page.getByRole('button', { name: 'Simplify', exact: true }).click();
@@ -71,8 +64,6 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('accept AI edit saves new version', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
     await page.getByRole('button', { name: 'Expand', exact: true }).click();
@@ -94,8 +85,6 @@ test.describe('AI Inline Editing', () => {
   });
 
   test('custom AI action with prompt', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
     await openAiActions(page);
 

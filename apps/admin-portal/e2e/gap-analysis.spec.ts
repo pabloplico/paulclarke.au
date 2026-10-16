@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+import { STUB_GAP_ISSUE, STUB_TEMPLATE_CONTENT } from '../test/fake-openai/constants';
 
 /**
  * E2E tests for gap analysis + "Fix with AI" flow.
@@ -6,33 +7,85 @@ import { expect, test } from '@playwright/test';
  * Pre-conditions:
  *  - Dev server running on localhost:3001
  *  - The Getting Started workspace every new account gets
+ *  - The stub OpenAI server (test/fake-openai): its gap analysis reports one
+ *    finding per empty section, and Fix with AI on an empty section gets
+ *    content in that section template's shape
  *
- * Gap analysis runs its rule-based checks without AI. Its AI checks and
- * "Fix with AI" need a model, and the E2E run has none, so those tests are
- * test.fixme. Their bodies also need seeded workspaces (services-offerings,
- * ai-agent-frameworks) that a fresh E2E database doesn't have.
+ * Each Fix with AI test makes a workspace of its own with one empty section
+ * of each type, since fixing one changes it.
  */
 
-const NEEDS_AI =
-  'Needs an AI provider (AI findings and Fix with AI) and the seeded demo workspaces; the E2E run has neither (no fake provider exists for E2E yet)';
+const GAP_SECTIONS = [
+  { title: 'Summary', template: 'prose' },
+  { title: 'Sources & References', template: 'table' },
+  { title: 'Key Findings', template: 'cards' },
+  { title: 'Open Questions', template: 'checklist' },
+] as const;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function goToWorkspace(page: import('@playwright/test').Page, slug: string) {
+async function goToWorkspace(page: Page, slug: string) {
   await page.goto(`/workspaces/${slug}`);
   await page.waitForLoadState('networkidle');
 }
 
-async function runGapAnalysis(page: import('@playwright/test').Page) {
+/** A workspace of its own with the empty GAP_SECTIONS, opened. */
+async function goToNewGapWorkspace(page: Page) {
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const res = await page.request.post('/api/workspaces', {
+    data: {
+      title: `E2E Gaps ${unique}`,
+      slug: `e2e-gaps-${unique}`,
+      templateId: 'custom',
+      customSections: GAP_SECTIONS,
+    },
+  });
+  expect(res.ok()).toBe(true);
+  await goToWorkspace(page, `e2e-gaps-${unique}`);
+}
+
+async function runGapAnalysis(page: Page) {
   // "Run Analysis" the first time; after that, the refresh button in the gap panel
   await page
     .getByRole('button', { name: 'Run Analysis' })
     .or(page.getByRole('button', { name: 'Run analysis again' }))
     .first()
     .click();
+  // The panel's "N gaps" heading (sections show "N gap" badges too) or the healthy bar
   await expect(
-    page.getByText(/gaps? found/).or(page.getByText('All sections healthy'))
+    page
+      .getByText(/^\d+ gaps?$/)
+      .or(page.getByText('All sections healthy'))
+      .first()
   ).toBeVisible({ timeout: 30_000 });
+}
+
+/** A section's stub finding in the (expanded) gap panel: the section title, then the issue. */
+const finding = (page: Page, sectionTitle: string) =>
+  page
+    .locator('div.rounded.border')
+    .filter({ has: page.getByRole('button', { name: `${sectionTitle} — ${STUB_GAP_ISSUE}` }) });
+
+/** A section's card on the workspace page. */
+const section = (page: Page, title: string) =>
+  page
+    .locator('main div.rounded-lg.border')
+    .filter({ has: page.getByRole('heading', { name: title, level: 3, exact: true }) })
+    .last();
+
+/** Fix with AI on a section's finding, then waits for the preview. */
+async function fixWithAi(page: Page, sectionTitle: string) {
+  await finding(page, sectionTitle).getByRole('button', { name: 'Fix', exact: true }).click();
+  await expect(page.getByText(`AI Fix Preview — ${sectionTitle}`)).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
+/** Fix with AI on a section, then Accept. */
+async function fixAndAccept(page: Page, sectionTitle: string) {
+  await fixWithAi(page, sectionTitle);
+  await page.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect(page.getByText(/^AI Fix Preview/)).not.toBeVisible();
 }
 
 // ── Gap Analysis Tests ─────────────────────────────────────────────────────
@@ -59,25 +112,18 @@ test.describe('Gap Analysis - Content Detection', () => {
   test('all AI-generated findings have Fix with AI buttons (sectionId matched)', async ({
     page,
   }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'ai-agent-frameworks');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    // Count findings and fix buttons
-    const findingCards = page.locator('[class*="rounded-lg"][class*="border-border"]').filter({
-      has: page.locator('text=/high|medium|low/'),
-    });
-    const findingCount = await findingCards.count();
-    const fixButtons = page.getByRole('button', { name: 'Fix with AI' });
-    const fixButtonCount = await fixButtons.count();
-
-    console.log(`Findings: ${findingCount}, Fix buttons: ${fixButtonCount}`);
-
-    // Most findings should have Fix with AI buttons (some AI findings may not match a section)
-    expect(fixButtonCount).toBeGreaterThan(0);
-    // Allow some findings without buttons (e.g. AI-generated findings that didn't match a section name)
-    expect(fixButtonCount).toBeGreaterThanOrEqual(Math.floor(findingCount * 0.5));
+    // One AI finding per empty section, each matched to its section, so it can be fixed
+    await expect(page.getByRole('button', { name: STUB_GAP_ISSUE })).toHaveCount(
+      GAP_SECTIONS.length
+    );
+    for (const { title } of GAP_SECTIONS) {
+      await expect(
+        finding(page, title).getByRole('button', { name: 'Fix', exact: true })
+      ).toBeVisible();
+    }
   });
 });
 
@@ -85,83 +131,42 @@ test.describe('Gap Analysis - Content Detection', () => {
 
 test.describe('Fix with AI - Prose', () => {
   test('shows diff preview, accept saves new version', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'services-offerings');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    // Find the Delivery Process or Core Services finding
-    const finding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: 'Delivery Process' });
+    await fixWithAi(page, 'Summary');
+    await expect(page.getByRole('button', { name: 'Accept', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reject', exact: true })).toBeVisible();
 
-    await expect(finding).toBeVisible();
+    await page.getByRole('button', { name: 'Accept', exact: true }).click();
+    await expect(page.getByText(/^AI Fix Preview/)).not.toBeVisible();
 
-    await finding.getByRole('button', { name: 'Fix with AI' }).click();
-
-    // Should show loading state
-    await expect(page.getByText('Generating...')).toBeVisible();
-
-    // Should show diff preview
-    await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: 'Accept' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Reject' })).toBeVisible();
-
-    // Accept
-    await page.getByRole('button', { name: 'Accept' }).click();
-    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
-
-    // Check version history
-    await page.getByRole('button', { name: 'History' }).last().click();
+    // The new version is recorded as an AI gap fill
+    await section(page, 'Summary').getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'History', exact: true }).click();
     await expect(page.getByText('AI Gap Fill').first()).toBeVisible({ timeout: 5_000 });
   });
 
   test('reject discards changes', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'services-offerings');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    const finding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: /Core Services|Delivery Process/ })
-      .first();
+    await fixWithAi(page, 'Summary');
+    await page.getByRole('button', { name: 'Reject', exact: true }).click();
 
-    await expect(finding).toBeVisible();
-
-    await finding.getByRole('button', { name: 'Fix with AI' }).click();
-    await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
-
-    await page.getByRole('button', { name: 'Reject' }).click();
-    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
+    await expect(page.getByText(/^AI Fix Preview/)).not.toBeVisible();
+    await expect(section(page, 'Summary').getByText(/^No content yet/)).toBeVisible();
   });
 
   test('generates content for empty prose section', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'ai-agent-frameworks');
-
-    // Summary section should be empty (or may have content from earlier test run)
+    await goToNewGapWorkspace(page);
+    await expect(section(page, 'Summary').getByText(/^No content yet/)).toBeVisible();
     await runGapAnalysis(page);
 
-    const summaryFinding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: 'Summary' })
-      .first();
+    await fixAndAccept(page, 'Summary');
 
-    await expect(summaryFinding).toBeVisible();
-
-    await summaryFinding.getByRole('button', { name: 'Fix with AI' }).click();
-    await expect(page.getByText('AI Fix Preview — Summary')).toBeVisible({ timeout: 30_000 });
-
-    await page.getByRole('button', { name: 'Accept' }).click();
-    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
-
-    // Summary section should no longer show "No content yet"
-    const summaryCard = page.locator('[class*="space-y-3"]').filter({
-      has: page.getByRole('heading', { name: 'Summary', exact: true }),
-    });
-    await expect(summaryCard.getByText('No content yet')).not.toBeVisible();
+    await expect(section(page, 'Summary').getByText(/^No content yet/)).not.toBeVisible();
+    await expect(section(page, 'Summary')).toContainText(STUB_TEMPLATE_CONTENT.prose ?? '');
   });
 });
 
@@ -169,78 +174,38 @@ test.describe('Fix with AI - Prose', () => {
 
 test.describe('Fix with AI - Structured Sections', () => {
   test('table section: generates data that renders as a table, not empty', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'ai-agent-frameworks');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    // Find Sources & References (table) finding
-    const tableFinding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: 'Sources & References' })
-      .first();
+    await fixAndAccept(page, 'Sources & References');
 
-    await expect(tableFinding).toBeVisible();
-
-    await tableFinding.getByRole('button', { name: 'Fix with AI' }).click();
-    await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Accept' }).click();
-
-    // The table section should render data, not "No table data yet"
-    const tableSection = page.locator('[class*="space-y-3"]').filter({
-      has: page.getByRole('heading', { name: 'Sources & References' }),
-    });
-    await expect(tableSection.locator('table')).toBeVisible();
-    await expect(tableSection.getByText('No table data yet')).not.toBeVisible();
+    const table = section(page, 'Sources & References');
+    await expect(table.locator('table')).toBeVisible();
+    await expect(table.getByRole('cell', { name: 'Generated row' })).toBeVisible();
+    await expect(table.getByText(/^No table data yet/)).not.toBeVisible();
   });
 
   test('cards section: generates data that renders as cards, not empty', async ({ page }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'ai-agent-frameworks');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    const cardsFinding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: 'Key Findings' })
-      .first();
+    await fixAndAccept(page, 'Key Findings');
 
-    await expect(cardsFinding).toBeVisible();
-
-    await cardsFinding.getByRole('button', { name: 'Fix with AI' }).click();
-    await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Accept' }).click();
-
-    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
-    const cardsSection = page.locator('[class*="space-y-3"]').filter({
-      has: page.getByRole('heading', { name: 'Key Findings' }),
-    });
-    await expect(cardsSection.getByText('No cards yet')).not.toBeVisible();
+    const cards = section(page, 'Key Findings');
+    await expect(cards.getByText('Generated card')).toBeVisible();
+    await expect(cards.getByText(/^No cards yet/)).not.toBeVisible();
   });
 
   test('checklist section: generates data that renders as checklist items, not empty', async ({
     page,
   }) => {
-    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
-    test.fixme(true, NEEDS_AI);
-    await goToWorkspace(page, 'ai-agent-frameworks');
+    await goToNewGapWorkspace(page);
     await runGapAnalysis(page);
 
-    const checklistFinding = page
-      .locator('[class*="rounded-lg"][class*="border-border"]')
-      .filter({ hasText: 'Open Questions' })
-      .first();
+    await fixAndAccept(page, 'Open Questions');
 
-    await expect(checklistFinding).toBeVisible();
-
-    await checklistFinding.getByRole('button', { name: 'Fix with AI' }).click();
-    await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Accept' }).click();
-
-    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
-    const checklistSection = page.locator('[class*="space-y-3"]').filter({
-      has: page.getByRole('heading', { name: 'Open Questions' }),
-    });
-    await expect(checklistSection.getByText('No checklist items yet')).not.toBeVisible();
+    const checklist = section(page, 'Open Questions');
+    await expect(checklist.getByText('Generated item', { exact: true })).toBeVisible();
+    await expect(checklist.getByText(/^No checklist items yet/)).not.toBeVisible();
   });
 });
