@@ -127,7 +127,7 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
 
     // Click logout button in header
-    const logoutBtn = page.locator('button').filter({ has: page.locator('svg.lucide-log-out') });
+    const logoutBtn = page.getByRole('button', { name: 'Sign out' });
     await expect(logoutBtn).toBeVisible();
     await logoutBtn.click();
 

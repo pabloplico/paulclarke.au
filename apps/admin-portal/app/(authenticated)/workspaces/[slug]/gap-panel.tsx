@@ -444,6 +444,7 @@ export const GapPanel = forwardRef<GapPanelHandle, GapPanelProps>(function GapPa
             size="sm"
             onClick={runAnalysis}
             disabled={running}
+            aria-label="Run analysis again"
             className="h-6 w-6 p-0 text-muted-foreground"
           >
             {running ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}

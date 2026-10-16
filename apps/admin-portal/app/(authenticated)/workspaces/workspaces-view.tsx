@@ -153,6 +153,9 @@ function WorkspaceContextMenu({
           setOpen((v) => !v);
         }}
         className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+        aria-label={`Actions for ${ws.title}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <MoreVertical size={14} className="text-muted-foreground" />
       </button>

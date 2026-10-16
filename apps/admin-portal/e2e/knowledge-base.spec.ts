@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * E2E tests for knowledge base management.
@@ -10,14 +10,6 @@ import { expect, type Page, test } from '@playwright/test';
  */
 
 const KB_NAME = `E2E Test KB ${Date.now()}`;
-
-/** The knowledge base's card on the list. */
-const kbCard = (page: Page) =>
-  page
-    .locator('main div')
-    .filter({ has: page.getByRole('heading', { name: KB_NAME, level: 3, exact: true }) })
-    .filter({ has: page.locator('button svg.lucide-trash-2') })
-    .last();
 
 test.describe('Knowledge Base', () => {
   test.describe.configure({ mode: 'serial' });
@@ -58,8 +50,7 @@ test.describe('Knowledge Base', () => {
     await page.goto('/knowledge-base');
     await page.waitForLoadState('networkidle');
 
-    // The card's delete button has only a trash icon, no accessible name
-    await kbCard(page).locator('button:has(svg.lucide-trash-2)').click();
+    await page.getByRole('button', { name: `Delete ${KB_NAME}`, exact: true }).click();
 
     await expect(page.getByText(`${KB_NAME} deleted`)).toBeVisible();
     await page.reload();

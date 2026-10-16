@@ -121,6 +121,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
                 <button
                   type="button"
                   className="text-muted-foreground hover:text-foreground"
+                  aria-label="Remove file"
                   onClick={(e) => {
                     e.stopPropagation();
                     setFile(null);

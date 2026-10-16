@@ -6,6 +6,7 @@ catalog:
   '@ai-sdk/anthropic': ^3.0.0
   '@ai-sdk/google': ^3.0.0
   '@ai-sdk/openai': ^3.0.0
+  '@axe-core/playwright': ^4.13.0
   '@biomejs/biome': ^2.4.4
   '@playwright/test': ^1.58.2
   '@tailwindcss/postcss': ^4.1.18

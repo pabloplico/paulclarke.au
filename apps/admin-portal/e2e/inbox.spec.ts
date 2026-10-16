@@ -34,18 +34,17 @@ test.describe('Inbox', () => {
     const title = `E2E dismiss ${Date.now()}`;
     await addNote(page, title);
 
-    // The item's dismiss button has only an X icon, no accessible name
     const item = page
       .locator('main div')
       .filter({ has: page.getByRole('heading', { name: title, level: 4 }) })
-      .filter({ has: page.locator('button svg.lucide-x') })
+      .filter({ has: page.getByRole('button', { name: 'Dismiss' }) })
       .last();
     const dismissed = page.waitForResponse(
       (res) => res.url().includes('/dismiss') && res.request().method() === 'POST'
     );
-    await item.locator('button:has(svg.lucide-x)').click();
+    await item.getByRole('button', { name: 'Dismiss' }).click();
 
     expect((await dismissed).ok()).toBe(true);
-    await expect(item.locator('button:has(svg.lucide-x)')).toHaveCount(0);
+    await expect(item.getByRole('button', { name: 'Dismiss' })).toHaveCount(0);
   });
 });

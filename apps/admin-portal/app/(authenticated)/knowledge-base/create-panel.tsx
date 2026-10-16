@@ -10,15 +10,15 @@ import type { KnowledgeBaseWithStats } from '@/lib/types';
 import { useKnowledgeBaseStore } from './store';
 
 const COLOR_PRESETS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#06b6d4',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-];
+  { value: '#ef4444', name: 'Red' },
+  { value: '#f97316', name: 'Orange' },
+  { value: '#eab308', name: 'Yellow' },
+  { value: '#22c55e', name: 'Green' },
+  { value: '#06b6d4', name: 'Cyan' },
+  { value: '#3b82f6', name: 'Blue' },
+  { value: '#8b5cf6', name: 'Violet' },
+  { value: '#ec4899', name: 'Pink' },
+] as const;
 
 interface CreatePanelProps {
   onCreated: (kb: KnowledgeBaseWithStats) => void;
@@ -27,7 +27,7 @@ interface CreatePanelProps {
 export function CreatePanel({ onCreated }: CreatePanelProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState(COLOR_PRESETS[5]);
+  const [color, setColor] = useState<string>(COLOR_PRESETS[5].value);
   const [saving, setSaving] = useState(false);
   const toggleCreate = useKnowledgeBaseStore((s) => s.toggleCreate);
 
@@ -83,13 +83,15 @@ export function CreatePanel({ onCreated }: CreatePanelProps) {
             <span className="text-xs text-muted-foreground">Colour:</span>
             {COLOR_PRESETS.map((c) => (
               <button
-                key={c}
+                key={c.value}
                 type="button"
+                aria-label={c.name}
+                aria-pressed={color === c.value}
                 className={`h-6 w-6 rounded-full transition-all ${
-                  color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''
+                  color === c.value ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''
                 }`}
-                style={{ backgroundColor: c }}
-                onClick={() => setColor(c)}
+                style={{ backgroundColor: c.value }}
+                onClick={() => setColor(c.value)}
               />
             ))}
           </div>

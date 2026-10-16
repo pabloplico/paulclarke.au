@@ -44,6 +44,7 @@ export function KbCard({ kb, onDelete }: KbCardProps) {
         variant="ghost"
         size="sm"
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+        aria-label={`Delete ${kb.name}`}
         onClick={(e) => {
           e.preventDefault();
           onDelete(kb.id, kb.name);

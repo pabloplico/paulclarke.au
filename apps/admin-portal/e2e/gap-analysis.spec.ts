@@ -27,7 +27,7 @@ async function runGapAnalysis(page: import('@playwright/test').Page) {
   // "Run Analysis" the first time; after that, the refresh button in the gap panel
   await page
     .getByRole('button', { name: 'Run Analysis' })
-    .or(page.locator('button:has(svg.lucide-refresh-cw)'))
+    .or(page.getByRole('button', { name: 'Run analysis again' }))
     .first()
     .click();
   await expect(

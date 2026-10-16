@@ -330,7 +330,7 @@ export function DocumentsView({ initialDocuments, knowledgeBases }: DocumentsVie
             value={typeFilter ?? 'all'}
             onValueChange={(v) => setTypeFilter(v === 'all' ? null : v)}
           >
-            <SelectTrigger className="h-8 w-auto px-2 text-xs">
+            <SelectTrigger className="h-8 w-auto px-2 text-xs" aria-label="Document type">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
@@ -347,7 +347,7 @@ export function DocumentsView({ initialDocuments, knowledgeBases }: DocumentsVie
               value={selectedKbId != null ? String(selectedKbId) : 'all'}
               onValueChange={(v) => setSelectedKbId(v === 'all' ? null : Number(v))}
             >
-              <SelectTrigger className="h-8 w-auto px-2 text-xs">
+              <SelectTrigger className="h-8 w-auto px-2 text-xs" aria-label="Knowledge base">
                 <SelectValue placeholder="All Knowledge Bases" />
               </SelectTrigger>
               <SelectContent>
@@ -501,6 +501,7 @@ export function DocumentsView({ initialDocuments, knowledgeBases }: DocumentsVie
                   size="sm"
                   className="h-6 px-1.5 text-[11px] text-muted-foreground"
                   onClick={clearSelection}
+                  aria-label="Clear selection"
                 >
                   <X className="h-3 w-3" />
                 </Button>

@@ -60,6 +60,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",

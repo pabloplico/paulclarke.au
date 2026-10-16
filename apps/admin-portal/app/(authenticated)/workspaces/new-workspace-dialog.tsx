@@ -127,6 +127,7 @@ export function NewWorkspaceDialog({ onClose, categories = [] }: NewWorkspaceDia
           variant="ghost"
           size="sm"
           onClick={onClose}
+          aria-label="Close"
           className="h-6 w-6 p-0 text-muted-foreground"
         >
           <X size={12} />
@@ -228,7 +229,7 @@ export function NewWorkspaceDialog({ onClose, categories = [] }: NewWorkspaceDia
                   value={marketType}
                   onValueChange={(v) => setMarketType(v as 'b2b' | 'b2c' | 'both')}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs" aria-label="Market type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -285,7 +286,10 @@ export function NewWorkspaceDialog({ onClose, categories = [] }: NewWorkspaceDia
                       setCustomSections(next);
                     }}
                   >
-                    <SelectTrigger className="h-8 w-auto min-w-[100px] px-2 text-xs">
+                    <SelectTrigger
+                      className="h-8 w-auto min-w-[100px] px-2 text-xs"
+                      aria-label="Section type"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -300,6 +304,7 @@ export function NewWorkspaceDialog({ onClose, categories = [] }: NewWorkspaceDia
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${s.title || 'section'}`}
                     onClick={() => setCustomSections(customSections.filter((_, j) => j !== i))}
                   >
                     <Trash2 size={12} />

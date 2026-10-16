@@ -193,6 +193,9 @@ export function DocumentActions({ doc }: DocumentActionsProps) {
         variant="ghost"
         size="sm"
         className="h-7 w-7 p-0"
+        aria-label={`Actions for ${doc.title}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();

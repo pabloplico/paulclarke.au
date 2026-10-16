@@ -41,7 +41,9 @@ function row(page: Page, name: string) {
 }
 
 async function rowAction(page: Page, name: string, action: string) {
-  await row(page, name).getByRole('button').first().click();
+  await row(page, name)
+    .getByRole('button', { name: /^Actions for / })
+    .click();
   await page.getByRole('button', { name: action, exact: true }).click();
 }
 
@@ -49,7 +51,10 @@ async function rowAction(page: Page, name: string, action: string) {
 async function openFirstRowMenu(page: Page) {
   const first = page.locator('a[href^="/documents/"]').first();
   await expect(first).toBeVisible();
-  await first.locator('..').getByRole('button').first().click();
+  await first
+    .locator('..')
+    .getByRole('button', { name: /^Actions for / })
+    .click();
 }
 
 /** The detail page of the first Ready document. */
