@@ -30,7 +30,7 @@
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-markdown": "^9.1.0",
+    "react-markdown": "catalog:",
     "tailwind-merge": "catalog:"
   },
   "devDependencies": {
