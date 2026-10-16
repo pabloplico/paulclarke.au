@@ -1,100 +1,57 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * E2E tests for workspace export functionality.
+ * E2E tests for workspace export.
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - Seeded workspaces exist
+ *  - The E2E Test Workspace from auth.setup.ts
  */
 
 test.describe('Workspace Export', () => {
-  test('export single workspace from context menu', async ({ page }) => {
+  test('export single workspace opens its printable PDF page', async ({ page }) => {
+    await page.goto('/workspaces');
+    await page.waitForLoadState('networkidle');
+    const card = page.getByRole('link', { name: /^E2E Test Workspace/ });
+    await card.getByRole('button').first().click();
+
+    const popupPromise = page.waitForEvent('popup');
+    await card.getByRole('button', { name: 'Export' }).click();
+    const popup = await popupPromise;
+
+    await expect(popup).toHaveURL(/\/api\/workspaces\/\d+\/export\/pdf$/);
+    await expect(popup.getByText('E2E Test Workspace').first()).toBeVisible();
+  });
+
+  test('export all workspaces downloads a JSON backup', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // Find a workspace card and open context menu
-    const cards = page.locator('a[href^="/workspaces/"]');
-    const cardCount = await cards.count();
-    if (cardCount === 0) {
-      test.skip();
-      return;
-    }
-
-    // Open context menu on the first workspace
-    const card = cards.first().locator('..').locator('..');
-    const menuBtn = card
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-more-vertical') })
-      .first();
-
-    if (!(await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await menuBtn.click();
-
-    // Click Export
-    const exportBtn = page.getByRole('button', { name: 'Export' });
-    if (!(await exportBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-
-    // Set up download listener
-    const downloadPromise = page.waitForEvent('download', { timeout: 10_000 }).catch(() => null);
-    await exportBtn.click();
-
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export All' }).click();
     const download = await downloadPromise;
-    if (download) {
-      // Verify download was triggered
-      const filename = download.suggestedFilename();
-      expect(filename).toBeTruthy();
-      console.log(`Downloaded: ${filename}`);
-    }
+
+    expect(download.suggestedFilename()).toMatch(/^workspaces-backup-\d{4}-\d{2}-\d{2}\.json$/);
   });
 
-  test('export all workspaces', async ({ page }) => {
-    await page.goto('/workspaces');
-    await page.waitForLoadState('networkidle');
+  test('export workspace via API returns its sections', async ({ page }) => {
+    const workspaces: { id: number; slug: string }[] = await (
+      await page.request.get('/api/workspaces')
+    ).json();
+    const workspace = workspaces.find((w) => w.slug === 'e2e-test-workspace');
+    expect(workspace).toBeDefined();
 
-    const exportAllBtn = page.getByRole('button', { name: /export all/i });
-    if (!(await exportAllBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-
-    // Set up download listener
-    const downloadPromise = page.waitForEvent('download', { timeout: 10_000 }).catch(() => null);
-    await exportAllBtn.click();
-
-    const download = await downloadPromise;
-    if (download) {
-      const filename = download.suggestedFilename();
-      expect(filename).toBeTruthy();
-      console.log(`Downloaded: ${filename}`);
-    }
-  });
-
-  test('export workspace via API returns data', async ({ page }) => {
-    // Get workspace list via API
-    const listRes = await page.request.get('/api/workspaces');
-    const workspaces = await listRes.json();
-
-    if (!Array.isArray(workspaces) || workspaces.length === 0) {
-      test.skip();
-      return;
-    }
-
-    const workspace = workspaces[0];
-    const exportRes = await page.request.get(`/api/workspaces/${workspace.id}/export`);
+    const exportRes = await page.request.get(`/api/workspaces/${workspace?.id}/export`);
 
     expect(exportRes.ok()).toBe(true);
-
-    const exportData = await exportRes.json().catch(() => null);
-    const exportText = exportData ? null : await exportRes.text();
-
-    // Should return content (JSON or markdown)
-    expect(exportData || exportText).toBeTruthy();
+    const data = await exportRes.json();
+    expect(data.workspaces).toHaveLength(1);
+    expect(data.workspaces[0]).toMatchObject({
+      title: 'E2E Test Workspace',
+      slug: 'e2e-test-workspace',
+    });
+    expect(data.workspaces[0].sections.map((s: { title: string }) => s.title)).toContain(
+      'Project Overview'
+    );
   });
 });

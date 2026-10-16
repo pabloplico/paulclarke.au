@@ -36,8 +36,20 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // The full stack on the host: .env.docker against Postgres (see CLAUDE.md)
-    command: 'pnpm dev:full',
+    // dev:lite (PGlite, in-process jobs, no services) with sign-in on and a
+    // fresh database every run. AI calls go to a closed local port with a fake
+    // key, so no provider is ever called: they fail fast instead. Its own build
+    // folder, so it doesn't clash with a dev:lite already using .next/dev
+    command: 'rm -rf .pglite/e2e && pnpm dev:lite',
+    env: {
+      AUTH_ENABLED: 'true',
+      AUTH_SECRET: 'e2e-only-secret-never-used-outside-playwright-0123456789',
+      PGLITE_DATA_DIR: '.pglite/e2e/data',
+      UPLOADS_DIR: '.pglite/e2e/uploads',
+      NEXT_DIST_DIR: '.next/e2e',
+      OPENAI_API_KEY: 'e2e-fake-key',
+      OPENAI_BASE_URL: 'http://127.0.0.1:9/v1',
+    },
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

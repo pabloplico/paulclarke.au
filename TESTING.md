@@ -1,11 +1,11 @@
 # Testing
 
-| Layer         | Tool                                                                | Website                                                              | Admin portal                  |
-| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------- |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)             |
-| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 18 spec files, needs Postgres |
-| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                       |
-| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)      |
+| Layer         | Tool                                                                | Website                                                              | Admin portal                               |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------ |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)                          |
+| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 18 spec files, on `dev:lite` (no services) |
+| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Not yet                                    |
+| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)                   |
 
 CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus two parallel jobs: the website E2E suite, and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`). Admin-portal E2E isn't in CI yet because it needs database services.
 
@@ -15,7 +15,7 @@ CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on e
 pnpm test                               # all unit tests, via NX
 pnpm --filter website test              # website unit tests only
 pnpm --filter website test:e2e          # website E2E + axe (builds, then serves with wrangler dev)
-pnpm --filter admin-portal test:e2e     # admin E2E (needs the admin dev stack running)
+pnpm --filter admin-portal test:e2e     # admin E2E (starts dev:lite itself; no services)
 pnpm exec nx run-many -t test --skip-nx-cache   # ignore the NX cache
 ```
 
@@ -101,7 +101,7 @@ FLOW_DRIVERS=postgres TEST_DATABASE_URL=postgres://… \
 
 ### E2E tests (`apps/admin-portal/e2e/*.spec.ts`)
 
-These need the admin portal's full stack: Postgres (`cd apps/admin-portal`, `export COMPOSE_ENV_FILES=../../.env.docker`, then `docker compose up -d`, or a native Postgres) and `.env.docker`. `playwright.config.ts` targets `http://localhost:3001` and starts `pnpm dev:full` on the host if nothing is running. Selected specs:
+These need no services. `playwright.config.ts` targets `http://localhost:3001` and, if nothing is running there, starts `pnpm dev:lite` with sign-in on (`AUTH_ENABLED=true` and a test `AUTH_SECRET`), a fresh PGlite database in `.pglite/e2e` and its own build folder (`.next/e2e`). AI calls go to a closed local port with a fake key, so no provider is ever called: they fail fast. Tests that need an AI result (the AI edit previews, chat replies, inbox routing, Fix with AI, a document reaching Ready) are `test.fixme` with that reason. If you already have `dev:lite` running on 3001, Playwright reuses it, with sign-in off and your data, so stop it first. Selected specs:
 
 | File                           | What it covers                                              |
 | ------------------------------ | ----------------------------------------------------------- |

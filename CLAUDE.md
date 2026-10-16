@@ -89,7 +89,7 @@ pnpm with-dev-env pnpm db:migrate           # first time, and after new migratio
 pnpm nx run admin-portal:dev:full           # Next.js on 3001 against Postgres
 ```
 
-`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` for localhost (from `POSTGRES_*`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001 --hostname ${DEV_HOST:-127.0.0.1}`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E needs nothing extra, because its Playwright `webServer` runs `dev:full`. `lint`, `check-types`, `test` and `build` never need it.
+`scripts/with-dev-env.ts` runs any command with `.env.docker` loaded and fills in `DATABASE_URL` for localhost (from `POSTGRES_*`), `OLLAMA_URL`, and `OPENAI_API_KEY` from `ADMIN_PORTAL_OPENAI_API_KEY`. Variables already set win, so native services on other hosts or ports work by setting `DATABASE_URL` in `.env.docker` or the shell. `dev:full` is `with-dev-env next dev --port 3001 --hostname ${DEV_HOST:-127.0.0.1}`. Use `with-dev-env` for anything that talks to the database or the AI provider (`db:*`, `ai:smoke`); admin E2E doesn't need it: its Playwright `webServer` runs `dev:lite`. `lint`, `check-types`, `test` and `build` never need it.
 
 Host requirements for the full stack: `pnpm exec playwright install chromium` (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) for URL scraping.
 
@@ -120,7 +120,8 @@ pnpm exec nx reset                      # clear the cache
 pnpm --filter admin-portal exec vitest run lib/rag/chunker.test.ts
 
 # E2E (website: Playwright + axe against wrangler dev, no services needed;
-# admin-portal: needs the full stack; its webServer runs dev:full)
+# admin-portal: no services either: its webServer runs dev:lite with sign-in on,
+# a fresh .pglite/e2e database and AI calls sent to a closed local port)
 pnpm --filter website test:e2e
 pnpm --filter admin-portal test:e2e
 
@@ -243,5 +244,5 @@ Tests are the spec. Changing one changes what the code is promised to do, so tes
 - **Never weaken a test to get it passing.** Don't delete or loosen assertions, change expected values or snapshots to match new output, widen matchers (`toBeTruthy()`, `expect.anything()`, `toBeDefined()` in place of a real value), add `.skip`/`.only`/`.todo`, wrap assertions in `try`/`catch` or `if`, or mock away the code under test. If a test can't pass without one of these, stop and report it.
 - **Every test change goes in the summary and the PR body:** each test added, changed or deleted, with one line on why. "Updated test to match" is not a reason; name the behaviour that changed.
 - **Add tests only for behaviour the change introduces or fixes.** Extend the existing test file for that module rather than starting a new one. Test through the public interface, not private helpers or call counts. Don't add tests that only check a mock returns what it was told to.
-- **Skips need a reason.** Biome's `noSkippedTests` and `noFocusedTests` are errors in test files. A skip that is genuinely conditional (a Playwright project, a missing service) gets a `biome-ignore` comment saying why. A test must fail, not skip, when the feature it tests is broken. The admin E2E specs still skip when an element isn't found; that rule is a warning there until the test audit fixes them.
+- **Skips need a reason.** Biome's `noSkippedTests` and `noFocusedTests` are errors in test files. A skip that is genuinely conditional (a Playwright project, a missing service) gets a `biome-ignore` comment saying why. A test must fail, not skip, when the feature it tests is broken. The admin E2E specs have no bare skips: a test that needs an AI provider is `test.fixme` with the reason, because the E2E run has none.
 - **`pnpm test:diff [base] [head]`** (defaults: `origin/main`, `HEAD`) prints test files added, changed and deleted, assertion lines removed and added, and new skips. CI writes it to the PR's job summary and warns on each file that loses assertions. Run it before opening a PR and read the test diff first.

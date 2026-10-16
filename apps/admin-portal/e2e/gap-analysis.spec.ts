@@ -5,8 +5,16 @@ import { expect, test } from '@playwright/test';
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - Seeded workspaces exist (Services & Offerings, Research & References, etc.)
+ *  - The Getting Started workspace every new account gets
+ *
+ * Gap analysis runs its rule-based checks without AI. Its AI checks and
+ * "Fix with AI" need a model, and the E2E run has none, so those tests are
+ * test.fixme. Their bodies also need seeded workspaces (services-offerings,
+ * ai-agent-frameworks) that a fresh E2E database doesn't have.
  */
+
+const NEEDS_AI =
+  'Needs an AI provider (AI findings and Fix with AI) and the seeded demo workspaces; the E2E run has neither (no fake provider exists for E2E yet)';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -16,19 +24,14 @@ async function goToWorkspace(page: import('@playwright/test').Page, slug: string
 }
 
 async function runGapAnalysis(page: import('@playwright/test').Page) {
-  const runBtn = page.getByRole('button', { name: 'Run Analysis' });
-  if (await runBtn.isVisible()) {
-    await runBtn.click();
-  } else {
-    // Refresh button (small icon in gap panel header)
-    const refreshBtn = page.locator('button svg.lucide-refresh-cw').locator('..');
-    if (await refreshBtn.isVisible()) {
-      await refreshBtn.click();
-    }
-  }
-  // Wait for analysis to complete
+  // "Run Analysis" the first time; after that, the refresh button in the gap panel
+  await page
+    .getByRole('button', { name: 'Run Analysis' })
+    .or(page.locator('button:has(svg.lucide-refresh-cw)'))
+    .first()
+    .click();
   await expect(
-    page.getByText(/gaps? found/).or(page.getByText('All sections look healthy'))
+    page.getByText(/gaps? found/).or(page.getByText('All sections healthy'))
   ).toBeVisible({ timeout: 30_000 });
 }
 
@@ -38,33 +41,25 @@ test.describe('Gap Analysis - Content Detection', () => {
   test('structured sections with data (cards/table) are NOT reported as empty', async ({
     page,
   }) => {
-    await goToWorkspace(page, 'services-offerings');
+    // Getting Started has one section of every type, all with content:
+    // Features to Try (cards), Keyboard Shortcuts (table), Getting Started
+    // Checklist (checklist) and Your Setup (key-value)
+    const workspaces: { slug: string }[] = await (await page.request.get('/api/workspaces')).json();
+    const slug = workspaces.find((w) => w.slug.startsWith('getting-started'))?.slug;
+    expect(slug).toBeDefined();
+    await goToWorkspace(page, slug ?? '');
+    await expect(page.getByRole('heading', { name: 'Keyboard Shortcuts', level: 3 })).toBeVisible();
 
-    // Verify structured sections have content rendered
-    // Service Packages = cards, Pricing Framework = table
-    // These should show actual data, not "No cards yet" / "No table data yet"
-    const servicePackagesHeading = page.getByRole('heading', { name: 'Service Packages' });
-    await expect(servicePackagesHeading).toBeVisible();
-
-    // Run fresh gap analysis
     await runGapAnalysis(page);
 
-    // Check the findings — sections with structured data should NOT be flagged as "Section is empty"
-    const allText = await page.locator('[class*="border-border"]').allTextContents();
-    const emptyFindings = allText.filter((t) => t.includes('Section is empty'));
-
-    // None of the "Section is empty" findings should mention Service Packages or Pricing Framework
-    for (const finding of emptyFindings) {
-      expect(finding).not.toContain('Service Packages');
-      expect(finding).not.toContain('Pricing Framework');
-    }
-
-    console.log(`"Section is empty" findings: ${emptyFindings.length}`);
+    await expect(page.getByText('All sections healthy')).toBeVisible();
+    await expect(page.getByText('Section is empty')).toHaveCount(0);
   });
 
   test('all AI-generated findings have Fix with AI buttons (sectionId matched)', async ({
     page,
   }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
 
@@ -89,6 +84,7 @@ test.describe('Gap Analysis - Content Detection', () => {
 
 test.describe('Fix with AI - Prose', () => {
   test('shows diff preview, accept saves new version', async ({ page }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'services-offerings');
     await runGapAnalysis(page);
 
@@ -97,10 +93,7 @@ test.describe('Fix with AI - Prose', () => {
       .locator('[class*="rounded-lg"][class*="border-border"]')
       .filter({ hasText: 'Delivery Process' });
 
-    if (!(await finding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(finding).toBeVisible();
 
     await finding.getByRole('button', { name: 'Fix with AI' }).click();
 
@@ -122,6 +115,7 @@ test.describe('Fix with AI - Prose', () => {
   });
 
   test('reject discards changes', async ({ page }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'services-offerings');
     await runGapAnalysis(page);
 
@@ -130,10 +124,7 @@ test.describe('Fix with AI - Prose', () => {
       .filter({ hasText: /Core Services|Delivery Process/ })
       .first();
 
-    if (!(await finding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(finding).toBeVisible();
 
     await finding.getByRole('button', { name: 'Fix with AI' }).click();
     await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
@@ -143,6 +134,7 @@ test.describe('Fix with AI - Prose', () => {
   });
 
   test('generates content for empty prose section', async ({ page }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
 
     // Summary section should be empty (or may have content from earlier test run)
@@ -153,19 +145,13 @@ test.describe('Fix with AI - Prose', () => {
       .filter({ hasText: 'Summary' })
       .first();
 
-    if (!(await summaryFinding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(summaryFinding).toBeVisible();
 
     await summaryFinding.getByRole('button', { name: 'Fix with AI' }).click();
     await expect(page.getByText('AI Fix Preview — Summary')).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('button', { name: 'Accept' }).click();
     await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
-
-    // Wait for re-render
-    await page.waitForTimeout(1000);
 
     // Summary section should no longer show "No content yet"
     const summaryCard = page.locator('[class*="space-y-3"]').filter({
@@ -179,6 +165,7 @@ test.describe('Fix with AI - Prose', () => {
 
 test.describe('Fix with AI - Structured Sections', () => {
   test('table section: generates data that renders as a table, not empty', async ({ page }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
 
@@ -188,36 +175,22 @@ test.describe('Fix with AI - Structured Sections', () => {
       .filter({ hasText: 'Sources & References' })
       .first();
 
-    if (!(await tableFinding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(tableFinding).toBeVisible();
 
     await tableFinding.getByRole('button', { name: 'Fix with AI' }).click();
     await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Accept' }).click();
 
-    await page.waitForTimeout(1500);
-
     // The table section should render data, not "No table data yet"
     const tableSection = page.locator('[class*="space-y-3"]').filter({
       has: page.getByRole('heading', { name: 'Sources & References' }),
     });
-
-    const noDataMsg = tableSection.getByText('No table data yet');
-    const tableElement = tableSection.locator('table');
-
-    const noDataVisible = await noDataMsg.isVisible().catch(() => false);
-    const tableVisible = await tableElement.isVisible().catch(() => false);
-
-    console.log(`Table visible: ${tableVisible}, "No table data" visible: ${noDataVisible}`);
-
-    // CRITICAL: table should render with data
-    expect(noDataVisible).toBe(false);
-    expect(tableVisible).toBe(true);
+    await expect(tableSection.locator('table')).toBeVisible();
+    await expect(tableSection.getByText('No table data yet')).not.toBeVisible();
   });
 
   test('cards section: generates data that renders as cards, not empty', async ({ page }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
 
@@ -226,33 +199,23 @@ test.describe('Fix with AI - Structured Sections', () => {
       .filter({ hasText: 'Key Findings' })
       .first();
 
-    if (!(await cardsFinding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(cardsFinding).toBeVisible();
 
     await cardsFinding.getByRole('button', { name: 'Fix with AI' }).click();
     await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Accept' }).click();
 
-    await page.waitForTimeout(1500);
-
+    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
     const cardsSection = page.locator('[class*="space-y-3"]').filter({
       has: page.getByRole('heading', { name: 'Key Findings' }),
     });
-
-    const noCardsMsg = cardsSection.getByText('No cards yet');
-    const noCardsVisible = await noCardsMsg.isVisible().catch(() => false);
-
-    console.log(`"No cards" visible: ${noCardsVisible}`);
-
-    // CRITICAL: cards should render with data
-    expect(noCardsVisible).toBe(false);
+    await expect(cardsSection.getByText('No cards yet')).not.toBeVisible();
   });
 
   test('checklist section: generates data that renders as checklist items, not empty', async ({
     page,
   }) => {
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page, 'ai-agent-frameworks');
     await runGapAnalysis(page);
 
@@ -261,27 +224,16 @@ test.describe('Fix with AI - Structured Sections', () => {
       .filter({ hasText: 'Open Questions' })
       .first();
 
-    if (!(await checklistFinding.isVisible())) {
-      test.skip();
-      return;
-    }
+    await expect(checklistFinding).toBeVisible();
 
     await checklistFinding.getByRole('button', { name: 'Fix with AI' }).click();
     await expect(page.getByText('AI Fix Preview')).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Accept' }).click();
 
-    await page.waitForTimeout(1500);
-
+    await expect(page.getByText('AI Fix Preview')).not.toBeVisible();
     const checklistSection = page.locator('[class*="space-y-3"]').filter({
       has: page.getByRole('heading', { name: 'Open Questions' }),
     });
-
-    const noItemsMsg = checklistSection.getByText('No checklist items yet');
-    const noItemsVisible = await noItemsMsg.isVisible().catch(() => false);
-
-    console.log(`"No checklist items" visible: ${noItemsVisible}`);
-
-    // CRITICAL: checklist should render with items
-    expect(noItemsVisible).toBe(false);
+    await expect(checklistSection.getByText('No checklist items yet')).not.toBeVisible();
   });
 });

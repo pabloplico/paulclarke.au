@@ -10,31 +10,16 @@ import { expect, test } from '@playwright/test';
 test.describe('Error States', () => {
   test('404 for non-existent workspace', async ({ page }) => {
     const res = await page.goto('/workspaces/this-workspace-does-not-exist-12345');
-    await page.waitForLoadState('networkidle');
 
-    // Should show 404 or redirect or show "not found" message
-    const is404 = res?.status() === 404;
-    const hasNotFound = await page
-      .getByText(/not found/i)
-      .isVisible()
-      .catch(() => false);
-    const redirectedAway = !page.url().includes('this-workspace-does-not-exist');
-
-    expect(is404 || hasNotFound || redirectedAway).toBe(true);
+    expect(res?.status()).toBe(404);
+    await expect(page.getByText(/could not be found/i).first()).toBeVisible();
   });
 
   test('404 for non-existent document', async ({ page }) => {
     const res = await page.goto('/documents/99999999');
-    await page.waitForLoadState('networkidle');
 
-    const is404 = res?.status() === 404;
-    const hasNotFound = await page
-      .getByText(/not found/i)
-      .isVisible()
-      .catch(() => false);
-    const redirectedAway = !page.url().includes('99999999');
-
-    expect(is404 || hasNotFound || redirectedAway).toBe(true);
+    expect(res?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Document not found' })).toBeVisible();
   });
 
   test('API returns 404 for non-existent workspace', async ({ page }) => {
@@ -85,13 +70,10 @@ test.describe('Error States', () => {
 
   test('search API handles empty query', async ({ page }) => {
     const res = await page.request.get('/api/search?q=');
-    // Should return empty results, not crash
-    expect(res.ok() || res.status() === 400).toBe(true);
 
-    if (res.ok()) {
-      const data = await res.json();
-      expect(Array.isArray(data) || typeof data === 'object').toBe(true);
-    }
+    // No query, no results: not an error
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ results: [] });
   });
 
   test('workspace page renders without JavaScript errors', async ({ page }) => {
@@ -100,7 +82,8 @@ test.describe('Error States', () => {
 
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2_000);
+    // Rendered and interactive: the workspace list is up
+    await expect(page.getByRole('link', { name: /^E2E Test Workspace/ })).toBeVisible();
 
     // Filter out known benign errors
     const criticalErrors = errors.filter(
@@ -116,7 +99,9 @@ test.describe('Error States', () => {
 
     await page.goto('/workspaces/e2e-test-workspace');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2_000);
+    await expect(
+      page.locator('main').getByRole('heading', { name: 'Project Overview', level: 3 })
+    ).toBeVisible();
 
     const criticalErrors = errors.filter(
       (e) => !e.includes('ResizeObserver') && !e.includes('hydration')

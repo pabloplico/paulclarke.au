@@ -19,23 +19,12 @@ test.describe('Settings', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    // Should display some settings content (provider, model, etc.)
+    // The AI provider section with its provider and model choices
     const main = page.locator('main');
-    await expect(main).toBeVisible();
-
-    // Look for common settings labels
-    const hasProvider = await main
-      .getByText(/provider/i)
-      .isVisible()
-      .catch(() => false);
-    const hasModel = await main
-      .getByText(/model/i)
-      .isVisible()
-      .catch(() => false);
-    const hasAny = await main.locator('input, select, button').count();
-
-    // Should have some settings controls
-    expect(hasProvider || hasModel || hasAny > 0).toBe(true);
+    await expect(main.getByRole('heading', { name: 'AI Provider' })).toBeVisible();
+    await expect(main.getByText('Provider', { exact: true }).first()).toBeVisible();
+    await expect(main.getByText('Model', { exact: true }).first()).toBeVisible();
+    await expect(main.getByRole('combobox').first()).toBeVisible();
   });
 
   test('AI model selection is available', async ({ page }) => {
