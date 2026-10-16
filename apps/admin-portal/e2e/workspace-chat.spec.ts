@@ -5,15 +5,32 @@ import { expect, test } from '@playwright/test';
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - Seeded workspaces exist
- *  - AI_PROVIDER and API key configured
+ *  - The E2E Test Workspace from auth.setup.ts
+ *
+ * The E2E run has no AI provider, so a reply never arrives: the test that
+ * waits for one is test.fixme.
  */
+
+const NEEDS_AI =
+  'Needs an AI provider to reply; the E2E run has none (no fake provider exists for E2E yet)';
 
 const WORKSPACE_SLUG = 'e2e-test-workspace';
 
+/**
+ * Opens the workspace and waits for the chat to resume its last conversation
+ * (setScope → resumeLastConversation): if that load lands after a message is
+ * sent, it replaces the conversation, message and all.
+ */
 async function goToWorkspace(page: import('@playwright/test').Page) {
+  const lastConversation = page.waitForResponse(
+    (res) => res.url().includes('/api/chat/conversations?') && res.url().includes('limit=1')
+  );
+  const messagesLoaded = page
+    .waitForResponse((res) => /\/api\/chat\/conversations\/\d+\/messages/.test(res.url()))
+    .catch(() => undefined);
   await page.goto(`/workspaces/${WORKSPACE_SLUG}`);
   await page.waitForLoadState('networkidle');
+  if ((await (await lastConversation).json()).length > 0) await messagesLoaded;
 }
 
 test.describe('Workspace Chat', () => {
@@ -47,6 +64,8 @@ test.describe('Workspace Chat', () => {
   });
 
   test('send a message and receive response', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
     await goToWorkspace(page);
 
     // Open chat
@@ -97,27 +116,24 @@ test.describe('Workspace Chat', () => {
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
     await expect(input).toBeVisible({ timeout: 3_000 });
+    await page.waitForLoadState('networkidle');
 
-    // Send a message first
-    await input.fill('Hello');
+    // Send a message first (unique: the panel reopens the last conversation)
+    const message = `Hello ${Date.now()}`;
+    await input.fill(message);
     const sendBtn = page.locator('button').filter({ has: page.locator('svg.lucide-send') });
     await sendBtn.click();
 
     // Wait for user message to appear
-    await expect(page.getByText('Hello')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(message)).toBeVisible({ timeout: 5_000 });
 
-    // Clear button should now be visible
-    const clearBtn = page.getByRole('button', { name: /clear/i });
-    if (!(await clearBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await clearBtn.click();
+    // "New chat" (it was "Clear") starts over with an empty conversation
+    await page.getByRole('button', { name: 'New chat' }).click();
 
-    // Should return to empty state
-    await expect(page.getByText('Ask anything about this workspace')).toBeVisible({
-      timeout: 5_000,
-    });
+    await expect(page.getByText('Ask anything about this workspace')).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: 'Chat panel' }).getByText(message)
+    ).not.toBeVisible();
   });
 
   test('close chat panel via X button', async ({ page }) => {
@@ -154,11 +170,14 @@ test.describe('Workspace Chat', () => {
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
     await expect(input).toBeVisible({ timeout: 3_000 });
+    // The panel reloads the last conversation after opening, which would wipe
+    // anything typed first
+    await page.waitForLoadState('networkidle');
 
-    await input.fill('Test enter key');
+    const message = `Test enter key ${Date.now()}`;
+    await input.fill(message);
     await input.press('Enter');
 
-    // Message should be sent
-    await expect(page.getByText('Test enter key')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(message)).toBeVisible({ timeout: 5_000 });
   });
 });

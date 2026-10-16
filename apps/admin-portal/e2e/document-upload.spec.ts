@@ -10,6 +10,9 @@ import { expect, test } from '@playwright/test';
  *  - The in-process document-processing worker (it starts with the server)
  */
 
+const NEEDS_AI =
+  'Needs a Ready document: processing calls the embedding model, and the E2E run has no AI provider (no fake provider exists for E2E yet)';
+
 test.describe('Document Upload & Processing', () => {
   test('documents page has upload drop zone', async ({ page }) => {
     await page.goto('/documents');
@@ -30,50 +33,49 @@ test.describe('Document Upload & Processing', () => {
     fs.writeFileSync(tmpFile, testContent);
 
     try {
-      // Find file input (may be hidden)
-      const fileInput = page.locator('input[type="file"]');
-      if (!(await fileInput.count())) {
-        test.skip();
-        return;
-      }
+      // The Upload button opens the panel with the (hidden) file input
+      await page.getByRole('button', { name: 'Upload' }).click();
+      const uploaded = page.waitForResponse(
+        (res) => res.url().endsWith('/api/documents') && res.request().method() === 'POST'
+      );
+      await page.locator('input[type="file"]').setInputFiles(tmpFile);
+      // The panel's own Upload (submit) button
+      await page.locator('form').getByRole('button', { name: 'Upload' }).click();
+      expect((await uploaded).status()).toBe(202);
 
-      await fileInput.setInputFiles(tmpFile);
-
-      // Should show upload progress or success
-      await page.waitForTimeout(2_000);
-
-      // Check if the document appears in the list
-      // Switch to All tab to see all documents
-      await page.getByRole('button', { name: 'All' }).click();
-      await page.waitForLoadState('networkidle');
-
-      // New document should appear (may take a moment)
-      await expect(page.getByText(/e2e-test-doc/i)).toBeVisible({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'All', exact: true }).click();
+      await expect(page.getByText(path.basename(tmpFile)).first()).toBeVisible();
     } finally {
       fs.unlinkSync(tmpFile);
     }
   });
 
   test('uploaded document shows processing status', async ({ page }) => {
+    // A document of its own, still working through its stages (it retries for
+    // a while before failing without an AI provider)
+    const name = `e2e-processing-${Date.now()}.md`;
+    const res = await page.request.post('/api/documents', {
+      multipart: {
+        file: { name, mimeType: 'text/markdown', buffer: Buffer.from('# Stage\n\nText.') },
+      },
+    });
+    const { id } = await res.json();
+
     await page.goto('/documents');
     await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: /^Processing/ }).click();
 
-    // Check Processing tab
-    await page.getByRole('button', { name: /Processing/ }).click();
-    await page.waitForLoadState('networkidle');
-
-    // If there are processing documents, they should show processing badge
-    const processingDocs = page.locator('a[href^="/documents/"]');
-    const count = await processingDocs.count();
-
-    if (count > 0) {
-      // At least one document in processing state
-      await expect(page.getByText(/processing/i).first()).toBeVisible();
-    }
-    // If no processing docs, that's fine too - they may have completed
+    // Listed under Processing, labelled with its current stage
+    const link = page.locator(`a[href="/documents/${id}"]`);
+    await expect(link).toBeVisible();
+    await expect(link).toContainText(
+      /Uploaded|Extracting|Cleaning|Chunking|Embedding|Analy[sz]ing/
+    );
   });
 
   test('document transitions from processing to ready', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
     // Upload via API for reliable test
     const testContent = `E2E processing test ${Date.now()}. AI consulting services overview.`;
     const tmpFile = path.join('/tmp', `e2e-proc-test-${Date.now()}.md`);
@@ -83,14 +85,14 @@ test.describe('Document Upload & Processing', () => {
       await page.goto('/documents');
       await page.waitForLoadState('networkidle');
 
-      const fileInput = page.locator('input[type="file"]');
-      if (!(await fileInput.count())) {
-        test.skip();
-        return;
-      }
-
-      await fileInput.setInputFiles(tmpFile);
-      await page.waitForTimeout(1_000);
+      await page.getByRole('button', { name: 'Upload' }).click();
+      const uploaded = page.waitForResponse(
+        (res) => res.url().endsWith('/api/documents') && res.request().method() === 'POST'
+      );
+      await page.locator('input[type="file"]').setInputFiles(tmpFile);
+      // The panel's own Upload (submit) button
+      await page.locator('form').getByRole('button', { name: 'Upload' }).click();
+      await uploaded;
 
       // Poll for document to become ready
       await expect(async () => {
@@ -111,24 +113,22 @@ test.describe('Document Upload & Processing', () => {
   });
 
   test('document detail page shows document info', async ({ page }) => {
+    // Its own document; any status has a detail page
+    const name = `e2e-detail-${Date.now()}.md`;
+    const res = await page.request.post('/api/documents', {
+      multipart: {
+        file: { name, mimeType: 'text/markdown', buffer: Buffer.from('# Detail\n\nText.') },
+      },
+    });
+    const { id } = await res.json();
+
     await page.goto('/documents');
     await page.waitForLoadState('networkidle');
+    await page.locator(`a[href="/documents/${id}"]`).click();
 
-    // Click Ready filter to find a document with content
-    await page.getByRole('button', { name: /Ready/ }).click();
-    await page.waitForLoadState('networkidle');
-
-    const docLink = page.locator('a[href^="/documents/"]').first();
-    if (!(await docLink.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await docLink.click();
-    await page.waitForLoadState('networkidle');
-
-    // Detail page should show document information
+    await expect(page).toHaveURL(new RegExp(`/documents/${id}$`));
     const main = page.locator('main');
-    await expect(main).toBeVisible();
+    await expect(main.getByText(name).first()).toBeVisible();
 
     // Should show action buttons
     await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible({

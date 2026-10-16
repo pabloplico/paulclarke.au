@@ -12,8 +12,12 @@ test.describe('Guide Page', () => {
     await page.goto('/guide');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('How to use the Admin Portal')).toBeVisible();
-    await expect(page.getByText('A quick overview of the main features')).toBeVisible();
+    // The guide's copy changed: it was "How to use the Admin Portal"
+    const main = page.locator('main');
+    await expect(main.getByRole('heading', { name: 'Getting Started', level: 1 })).toBeVisible();
+    await expect(
+      main.getByText('Typical workflow from workspace creation to gap analysis.')
+    ).toBeVisible();
   });
 
   test('guide shows all feature cards', async ({ page }) => {
@@ -26,7 +30,7 @@ test.describe('Guide Page', () => {
     // Should show feature cards for all major features
     await expect(main.getByRole('heading', { name: 'Workspaces' })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Inbox' })).toBeVisible();
-    await expect(main.getByRole('heading', { name: 'Documents' })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Chat' })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Gap Analysis' })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Search' })).toBeVisible();
@@ -45,15 +49,11 @@ test.describe('Guide Page', () => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // Find help button (HelpCircle icon) in header
-    const helpLink = page.locator('a[href="/guide"]');
-    if (!(await helpLink.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await helpLink.click();
+    await page.getByRole('link', { name: 'How to use this app' }).click();
 
-    await expect(page).toHaveURL(/\/guide/);
-    await expect(page.getByText('How to use the Admin Portal')).toBeVisible();
+    await expect(page).toHaveURL(/\/guide$/);
+    await expect(
+      page.locator('main').getByRole('heading', { name: 'Getting Started', level: 1 })
+    ).toBeVisible();
   });
 });

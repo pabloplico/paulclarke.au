@@ -99,14 +99,11 @@ test.describe('Authentication', () => {
     // HTML5 minLength=6 validation or server-side error
     await page.getByRole('button', { name: 'Create account' }).click();
 
-    // Either stays on page or shows error
-    await page.waitForTimeout(1_000);
-    const url = page.url();
-    const hasError = await page
-      .locator('.bg-destructive\\/10')
-      .isVisible()
-      .catch(() => false);
-    expect(url.includes('/signup') || hasError).toBe(true);
+    // The browser blocks the submit (minLength=6), so no account is created
+    await expect(page).toHaveURL(/\/signup$/);
+    expect(
+      await page.locator('#password').evaluate((input: HTMLInputElement) => input.validity.tooShort)
+    ).toBe(true);
   });
 
   test('login with valid credentials redirects to workspaces', async ({ page }) => {

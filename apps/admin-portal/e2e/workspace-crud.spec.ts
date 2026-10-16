@@ -1,14 +1,27 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * E2E tests for workspace CRUD operations.
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - Seeded workspaces exist
+ *
+ * Serial: the first tests create the workspaces the later ones archive and
+ * delete.
  */
 
 const UNIQUE = Date.now();
+
+/** A workspace card on the list, by the start of its title. */
+const card = (page: Page, title: string) =>
+  page.getByRole('link', { name: new RegExp(`^${title}`) });
+
+/** Opens a workspace card's menu and picks an action. */
+async function cardAction(page: Page, title: string, action: string) {
+  const target = card(page, title);
+  await target.getByRole('button').first().click();
+  await target.getByRole('button', { name: action, exact: true }).click();
+}
 
 test.describe('Workspace CRUD', () => {
   test.describe.configure({ mode: 'serial' });
@@ -30,12 +43,6 @@ test.describe('Workspace CRUD', () => {
 
     // Slug preview should appear
     await expect(page.getByText(/URL:.*test-client/)).toBeVisible();
-
-    // Optional description
-    const descInput = page.locator('textarea[placeholder="What is this workspace for?"]');
-    if (await descInput.isVisible()) {
-      await descInput.fill('E2E test workspace');
-    }
 
     // Create
     await page.getByRole('button', { name: 'Create Workspace' }).click();
@@ -88,12 +95,6 @@ test.describe('Workspace CRUD', () => {
 
     await page.locator('input[placeholder="My Workspace"]').fill(`Test Custom ${UNIQUE}`);
 
-    // Add a custom section if the UI supports it
-    const addSectionBtn = page.getByRole('button', { name: /add section/i });
-    if (await addSectionBtn.isVisible()) {
-      await addSectionBtn.click();
-    }
-
     await page.getByRole('button', { name: 'Create Workspace' }).click();
 
     await expect(page).toHaveURL(/\/workspaces\/test-custom/, { timeout: 10_000 });
@@ -123,132 +124,75 @@ test.describe('Workspace CRUD', () => {
     await page.waitForLoadState('networkidle');
 
     await page.getByRole('button', { name: /new workspace/i }).click();
-    await expect(page.getByText('Choose a Template')).toBeVisible({ timeout: 5_000 });
+    const heading = page.getByRole('heading', { name: 'Choose a Template' });
+    await expect(heading).toBeVisible();
 
-    // Close via X button
-    const closeBtn = page.locator('button.h-7.w-7').filter({ has: page.locator('svg.lucide-x') });
-    await closeBtn.click();
+    // The unlabelled X button beside the heading
+    await heading.locator('..').getByRole('button').click();
 
-    await expect(page.getByText('Choose a Template')).not.toBeVisible();
+    await expect(heading).not.toBeVisible();
   });
 
   test('newly created workspace appears in list', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // The workspace created in earlier tests should be visible as a card title
-    await expect(
-      page
-        .locator('a[href^="/workspaces/"]')
-        .filter({ hasText: `Test Client ${UNIQUE}` })
-        .first()
-    ).toBeVisible();
+    await expect(card(page, `Test Client ${UNIQUE}`)).toBeVisible();
   });
 
   test('archive workspace from context menu', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // Find our test workspace card and open its context menu
-    const card = page.locator('div').filter({
-      has: page.getByText(`Test Custom ${UNIQUE}`, { exact: false }),
-    });
+    await cardAction(page, `Test Custom ${UNIQUE}`, 'Archive');
 
-    const menuBtn = card
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-more-vertical') })
-      .first();
-    if (!(await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await menuBtn.click();
-
-    await page.getByRole('button', { name: 'Archive' }).click();
-
-    // Should show toast or remove from main list
-    await page.waitForTimeout(1_000);
-
-    // Workspace should no longer be in main list (may be in archived section)
-    await expect(page.locator('a').filter({ hasText: `Test Custom ${UNIQUE}` })).not.toBeVisible();
+    // Off the main list (archived workspaces are hidden until shown)
+    await expect(card(page, `Test Custom ${UNIQUE}`)).not.toBeVisible();
   });
 
   test('archived workspace appears in archived section', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // Toggle archived view
-    const archivedBtn = page.getByRole('button', { name: /archived/i });
-    if (!(await archivedBtn.isVisible())) {
-      test.skip();
-      return;
-    }
-    await archivedBtn.click();
+    await page.getByRole('button', { name: /^Archived \(\d+\)$/ }).click();
 
-    // Should show archived workspace
-    await expect(page.getByText(`Test Custom ${UNIQUE}`)).toBeVisible({ timeout: 5_000 });
+    // Archived cards aren't links: find the card by its title
+    const archived = page
+      .locator('main div.rounded-lg')
+      .filter({ has: page.getByText(`Test Custom ${UNIQUE}`, { exact: true }) })
+      .last();
+    await expect(archived).toBeVisible();
+    await expect(archived).toContainText('Archived');
   });
 
   test('delete workspace with confirmation', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    // Find a test workspace and open context menu
-    const card = page.locator('div').filter({
-      has: page.getByText(`Test Launch ${UNIQUE}`, { exact: false }),
-    });
-
-    const menuBtn = card
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-more-vertical') })
-      .first();
-    if (!(await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await menuBtn.click();
-
-    await page.getByRole('button', { name: 'Delete' }).click();
-
-    // Confirmation dialog should appear
-    await expect(page.getByText(/permanently removes/i)).toBeVisible({ timeout: 3_000 });
+    await cardAction(page, `Test Launch ${UNIQUE}`, 'Delete');
+    await expect(page.getByText(/permanently removes/i)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
 
-    // Confirm delete
-    const confirmDelete = page.getByRole('button', { name: 'Delete' }).last();
-    await confirmDelete.click();
+    // The dialog's own Delete button
+    await page.getByRole('button', { name: 'Delete' }).last().click();
 
-    // Workspace should be removed
-    await page.waitForTimeout(1_000);
-    await expect(page.getByText(`Test Launch ${UNIQUE}`)).not.toBeVisible();
+    await expect(page.getByText(/permanently removes/i)).not.toBeVisible();
+    await expect(card(page, `Test Launch ${UNIQUE}`)).not.toBeVisible();
+    await page.reload();
+    await expect(card(page, `Test Client ${UNIQUE}`)).toBeVisible();
+    await expect(card(page, `Test Launch ${UNIQUE}`)).not.toBeVisible();
   });
 
   test('cancel delete keeps workspace', async ({ page }) => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
 
-    const card = page.locator('div').filter({
-      has: page.getByText(`Test Research ${UNIQUE}`, { exact: false }),
-    });
+    await cardAction(page, `Test Research ${UNIQUE}`, 'Delete');
+    await expect(page.getByText(/permanently removes/i)).toBeVisible();
 
-    const menuBtn = card
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-more-vertical') })
-      .first();
-    if (!(await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await menuBtn.click();
-
-    await page.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByText(/permanently removes/i)).toBeVisible({ timeout: 3_000 });
-
-    // Cancel
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByText(/permanently removes/i)).not.toBeVisible();
 
-    // Workspace should still exist
-    await expect(page.getByText(`Test Research ${UNIQUE}`)).toBeVisible();
+    await expect(page.getByText(/permanently removes/i)).not.toBeVisible();
+    await expect(card(page, `Test Research ${UNIQUE}`)).toBeVisible();
   });
 });

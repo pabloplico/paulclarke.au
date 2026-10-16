@@ -1,164 +1,157 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
-// Helper: get the list of document row cards (each has a link to /documents/<id>)
-function docRows(page: import('@playwright/test').Page) {
-  return page
-    .locator('a[href^="/documents/"]')
-    .locator('xpath=ancestor::div[contains(@class,"flex w-full")]/..');
+/**
+ * E2E tests for document actions in the list and on the detail page.
+ *
+ * Each test uploads its own document. The E2E run has no AI provider, so
+ * processing fails at the embedding step and the document ends up in Error,
+ * never Ready: actions only offered for Ready documents are test.fixme.
+ */
+
+const NEEDS_AI =
+  'Needs a Ready document: processing calls the embedding model, and the E2E run has no AI provider (no fake provider exists for E2E yet)';
+
+/** Uploads a small Markdown document through the API and returns it. */
+async function uploadDocument(page: Page, status?: 'error') {
+  const name = `e2e-doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.md`;
+  const res = await page.request.post('/api/documents', {
+    multipart: {
+      file: { name, mimeType: 'text/markdown', buffer: Buffer.from(`# ${name}\n\nE2E text.`) },
+    },
+  });
+  expect(res.status()).toBe(202);
+  const doc: { id: number } = await res.json();
+  if (status) {
+    // Processing retries, then gives up without an AI provider
+    await expect
+      .poll(
+        async () => (await (await page.request.get(`/api/documents/${doc.id}`)).json()).status,
+        {
+          timeout: 45_000,
+        }
+      )
+      .toBe(status);
+  }
+  return { id: doc.id, name };
 }
 
-// Helper: open three-dot dropdown on a doc row by index
-async function openDropdown(page: import('@playwright/test').Page, index = 0) {
-  const row = docRows(page).nth(index);
-  await expect(row).toBeVisible({ timeout: 10_000 });
-  const menuBtn = row.locator('.relative > button').first();
-  await menuBtn.click();
+/** The document's row in the list: its link plus the row's menu button. */
+function row(page: Page, name: string) {
+  return page.locator('a[href^="/documents/"]').filter({ hasText: name }).locator('..');
 }
 
-// Helper: navigate to list with Ready filter applied
-async function gotoReadyDocs(page: import('@playwright/test').Page) {
+async function rowAction(page: Page, name: string, action: string) {
+  await row(page, name).getByRole('button').first().click();
+  await page.getByRole('button', { name: action, exact: true }).click();
+}
+
+/** Opens the menu of the first document listed. */
+async function openFirstRowMenu(page: Page) {
+  const first = page.locator('a[href^="/documents/"]').first();
+  await expect(first).toBeVisible();
+  await first.locator('..').getByRole('button').first().click();
+}
+
+/** The detail page of the first Ready document. */
+async function gotoReadyDocDetail(page: Page) {
+  await gotoDocuments(page, 'Ready');
+  await page.locator('a[href^="/documents/"]').first().click();
+  await expect(page).toHaveURL(/\/documents\/\d+$/);
+}
+
+async function gotoDocuments(page: Page, tab = 'All') {
   await page.goto('/documents');
   await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: /Ready/ }).click();
-  await page.waitForLoadState('networkidle');
-}
-
-// Helper: navigate to a ready document's detail page
-async function gotoReadyDocDetail(page: import('@playwright/test').Page) {
-  await gotoReadyDocs(page);
-  const firstDocLink = docRows(page).first().locator('a[href^="/documents/"]').first();
-  await expect(firstDocLink).toBeVisible({ timeout: 10_000 });
-  await firstDocLink.click();
-  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: new RegExp(`^${tab}`) }).click();
 }
 
 test.describe('Document Actions', () => {
-  test.describe.configure({ mode: 'serial' });
-
   test('documents page loads with filter tabs', async ({ page }) => {
     await page.goto('/documents');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('heading', { name: 'Documents', level: 2 })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'All' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Processing/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Ready/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Error/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Archived/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Documents', level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+    for (const tab of ['Processing', 'Ready', 'Error', 'Archived']) {
+      await expect(page.getByRole('button', { name: new RegExp(`^${tab} \\d+$`) })).toBeVisible();
+    }
   });
 
   test('three-dot dropdown shows all actions for ready document', async ({ page }) => {
-    await gotoReadyDocs(page);
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
+    await gotoDocuments(page, 'Ready');
 
-    const count = await docRows(page).count();
-    if (count === 0) {
-      test.skip();
-      return;
+    await openFirstRowMenu(page);
+
+    for (const action of ['Archive', 'Reprocess', 'Re-clean text', 'AI clean-up', 'Delete']) {
+      await expect(page.getByRole('button', { name: action, exact: true })).toBeVisible();
     }
-
-    await openDropdown(page, 0);
-
-    // Ready documents show all actions
-    await expect(page.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Reprocess', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Re-clean text', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'AI clean-up', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeVisible();
-
-    // Close dropdown by clicking elsewhere
-    await page.locator('body').click({ position: { x: 10, y: 10 } });
   });
 
   test('archive document from list view', async ({ page }) => {
-    await gotoReadyDocs(page);
+    const { name } = await uploadDocument(page);
+    await gotoDocuments(page);
 
-    // Count documents before
-    const readyBtn = page.getByRole('button', { name: /Ready \d+/ });
-    const readyText = await readyBtn.textContent();
-    const initialCount = parseInt(readyText?.match(/\d+/)?.[0] ?? '0', 10);
+    await rowAction(page, name, 'Archive');
 
-    await openDropdown(page, 0);
-
-    // Click Archive
-    await page.getByRole('button', { name: 'Archive', exact: true }).click();
-
-    // Toast should appear
-    await expect(page.getByText('Document archived')).toBeVisible({ timeout: 5_000 });
-
-    // Ready count should decrease
-    await expect(page.getByRole('button', { name: /Ready/ })).toContainText(`${initialCount - 1}`);
+    await expect(page.getByText('Document archived')).toBeVisible();
+    await page.getByRole('button', { name: /^Archived/ }).click();
+    await expect(row(page, name)).toBeVisible();
   });
 
   test('archived document appears in Archived tab with badge', async ({ page }) => {
-    await page.goto('/documents');
-    await page.waitForLoadState('networkidle');
+    const { id, name } = await uploadDocument(page);
+    expect(
+      (await page.request.patch(`/api/documents/${id}`, { data: { archived: true } })).ok()
+    ).toBe(true);
 
-    // Switch to Archived tab
-    await page.getByRole('button', { name: /Archived/ }).click();
-    await page.waitForLoadState('networkidle');
+    await gotoDocuments(page, 'Archived');
 
-    // At least one archived doc should exist (from previous test)
-    const firstRow = docRows(page).first();
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
-
-    // Should show "Archived" badge
-    await expect(firstRow.getByText('Archived')).toBeVisible();
+    await expect(row(page, name)).toBeVisible();
+    await expect(row(page, name).getByText('Archived')).toBeVisible();
   });
 
   test('unarchive document from Archived tab', async ({ page }) => {
-    await page.goto('/documents');
-    await page.waitForLoadState('networkidle');
+    const { id, name } = await uploadDocument(page);
+    await page.request.patch(`/api/documents/${id}`, { data: { archived: true } });
+    await gotoDocuments(page, 'Archived');
 
-    // Switch to Archived tab
-    await page.getByRole('button', { name: /Archived/ }).click();
-    await page.waitForLoadState('networkidle');
+    await rowAction(page, name, 'Unarchive');
 
-    await openDropdown(page, 0);
-
-    // Should show "Unarchive" instead of "Archive"
-    await expect(page.getByRole('button', { name: 'Unarchive' })).toBeVisible();
-    await page.getByRole('button', { name: 'Unarchive' }).click();
-
-    // Toast should appear
-    await expect(page.getByText('Document unarchived')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Document unarchived')).toBeVisible();
+    await expect(row(page, name)).not.toBeVisible();
   });
 
   test('re-clean document from list dropdown', async ({ page }) => {
-    await gotoReadyDocs(page);
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
+    await gotoDocuments(page, 'Ready');
+    await openFirstRowMenu(page);
 
-    await openDropdown(page, 0);
-
-    // Click Re-clean text
     await page.getByRole('button', { name: 'Re-clean text' }).click();
 
-    // Toast should appear
     await expect(page.getByText('Text re-cleaned')).toBeVisible({ timeout: 10_000 });
   });
 
   test('delete document shows confirmation and can cancel', async ({ page }) => {
-    await gotoReadyDocs(page);
+    const { name } = await uploadDocument(page);
+    await gotoDocuments(page);
 
-    await openDropdown(page, 0);
+    await rowAction(page, name, 'Delete');
 
-    // Click Delete
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
-
-    // Confirmation dialog should appear
     await expect(page.getByRole('heading', { name: 'Delete Document' })).toBeVisible();
     await expect(page.getByText(/Permanently delete/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
-
-    // Cancel — do not actually delete
     await page.getByRole('button', { name: 'Cancel' }).click();
-
-    // Dialog should close
     await expect(page.getByRole('heading', { name: 'Delete Document' })).not.toBeVisible();
+    await expect(row(page, name)).toBeVisible();
   });
 
   test('detail page shows all action buttons for ready doc', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
     await gotoReadyDocDetail(page);
 
-    // Detail page should show all action buttons
     const main = page.locator('main');
     await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
     await expect(main.getByRole('button', { name: 'Reprocess' })).toBeVisible();
@@ -168,75 +161,54 @@ test.describe('Document Actions', () => {
   });
 
   test('archive and unarchive from detail page', async ({ page }) => {
-    await gotoReadyDocDetail(page);
-
+    const { id } = await uploadDocument(page);
+    await page.goto(`/documents/${id}`);
+    await page.waitForLoadState('networkidle');
     const main = page.locator('main');
 
-    // Archive
     await main.getByRole('button', { name: 'Archive', exact: true }).click();
-    await expect(page.getByText('Document archived')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Document archived')).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Unarchive' })).toBeVisible();
 
-    // Should now show "Unarchive" button after page refreshes
-    await expect(main.getByRole('button', { name: 'Unarchive' })).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Unarchive
     await main.getByRole('button', { name: 'Unarchive' }).click();
-    await expect(page.getByText('Document unarchived')).toBeVisible({ timeout: 10_000 });
-
-    // Should revert to "Archive" button
-    await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText('Document unarchived')).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
   });
 
   test('re-clean from detail page', async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: needs an AI provider, which the E2E run doesn't have (reason in NEEDS_AI)
+    test.fixme(true, NEEDS_AI);
     await gotoReadyDocDetail(page);
 
-    // Click Re-clean
     await page.getByRole('button', { name: 'Re-clean' }).click();
+
     await expect(page.getByText('Text re-cleaned')).toBeVisible({ timeout: 10_000 });
   });
 
   test('reprocess from detail page', async ({ page }) => {
-    await gotoReadyDocDetail(page);
+    // Reprocess is offered once processing has stopped (here: failed)
+    const { id } = await uploadDocument(page, 'error');
+    await page.goto(`/documents/${id}`);
+    await page.waitForLoadState('networkidle');
 
-    // Click Reprocess
-    await page.getByRole('button', { name: 'Reprocess' }).click();
-    await expect(page.getByText('Document re-queued for processing')).toBeVisible({
-      timeout: 10_000,
-    });
+    await page.locator('main').getByRole('button', { name: 'Reprocess' }).click();
+
+    await expect(page.getByText('Document re-queued for processing')).toBeVisible();
   });
 
   test('delete from detail page with confirmation', async ({ page }) => {
-    await gotoReadyDocs(page);
-
-    // Count initial docs
-    const initialCount = await docRows(page).count();
-    if (initialCount === 0) {
-      test.skip();
-      return;
-    }
-
-    // Navigate to last document detail (least impactful to delete)
-    const lastDocLink = docRows(page).last().locator('a[href^="/documents/"]').first();
-    await lastDocLink.click();
+    const { id } = await uploadDocument(page);
+    await page.goto(`/documents/${id}`);
     await page.waitForLoadState('networkidle');
 
-    // Click Delete
-    await page.getByRole('button', { name: 'Delete' }).click();
-
-    // Confirmation dialog
+    await page.locator('main').getByRole('button', { name: 'Delete' }).click();
     await expect(page.getByRole('heading', { name: 'Delete Document' })).toBeVisible();
     await expect(page.getByText(/Permanently delete/)).toBeVisible();
+    // The dialog's own Delete button
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
 
-    // Confirm delete — the dialog has its own Delete button
-    const confirmBtn = page.locator('button', { hasText: 'Delete' }).last();
-    await confirmBtn.click();
-
-    // Should show success toast and redirect to documents list
-    await expect(page.getByText('Document deleted')).toBeVisible({ timeout: 5_000 });
-    await expect(page).toHaveURL('/documents', { timeout: 5_000 });
+    await expect(page.getByText('Document deleted')).toBeVisible();
+    await expect(page).toHaveURL(/\/documents$/);
+    expect((await page.request.get(`/api/documents/${id}`)).status()).toBe(404);
   });
 });

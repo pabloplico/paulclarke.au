@@ -1,14 +1,23 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * E2E tests for knowledge base management.
  *
  * Pre-conditions:
  *  - Dev server running on localhost:3001
- *  - Database available
+ *
+ * Serial: the knowledge base created first is opened and then deleted.
  */
 
 const KB_NAME = `E2E Test KB ${Date.now()}`;
+
+/** The knowledge base's card on the list. */
+const kbCard = (page: Page) =>
+  page
+    .locator('main div')
+    .filter({ has: page.getByRole('heading', { name: KB_NAME, level: 3, exact: true }) })
+    .filter({ has: page.locator('button svg.lucide-trash-2') })
+    .last();
 
 test.describe('Knowledge Base', () => {
   test.describe.configure({ mode: 'serial' });
@@ -17,112 +26,46 @@ test.describe('Knowledge Base', () => {
     await page.goto('/knowledge-base');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText(/knowledge base/i).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Knowledge Base' })).toBeVisible();
   });
 
   test('create knowledge base', async ({ page }) => {
     await page.goto('/knowledge-base');
     await page.waitForLoadState('networkidle');
 
-    // Look for a create/new button
-    const createBtn = page.getByRole('button', { name: /new|create|add/i }).first();
+    await page.getByRole('button', { name: 'New Knowledge Base' }).click();
+    await page.getByRole('textbox', { name: 'Knowledge base name' }).fill(KB_NAME);
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
 
-    if (!(await createBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await createBtn.click();
-
-    // Fill in the name/title
-    const nameInput = page
-      .locator('input[placeholder*="name" i]')
-      .or(page.locator('input[placeholder*="title" i]'))
-      .or(page.locator('input[type="text"]'))
-      .first();
-
-    if (!(await nameInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await nameInput.fill(KB_NAME);
-
-    // Submit
-    const submitBtn = page.getByRole('button', { name: /create|save|add/i }).last();
-    await submitBtn.click();
-
-    // Should show success or navigate to KB detail
-    await page.waitForTimeout(2_000);
-    await expect(page.getByText(KB_NAME)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(`${KB_NAME} created`)).toBeVisible();
+    await expect(page.getByRole('heading', { name: KB_NAME, level: 3, exact: true })).toBeVisible();
   });
 
   test('knowledge base detail shows chunks info', async ({ page }) => {
     await page.goto('/knowledge-base');
     await page.waitForLoadState('networkidle');
 
-    // Click into a knowledge base
-    const kbLink = page.locator('a[href^="/knowledge-base/"]').first();
-    if (!(await kbLink.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
-    await kbLink.click();
-    await page.waitForLoadState('networkidle');
+    await page.getByRole('heading', { name: KB_NAME, level: 3, exact: true }).click();
 
-    // Should show KB detail page
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page).toHaveURL(/\/knowledge-base\/\d+$/);
+    await expect(page.getByRole('heading', { name: KB_NAME, level: 2 })).toBeVisible();
+    // A new knowledge base is empty
+    await expect(page.locator('main')).toContainText(/0 chunks\s*0 documents/);
+    await expect(page.getByRole('button', { name: 'Add Chunks' })).toBeVisible();
   });
 
   test('delete knowledge base', async ({ page }) => {
     await page.goto('/knowledge-base');
     await page.waitForLoadState('networkidle');
 
-    // Find our test KB
-    const kbEntry = page.getByText(KB_NAME);
-    if (!(await kbEntry.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip();
-      return;
-    }
+    // The card's delete button has only a trash icon, no accessible name
+    await kbCard(page).locator('button:has(svg.lucide-trash-2)').click();
 
-    // Look for delete button near our KB
-    const kbRow = kbEntry.locator('..').locator('..');
-    const deleteBtn = kbRow
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-trash-2') })
-      .or(kbRow.getByRole('button', { name: /delete/i }))
-      .first();
-
-    if (!(await deleteBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      // May need to navigate to detail page to delete
-      const kbLink = kbRow.locator('a[href^="/knowledge-base/"]').first();
-      if (await kbLink.isVisible()) {
-        await kbLink.click();
-        await page.waitForLoadState('networkidle');
-
-        const detailDeleteBtn = page.getByRole('button', { name: /delete/i }).first();
-        if (!(await detailDeleteBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
-          test.skip();
-          return;
-        }
-        await detailDeleteBtn.click();
-      } else {
-        test.skip();
-        return;
-      }
-    } else {
-      await deleteBtn.click();
-    }
-
-    // Handle confirmation if present
-    const confirmBtn = page.getByRole('button', { name: /delete|confirm|yes/i }).last();
-    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await confirmBtn.click();
-    }
-
-    await page.waitForTimeout(1_000);
-
-    // KB should be removed
-    await page.goto('/knowledge-base');
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByText(KB_NAME)).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(`${KB_NAME} deleted`)).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'New Knowledge Base' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: KB_NAME, level: 3, exact: true })
+    ).not.toBeVisible();
   });
 });
