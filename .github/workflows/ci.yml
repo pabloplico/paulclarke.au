@@ -86,7 +86,6 @@ jobs:
           echo "Shuffle seed: \`$SEED\`" >> "$GITHUB_STEP_SUMMARY"
           pnpm exec nx "$NX_RUN" -t test -- --sequence.shuffle --sequence.seed="$SEED"
 
-      # Admin-portal E2E is skipped for now: it needs Postgres
       - name: Build
         run: pnpm exec nx "$NX_RUN" -t build
 
@@ -162,6 +161,50 @@ jobs:
         with:
           name: website-playwright-report
           path: apps/website/playwright-report/
+          retention-days: 7
+
+  admin-e2e:
+    name: Admin E2E (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Set base and head for nx affected
+        if: github.event_name == 'pull_request'
+        uses: nrwl/nx-set-shas@v5
+
+      - name: Install Chromium
+        run: pnpm --filter admin-portal exec playwright install --with-deps chromium
+
+      # Playwright starts dev:lite itself (PGlite, in-process jobs, sign-in on,
+      # AI calls to a closed local port): no services or secrets. On a PR that
+      # doesn't affect the admin portal, this does nothing. The website deploy
+      # doesn't wait for this job: the two apps are independent
+      - name: Run E2E tests
+        run: pnpm exec nx "$NX_RUN" -t test:e2e --exclude='*,!admin-portal'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: admin-playwright-report
+          path: apps/admin-portal/playwright-report/
           retention-days: 7
 
   # Deploys the website to Cloudflare Workers once every check has passed on

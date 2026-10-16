@@ -156,7 +156,7 @@ pnpm --filter website test:e2e   # Playwright + axe against the production build
 - **Website E2E:** Playwright on a desktop and a mobile viewport.
 - **Accessibility:** automated checks with axe on every website page.
 
-CI runs it all except admin-portal E2E, which isn't wired into CI yet (it needs no services: it runs on `dev:lite`). It also builds a fresh database from the migrations and checks it matches the schema. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
+CI runs all of it, admin-portal E2E included (on `dev:lite`, with no services). It also builds a fresh database from the migrations and checks it matches the schema. See [TESTING.md](TESTING.md) for what each suite covers and how the mocks work.
 
 ## Deployment
 
