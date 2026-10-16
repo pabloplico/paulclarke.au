@@ -34,7 +34,7 @@
     "tailwind-merge": "catalog:"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
+    "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",

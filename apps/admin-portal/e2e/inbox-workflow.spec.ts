@@ -219,10 +219,7 @@ test.describe('Inbox → Routing → Approve → Workspace Update', () => {
     const itemCard = page.locator('div').filter({
       has: page.getByRole('heading', { name: dismissTitle, exact: true }),
     });
-    const dismissBtn = itemCard
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-x') })
-      .first();
+    const dismissBtn = itemCard.getByRole('button', { name: 'Dismiss' }).first();
     await expect(dismissBtn).toBeVisible();
     const dismissedRes = page.waitForResponse(
       (res) => res.url().includes('/dismiss') && res.request().method() === 'POST'

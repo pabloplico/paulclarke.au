@@ -179,6 +179,7 @@ export function InboxItemCard({ item, onUpdate, onRemove: _onRemove }: InboxItem
                 variant="ghost"
                 size="sm"
                 onClick={handleReroute}
+                aria-label="Retry routing"
                 disabled={rerouting}
                 className="h-7 px-2 text-xs"
               >
@@ -194,6 +195,7 @@ export function InboxItemCard({ item, onUpdate, onRemove: _onRemove }: InboxItem
                 variant="ghost"
                 size="sm"
                 onClick={handleDismiss}
+                aria-label="Dismiss"
                 disabled={dismissing}
                 className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
               >

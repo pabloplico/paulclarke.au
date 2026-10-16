@@ -19,7 +19,7 @@ const card = (page: Page, title: string) =>
 /** Opens a workspace card's menu and picks an action. */
 async function cardAction(page: Page, title: string, action: string) {
   const target = card(page, title);
-  await target.getByRole('button').first().click();
+  await target.getByRole('button', { name: /^Actions for / }).click();
   await target.getByRole('button', { name: action, exact: true }).click();
 }
 

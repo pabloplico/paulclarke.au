@@ -13,7 +13,7 @@ test.describe('Workspace Export', () => {
     await page.goto('/workspaces');
     await page.waitForLoadState('networkidle');
     const card = page.getByRole('link', { name: /^E2E Test Workspace/ });
-    await card.getByRole('button').first().click();
+    await card.getByRole('button', { name: 'Actions for E2E Test Workspace' }).click();
 
     const popupPromise = page.waitForEvent('popup');
     await card.getByRole('button', { name: 'Export' }).click();

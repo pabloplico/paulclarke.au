@@ -112,6 +112,7 @@ export function KbDetailView({ initialKb, initialChunks }: KbDetailViewProps) {
       <div className="flex items-start gap-3">
         <Link
           href="/knowledge-base"
+          aria-label="Back to knowledge bases"
           className="mt-1 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />

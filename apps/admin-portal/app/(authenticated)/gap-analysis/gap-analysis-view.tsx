@@ -890,6 +890,7 @@ export function GapAnalysisView({ workspaces, contentAuditReport }: GapAnalysisV
                     <button
                       type="button"
                       onClick={() => setSelectedAuditIndex(null)}
+                      aria-label="Close"
                       className="p-1 rounded hover:bg-white/5 text-muted-foreground transition-colors"
                     >
                       <X size={14} />

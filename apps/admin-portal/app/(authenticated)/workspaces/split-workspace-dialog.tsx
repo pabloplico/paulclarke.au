@@ -93,6 +93,7 @@ export function SplitWorkspaceDialog({ workspace, onClose, onSplit }: SplitWorks
           variant="ghost"
           size="sm"
           onClick={onClose}
+          aria-label="Close"
           className="h-6 w-6 p-0 text-muted-foreground"
         >
           <X size={12} />

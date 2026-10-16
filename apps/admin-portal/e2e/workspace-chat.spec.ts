@@ -26,20 +26,14 @@ test.describe('Workspace Chat', () => {
     await goToWorkspace(page);
 
     // Floating chat button should be visible
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await expect(chatBtn).toBeVisible();
   });
 
   test('clicking chat button opens chat panel', async ({ page }) => {
     await goToWorkspace(page);
 
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await chatBtn.click();
 
     // Chat panel should appear with workspace title and input
@@ -57,10 +51,7 @@ test.describe('Workspace Chat', () => {
     await goToWorkspace(page);
 
     // Open chat
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await chatBtn.click();
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
@@ -70,7 +61,7 @@ test.describe('Workspace Chat', () => {
     await input.fill('What is the project overview?');
 
     // Click send button
-    const sendBtn = page.locator('button').filter({ has: page.locator('svg.lucide-send') });
+    const sendBtn = page.getByRole('button', { name: 'Send message' });
     await sendBtn.click();
 
     // User message should appear
@@ -96,10 +87,7 @@ test.describe('Workspace Chat', () => {
     await goToWorkspace(page);
 
     // Open chat
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await chatBtn.click();
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
@@ -108,7 +96,7 @@ test.describe('Workspace Chat', () => {
     // Send a message first (unique: the panel reopens the last conversation)
     const message = `Hello ${Date.now()}`;
     await input.fill(message);
-    const sendBtn = page.locator('button').filter({ has: page.locator('svg.lucide-send') });
+    const sendBtn = page.getByRole('button', { name: 'Send message' });
     await sendBtn.click();
 
     // Wait for user message to appear
@@ -127,18 +115,15 @@ test.describe('Workspace Chat', () => {
     await goToWorkspace(page);
 
     // Open chat
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await chatBtn.click();
 
     await expect(page.locator('textarea[placeholder="Ask a question..."]')).toBeVisible({
       timeout: 3_000,
     });
 
-    // Close via X button in chat panel header
-    const closeBtn = page.locator('button.h-7.w-7').filter({ has: page.locator('svg.lucide-x') });
+    // Close via the X button in the chat panel header
+    const closeBtn = page.getByRole('button', { name: 'Close chat' });
     await closeBtn.click();
 
     // Chat input should no longer be visible
@@ -149,10 +134,7 @@ test.describe('Workspace Chat', () => {
     await goToWorkspace(page);
 
     // Open chat
-    const chatBtn = page
-      .locator('button')
-      .filter({ has: page.locator('svg.lucide-message-square') })
-      .last();
+    const chatBtn = page.getByRole('button', { name: 'Open chat' });
     await chatBtn.click();
 
     const input = page.locator('textarea[placeholder="Ask a question..."]');
