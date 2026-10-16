@@ -31,6 +31,8 @@ uploads/
 *.md
 !README.md
 AGENTS.md
+# next dev (16.4+) writes one into the app when an AI agent runs it
+**/AGENTS.md
 CLAUDE.md
 docs/
 **/test-results/

@@ -69,3 +69,7 @@ docs/
 
 # Local PGlite database and uploads for admin-portal dev:lite
 .pglite/
+
+# Next.js 16.4+ writes this when `next dev` runs under an AI coding agent
+# (managed agent rules). Not committed: CLAUDE.md is the repo's agent guide
+/apps/admin-portal/AGENTS.md
