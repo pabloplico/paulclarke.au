@@ -3,6 +3,25 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { adminResearchSources } from '@/lib/db/schema';
+import { assertPublicUrl } from '@/lib/net/public-url';
+
+const MAX_REDIRECTS = 5;
+
+/**
+ * Fetches `url`, following redirects by hand so every hop is checked.
+ * Prompt injection: the model picks the URL, so it may only reach public addresses.
+ */
+async function fetchPublic(url: string, init: RequestInit): Promise<Response> {
+  let current = url;
+  for (let hop = 0; ; hop++) {
+    await assertPublicUrl(current);
+    const res = await fetch(current, { ...init, redirect: 'manual' });
+    const location = res.headers.get('location');
+    if (res.status < 300 || res.status >= 400 || !location) return res;
+    if (hop === MAX_REDIRECTS) throw new Error(`more than ${MAX_REDIRECTS} redirects`);
+    current = new URL(location, current).toString();
+  }
+}
 
 /**
  * Create a scraper tool that auto-saves discovered URLs as sources.
@@ -21,7 +40,7 @@ export function createScraperTool(ctx?: { userId: number; workspaceId: number })
     }),
     execute: async ({ url }) => {
       try {
-        const res = await fetch(url, {
+        const res = await fetchPublic(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; MarketResearchBot/1.0; +https://paulclarke.au)',
           },

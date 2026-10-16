@@ -7,6 +7,7 @@ import { requireAiAllowance } from '@/lib/ai/allowance';
 import { resolveWorkspaceParams } from '@/lib/api/resolve-params';
 import { db } from '@/lib/db';
 import { adminAgentTasks } from '@/lib/db/schema';
+import { uploadsDir } from '@/lib/storage';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -36,10 +37,11 @@ export async function POST(request: Request, { params }: Params) {
 
   // Sanitize filename
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.+/g, '.');
-  const uploadsDir = join(process.cwd(), 'uploads', 'research');
-  await mkdir(uploadsDir, { recursive: true });
+  // Under the uploads root, the only place the file-parser tool will read from
+  const researchDir = join(uploadsDir(), 'research');
+  await mkdir(researchDir, { recursive: true });
   const filename = `${Date.now()}-${safeName}`;
-  const filePath = join(uploadsDir, filename);
+  const filePath = join(researchDir, filename);
 
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(filePath, buffer);

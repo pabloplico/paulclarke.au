@@ -8,12 +8,15 @@ export interface StorageProvider {
   remove(filePath: string): Promise<void>;
 }
 
-const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), 'uploads');
+/** Where uploaded files live: UPLOADS_DIR, or ./uploads in the working directory. */
+export function uploadsDir(): string {
+  return resolve(process.env.UPLOADS_DIR || join(process.cwd(), 'uploads'));
+}
 
 export class LocalStorage implements StorageProvider {
   private baseDir: string;
 
-  constructor(baseDir: string = UPLOADS_DIR) {
+  constructor(baseDir: string = uploadsDir()) {
     this.baseDir = resolve(baseDir);
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true });
