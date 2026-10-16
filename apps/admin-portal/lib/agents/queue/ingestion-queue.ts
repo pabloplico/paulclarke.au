@@ -8,7 +8,7 @@ import { createIngestionAgent } from '../mastra/agents/create';
 import { getModel } from '../mastra/provider';
 import { loadResearchSettings } from '../settings';
 import { logToolCalls } from './log-tool-calls';
-import { finishRun, logStopped, runIsStarted, stopWhenCancelled } from './run-control';
+import { finishRun, logStopped, runIsStarted, stopWhen } from './run-control';
 import { publishRunLog } from './run-logger';
 
 /** userId is the user who triggered the run. */
@@ -46,16 +46,16 @@ export async function handleIngestionJob(job: JobContext<IngestionJobData>): Pro
 
     const agent = createIngestionAgent(
       getModel({ provider: settings.aiProvider, model: settings.aiModel }),
-      { userId, workspaceId, agentRunId: run.id }
+      { userId, workspaceId, agentRunId: run.id },
+      stopWhen(run.id, 10)
     );
-    const result = await agent.generate(
-      `Process this ${fileType.toUpperCase()} file and extract market research findings.
+    const result = await agent.generate({
+      prompt: `Process this ${fileType.toUpperCase()} file and extract market research findings.
 File path: ${filePath}
-Save each finding using the save-finding tool.`,
-      { maxSteps: 10, ...stopWhenCancelled(run.id) }
-    );
+Save each finding using the saveFinding tool.`,
+    });
     if (!(await runIsStarted(run.id))) {
-      // Cancelled: Mastra stops after the step in progress and returns.
+      // Cancelled: the agent stops after the step in progress and returns.
       // Log the tool calls it made (their findings are saved), then stop
       await logToolCalls(run.id, result);
       await logStopped(run.id);
@@ -72,7 +72,7 @@ Save each finding using the save-finding tool.`,
 
     await publishRunLog(
       run.id,
-      `Completed: ${toolCallCount} tool calls, ${findingsCount} findings extracted, ${result.usage?.totalTokens ?? 0} tokens`
+      `Completed: ${toolCallCount} tool calls, ${findingsCount} findings extracted, ${result.totalUsage.totalTokens ?? 0} tokens`
     );
     if (agentResponse) {
       await publishRunLog(run.id, `Agent response: ${agentResponse.slice(0, 2000)}`);
@@ -82,7 +82,7 @@ Save each finding using the save-finding tool.`,
       status: 'completed',
       completedAt: new Date(),
       findingsCount,
-      tokensUsed: result.usage?.totalTokens ?? 0,
+      tokensUsed: result.totalUsage.totalTokens ?? 0,
     });
     if (!completed) {
       await logStopped(run.id);

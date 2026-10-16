@@ -1,6 +1,6 @@
-import { createTool } from '@mastra/core/tools';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 import { db } from '@/lib/db';
 import { adminResearchSources } from '@/lib/db/schema';
 import { assertPublicUrl } from '@/lib/net/public-url';
@@ -28,8 +28,7 @@ async function fetchPublic(url: string, init: RequestInit): Promise<Response> {
  * userId/workspaceId baked in via closure for security.
  */
 export function createScraperTool(ctx?: { userId: number; workspaceId: number }) {
-  return createTool({
-    id: 'scraper',
+  return defineTool({
     description: 'Fetch a web page and extract its text content (lightweight, no JS rendering)',
     inputSchema: z.object({
       url: z.string().url().describe('URL to scrape'),

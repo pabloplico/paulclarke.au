@@ -24,7 +24,7 @@ Only in `~/Projects/paulclarke.au` → `github.com/pabloplico/paulclarke.au` (pu
 
 ## In flight
 
-- **Dependency updates** (`dependency-updates.md`): steps 0–3 and the admin E2E prerequisite are done (#34, #35, #36, #41, #45). `pnpm audit --prod` after #45: 1 critical, 19 high, 48 moderate, 6 low (was 4/55/66/10). Next: 3a (Playwright 1.64), then 4 (drizzle 0.45) and 5 (Mastra 1.78), which should land before admin hosting.
+- **Dependency updates** (`dependency-updates.md`): steps 0–3a and the admin E2E prerequisite are done (#34, #35, #36, #41, #45, #48). Step 5 is replaced: Mastra is removed and the research agents run on the AI SDK. `pnpm audit --prod` after that: 0 critical, 1 high (`drizzle-orm`, step 4), 2 moderate (`csv-parse`, step 7; `sprintf-js` via `mammoth`), 0 low (was 4/55/66/10). The rest of the plan is parked: frontend work comes first (Paul, 2026-10-16).
 - **Test prune** (`test-prune-backlog.md`): a full-gate PR, redone from `main`, with PGlite replacements for the isolation and `inbox/[id]/approve` route tests alongside. Not started.
 - **jobquest J1** (`IMPORT_PLAN.md`): next after J0 (#14). Not started.
 

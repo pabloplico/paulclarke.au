@@ -19,17 +19,16 @@ export async function runIsStarted(runId: number): Promise<boolean> {
 }
 
 /**
- * Options for agent.generate(): after each step, aborts the agent if the run
- * is no longer 'started' (the user cancelled it).
+ * When the agent stops: after `maxSteps` model calls, or after the step in
+ * progress once the run is no longer 'started' (the user cancelled it). A stop
+ * condition rather than an abort signal, so the agent returns what it did so
+ * far (an abort throws) and the worker can log the tool calls it made.
  */
-export function stopWhenCancelled(runId: number) {
-  const controller = new AbortController();
-  return {
-    abortSignal: controller.signal,
-    onStepFinish: async () => {
-      if (!(await runIsStarted(runId))) controller.abort();
-    },
-  };
+/** A stop condition that doesn't look inside the steps, so it fits any agent's tool set. */
+export type AgentStop = (options: { steps: readonly unknown[] }) => PromiseLike<boolean> | boolean;
+
+export function stopWhen(runId: number, maxSteps: number): AgentStop[] {
+  return [({ steps }) => steps.length >= maxSteps, async () => !(await runIsStarted(runId))];
 }
 
 /** Updates the run only while it is still 'started'. False if it was cancelled meanwhile. */

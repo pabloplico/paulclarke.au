@@ -118,7 +118,7 @@ export type ScriptedReply =
 
 /**
  * A chat model that gives `replies` in order, one per call, for agents that
- * call tools (a Mastra agent runs the tools, then calls the model again).
+ * call tools (a research agent runs the tools, then calls the model again).
  * After the last reply it repeats it, so an error stays an error through the
  * AI SDK's retries. `beforeReply`
  * runs at the start of every call, so a test can look at (or change) the

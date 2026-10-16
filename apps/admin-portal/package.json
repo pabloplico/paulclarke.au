@@ -30,7 +30,6 @@
     "@ai-sdk/openai": "catalog:",
     "@electric-sql/pglite": "0.5.10",
     "@electric-sql/pglite-pgvector": "0.0.11",
-    "@mastra/core": "^1.16.0",
     "@repo/ui": "workspace:*",
     "ai": "catalog:",
     "bcryptjs": "^3.0.3",

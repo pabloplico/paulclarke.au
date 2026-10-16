@@ -1,5 +1,5 @@
-import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { defineTool } from '@/lib/agents/define-tool';
 import { logger } from '@/lib/logger';
 
 const log = logger.child({ module: 'web-search' });
@@ -8,8 +8,7 @@ const log = logger.child({ module: 'web-search' });
  * Search the web using Brave Search API (primary) or DuckDuckGo HTML (fallback).
  * Set BRAVE_SEARCH_API in .env.docker to enable Brave Search.
  */
-export const webSearchTool = createTool({
-  id: 'web-search',
+export const webSearchTool = defineTool({
   description: 'Search the web for market research data',
   inputSchema: z.object({
     query: z.string().describe('Search query string'),

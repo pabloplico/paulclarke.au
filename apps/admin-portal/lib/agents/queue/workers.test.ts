@@ -9,7 +9,7 @@ import type { ScriptedReply } from '@/test/fake-ai';
  * run, a cancelled run stays cancelled, and start-up recovery fails runs a
  * restart cut off.
  *
- * Real: PGlite, the in-process queue, the Mastra agents and tools, the run
+ * Real: PGlite, the in-process queue, the agents (AI SDK ToolLoopAgent) and tools, the run
  * logger, the AI guard and spend ledger, and the cancel and trigger route
  * handlers. No Redis and no BullMQ.
  * Faked: the OpenAI provider package (scripted models from test/fake-ai.ts,
@@ -30,7 +30,7 @@ const ai = vi.hoisted(() => ({
   beforeReply: undefined as undefined | ((call: number) => Promise<void>),
 }));
 
-// The provider package both the Mastra agents (lib/agents/mastra/provider.ts)
+// The provider package both the research agents (lib/agents/mastra/provider.ts)
 // and the embeddings (lib/ai/providers.ts) build their models from. The app
 // still wraps whatever comes back in the AI guard
 vi.mock('@ai-sdk/openai', async () => {

@@ -8,7 +8,7 @@ import { createResearchAgent } from '../mastra/agents/create';
 import { getModel } from '../mastra/provider';
 import { loadResearchSettings } from '../settings';
 import { logToolCalls } from './log-tool-calls';
-import { finishRun, logStopped, runIsStarted, stopWhenCancelled } from './run-control';
+import { finishRun, logStopped, runIsStarted, stopWhen } from './run-control';
 import { publishRunLog } from './run-logger';
 
 /** userId is the user who triggered the run. */
@@ -50,25 +50,22 @@ export async function handleResearchJob(job: JobContext<ResearchJobData>): Promi
       `Starting research agent (${settings.aiProvider}/${settings.aiModel})...`
     );
 
+    const maxSteps =
+      ((task.config as Record<string, unknown>)?.maxSteps as number) ?? settings.maxResearchSteps;
     const agent = createResearchAgent(
       getModel({ provider: settings.aiProvider, model: settings.aiModel }),
-      { userId, workspaceId: workspace.id, agentRunId: run.id }
+      { userId, workspaceId: workspace.id, agentRunId: run.id },
+      stopWhen(run.id, maxSteps)
     );
     const industry =
       (workspace.metadata as Record<string, unknown>)?.industry ?? workspace.category ?? 'general';
-    const result = await agent.generate(
-      `Research the market "${workspace.title}": ${workspace.description || ''}.
+    const result = await agent.generate({
+      prompt: `Research the market "${workspace.title}": ${workspace.description || ''}.
 Category: ${workspace.category || 'general'}. Industry: ${industry}.
-Save each distinct finding using the save-finding tool.`,
-      {
-        maxSteps:
-          ((task.config as Record<string, unknown>)?.maxSteps as number) ??
-          settings.maxResearchSteps,
-        ...stopWhenCancelled(run.id),
-      }
-    );
+Save each distinct finding using the saveFinding tool.`,
+    });
     if (!(await runIsStarted(run.id))) {
-      // Cancelled: Mastra stops after the step in progress and returns.
+      // Cancelled: the agent stops after the step in progress and returns.
       // Log the tool calls it made (their findings are saved), then stop
       await logToolCalls(run.id, result);
       await logStopped(run.id);
@@ -87,7 +84,7 @@ Save each distinct finding using the save-finding tool.`,
 
     await publishRunLog(
       run.id,
-      `Completed: ${toolCallCount} tool calls, ${findingsCount} findings saved, ${result.usage?.totalTokens ?? 0} tokens used`
+      `Completed: ${toolCallCount} tool calls, ${findingsCount} findings saved, ${result.totalUsage.totalTokens ?? 0} tokens used`
     );
 
     // Save agent response as a log entry
@@ -100,7 +97,7 @@ Save each distinct finding using the save-finding tool.`,
       status: 'completed',
       completedAt: new Date(),
       findingsCount,
-      tokensUsed: result.usage?.totalTokens ?? 0,
+      tokensUsed: result.totalUsage.totalTokens ?? 0,
     });
     if (!completed) {
       await logStopped(run.id);
