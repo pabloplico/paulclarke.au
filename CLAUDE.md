@@ -231,7 +231,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 ## Code Style & Conventions
 
-- **Biome 2.4.4** for linting and formatting. Single quotes, semicolons, 2-space indent, 100-char line width, ES5 trailing commas.
+- **Biome 2.5.15** for linting and formatting. Single quotes, semicolons, 2-space indent, 100-char line width, ES5 trailing commas.
 - **Tailwind v4** — Uses CSS `@import "tailwindcss"` syntax. No plugin system. Apps include `@source` directive to scan `@repo/ui`. Shared tokens come from `@repo/tailwind-theme`. Dark theme with lime green accent.
 - **Drizzle schema** uses `admin_` table prefix and camelCase column names in PostgreSQL (Drizzle maps JS prop names directly).
 - **No pre-commit hooks** — there is no Husky or lint-staged setup. Run `pnpm lint` before committing.
