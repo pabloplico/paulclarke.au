@@ -61,7 +61,8 @@ export const skills = sqliteTable(
     proficiency: integer().notNull(),
     category: text(),
   },
-  (t) => [uniqueIndex('skills_profile_name_idx').on(t.profileId, t.name)]
+  // One skill per name per profile, whatever the case ("React" and "react" are the same)
+  (t) => [uniqueIndex('skills_profile_name_idx').on(t.profileId, sql`lower(${t.name})`)]
 );
 
 export const taxonomy = sqliteTable('taxonomy', {
