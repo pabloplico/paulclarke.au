@@ -83,16 +83,17 @@ function sourceOutline(markdown: string) {
 }
 
 describe('PostBody', () => {
-  it.each(
-    readPosts().map((post) => [post.slug, post.content])
-  )('renders %s as its Markdown says', (_slug, content) => {
-    const expected = sourceOutline(content);
-    const { root: _root, ...rendered } = renderedOutline(content);
+  it.each(readPosts().map((post) => [post.slug, post.content]))(
+    'renders %s as its Markdown says',
+    (_slug, content) => {
+      const expected = sourceOutline(content);
+      const { root: _root, ...rendered } = renderedOutline(content);
 
-    expect(expected.headings.length).toBeGreaterThan(0);
-    expect(expected.paragraphs).toBeGreaterThan(0);
-    expect(rendered).toEqual(expected);
-  });
+      expect(expected.headings.length).toBeGreaterThan(0);
+      expect(expected.paragraphs).toBeGreaterThan(0);
+      expect(rendered).toEqual(expected);
+    }
+  );
 
   it('renders code, quotes and rules; tables, raw HTML and bare URLs stay text (no GFM)', () => {
     const fixture = readFileSync(

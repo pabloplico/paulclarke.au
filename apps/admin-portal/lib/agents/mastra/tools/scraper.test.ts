@@ -159,12 +159,12 @@ describe('scraper tool: only public addresses', () => {
     await expectRefused(url, reason);
   });
 
-  it.each([
-    'http://localhost:3001/api/settings',
-    'http://admin.localhost/',
-  ])('refuses localhost by name: %s', async (url) => {
-    await expectRefused(url, /is not public/);
-  });
+  it.each(['http://localhost:3001/api/settings', 'http://admin.localhost/'])(
+    'refuses localhost by name: %s',
+    async (url) => {
+      await expectRefused(url, /is not public/);
+    }
+  );
 
   it.each([
     ['loopback IPv4', 'http://127.0.0.1:5432/'],

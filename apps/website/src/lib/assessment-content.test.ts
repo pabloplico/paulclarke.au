@@ -96,16 +96,19 @@ describe('computeResults', () => {
     ['developing', 38, 'developing'],
     ['implementing', 63, 'implementing'],
     ['leading', 88, 'leading'],
-  ] as const)('with only maturity "%s", every dimension scores %i (%s)', (maturity, score, level) => {
-    const results = computeResults(
-      profile({ industry: 'retail', maturityLevel: maturity as MaturityLevel })
-    );
-    expect(results).not.toBeNull();
-    expect(results?.dimensionScores).toHaveLength(DIMENSIONS.length);
-    for (const ds of results?.dimensionScores ?? []) expect(ds.score).toBe(score);
-    expect(results?.overallScore).toBe(score);
-    expect(results?.overallLevel).toBe(level);
-  });
+  ] as const)(
+    'with only maturity "%s", every dimension scores %i (%s)',
+    (maturity, score, level) => {
+      const results = computeResults(
+        profile({ industry: 'retail', maturityLevel: maturity as MaturityLevel })
+      );
+      expect(results).not.toBeNull();
+      expect(results?.dimensionScores).toHaveLength(DIMENSIONS.length);
+      for (const ds of results?.dimensionScores ?? []) expect(ds.score).toBe(score);
+      expect(results?.overallScore).toBe(score);
+      expect(results?.overallLevel).toBe(level);
+    }
+  );
 
   it('uses star ratings instead of the maturity level once any are given', () => {
     const results = computeResults(
