@@ -37,6 +37,24 @@ test.describe('accessibility (axe, WCAG 2.1 A and AA)', () => {
     await expectNoSeriousA11yViolations(page);
   });
 
+  test('Analytics, as charts and as tables', async ({ page }) => {
+    await page.goto('/analytics');
+    await expect(page.getByText('Skills in demand, by group')).toBeVisible();
+    // The charts draw as SVG once ECharts has loaded
+    await expect(page.locator('figure svg').first()).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+
+    await page.getByRole('button', { name: 'Show as tables' }).click();
+    await expect(page.getByRole('table', { name: 'Skills in demand, by group' })).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+  });
+
+  test('Taxonomy', async ({ page }) => {
+    await page.goto('/taxonomy');
+    await expect(page.getByRole('list', { name: 'Merged skills' })).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+  });
+
   test('a page that does not exist', async ({ page }) => {
     await page.goto('/no/such/page');
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
