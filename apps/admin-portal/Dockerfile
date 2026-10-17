@@ -18,6 +18,7 @@ FROM base AS deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml nx.json ./
 COPY .npmrc* ./
 COPY apps/admin-portal/package.json ./apps/admin-portal/
+COPY packages/access-auth/package.json ./packages/access-auth/
 COPY packages/biome-config/package.json ./packages/biome-config/
 COPY packages/prettier-config/package.json ./packages/prettier-config/
 COPY packages/typescript-config/package.json ./packages/typescript-config/

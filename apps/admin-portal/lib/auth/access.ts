@@ -1,17 +1,20 @@
-import { createRemoteJWKSet, type JWTVerifyGetKey, jwtVerify } from 'jose';
+import {
+  ACCESS_JWT_HEADER,
+  type AccessIdentity,
+  accessIssuer,
+  accessKeySet,
+  verifyAccessJwt,
+} from '@repo/access-auth';
+import type { JWTVerifyGetKey } from 'jose';
 
 /**
- * Cloudflare Access identity for the demo (DEMO_MODE=true).
- *
- * Visitors sign in at Cloudflare Access (one-time PIN to an allowed email),
- * and Access adds a signed JWT to every request it forwards, in the
- * Cf-Access-Jwt-Assertion header. This verifies that JWT against the team's
- * published keys: signature (RS256 only), issuer, audience and expiry.
- *
- * Plain headers such as Cf-Access-Authenticated-User-Email are never trusted:
- * anyone who reaches the app without going through Cloudflare (for example at
- * its Cloud Run URL) can set any header they like. Only the signature proves
- * Cloudflare issued the identity.
+ * Cloudflare Access identity for the demo (DEMO_MODE=true): the admin portal's
+ * config and dev bypass around the shared verification in @repo/access-auth
+ * (which jobquest uses too). That checks the Cf-Access-Jwt-Assertion JWT against
+ * the team's published keys (RS256 only, issuer, audience, expiry) and never
+ * trusts plain headers such as Cf-Access-Authenticated-User-Email: anyone who
+ * reaches the app without going through Cloudflare (for example at its Cloud Run
+ * URL) can set any header they like.
  *
  * Config (both required in demo mode):
  * - CF_ACCESS_TEAM_DOMAIN: https://<team>.cloudflareaccess.com (the issuer)
@@ -23,9 +26,8 @@ import { createRemoteJWKSet, type JWTVerifyGetKey, jwtVerify } from 'jose';
  * No Node-only imports: the middleware runs this on every request.
  */
 
-export const ACCESS_JWT_HEADER = 'cf-access-jwt-assertion';
-
-export type AccessIdentity = { email: string };
+export type { AccessIdentity };
+export { ACCESS_JWT_HEADER };
 
 export class AccessConfigError extends Error {
   constructor(message: string) {
@@ -47,14 +49,13 @@ export function devAccessIdentity(): string | null {
 }
 
 function accessConfig(): { issuer: string; audience: string } {
-  const team = process.env.CF_ACCESS_TEAM_DOMAIN?.trim().replace(/\/+$/, '');
+  const issuer = accessIssuer(process.env.CF_ACCESS_TEAM_DOMAIN);
   const audience = process.env.CF_ACCESS_AUD?.trim();
-  if (!team || !audience) {
+  if (!issuer || !audience) {
     throw new AccessConfigError(
       'Demo mode needs CF_ACCESS_TEAM_DOMAIN (https://<team>.cloudflareaccess.com) and CF_ACCESS_AUD (the Access application AUD tag)'
     );
   }
-  const issuer = team.startsWith('https://') ? team : `https://${team}`;
   return { issuer, audience };
 }
 
@@ -69,10 +70,7 @@ const g = globalThis as unknown as { _accessJwks?: { issuer: string; keys: JWTVe
 function keySet(issuer: string): JWTVerifyGetKey {
   // createRemoteJWKSet caches keys and refetches on an unknown kid (rotation)
   if (g._accessJwks?.issuer !== issuer) {
-    g._accessJwks = {
-      issuer,
-      keys: createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`)),
-    };
+    g._accessJwks = { issuer, keys: accessKeySet(issuer) };
   }
   return g._accessJwks.keys;
 }
@@ -94,18 +92,6 @@ export async function verifyAccessRequest(headers: Headers): Promise<AccessIdent
   const token = headers.get(ACCESS_JWT_HEADER);
   if (!token) return null;
 
-  try {
-    const { payload } = await jwtVerify(token, keySet(issuer), {
-      issuer,
-      audience,
-      algorithms: ['RS256'],
-      requiredClaims: ['exp', 'iat'],
-    });
-    // Service-token JWTs have no email; only people may use the demo
-    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
-    if (!email.includes('@')) return null;
-    return { email };
-  } catch {
-    return null;
-  }
+  // Service-token JWTs have no email, so they're refused: only people may use the demo
+  return verifyAccessJwt(token, { issuer, audience, keys: keySet(issuer) });
 }
