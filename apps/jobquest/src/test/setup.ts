@@ -15,6 +15,16 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
   };
 }
 
+// jsdom has no ResizeObserver, which the charts' autoresize uses. Charts in jsdom
+// have no size anyway; E2E checks them in a browser
+if (typeof window !== 'undefined' && typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof globalThis.ResizeObserver;
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
