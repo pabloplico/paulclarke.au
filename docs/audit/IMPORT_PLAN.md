@@ -1,6 +1,6 @@
 # Import plan: jobquest into the NX monorepo as Vue 3 + Hono + D1
 
-> **Status (2026-10-17).** Plan decided on 2026-10-15 (A5). J0 is merged (#14); J1 is next. Refreshed on 2026-10-17: catalog versions (Vite 8, Tailwind 4.3), jobquest dev ports moved to 3000 + 3006 (the LAN `jobquest` service keeps 3002 until J9), and the form count. Trimmed on 2026-10-16: the original morning analysis (old Part B: React import, pet-local, the `nx import` spike) was superseded or dropped and is gone, except the jobquest facts and follow-ups kept in "Background" at the end. pet-local was dropped on 2026-10-15 (too tied to Next.js, Vercel and Supabase); its repo stays private and unchanged. A test password leaked in its private history: change it anywhere it's reused.
+> **Status (2026-10-17).** Plan decided on 2026-10-15 (A5). J0 is merged (#14); J1 is next. **Reordered on 2026-10-17 (Paul):** the fast-path PRs (J1–J4) come first, each tested locally and auto-merged, and the full-gate work (J5 Access + deploy, J6 AI caps) follows in its own PRs. The old J2 and J4 are now one PR and the old J8 and J9 are regrouped, so there are 9 PRs instead of 10 (old → new: J3 → J5, J4 → J2, J5 → J3, J8 → J4 + J8, J9 → J8). Also refreshed that day: catalog versions (Vite 8, Tailwind 4.3), jobquest dev ports 3000 + 3006 (the LAN `jobquest` service keeps 3002 until J8), and the form count. Trimmed on 2026-10-16: the original morning analysis (old Part B: React import, pet-local, the `nx import` spike) was superseded or dropped and is gone, except the jobquest facts and follow-ups kept in "Background" at the end. pet-local was dropped on 2026-10-15 (too tied to Next.js, Vercel and Supabase); its repo stays private and unchanged. A test password leaked in its private history: change it anywhere it's reused.
 
 ## A1. Summary
 
@@ -8,19 +8,22 @@
   - The 5.6k lines of React UI (`App.tsx`, 20 components) are rewritten as Vue 3 SFCs, not imported.
   - The ~800-line Express server is rewritten as a TypeScript Hono Worker on D1.
   - The pure code is ported, not rewritten: `utils/skillMatcher.ts`, `types.ts`, `components/jobSearchTypes.ts`, and `server/jobSources.js` / `jobAgent.js` / `models.js` move to TS.
-- **Order:**
-  1. Shared theme.
+- **Order** (fast path first, full gate after; the tier of each PR is in A4):
+  1. Shared theme (done).
   2. Scaffold.
-  3. **Job list (clickable locally).**
-  4. **Access + deploy (clickable online).**
-  5. Skills, add job, gap.
-  6. Analytics and taxonomy.
-  7. Server-side AI with caps.
+  3. **Jobs and skills (clickable locally).**
+  4. Analytics and taxonomy.
+  5. Help and "How it works".
+  6. **Access + deploy (clickable online; full gate).**
+  7. Server-side AI with caps (full gate).
   8. The Find Jobs agent.
-  9. Help pages, then the portfolio card.
-- **Estimate: 14–20.5 working days over 10 PRs** (was 15–21; dropping the profile picker saves about half a day in J2). (Importing the React UI as is was estimated at 5–9 days; the Vue rebuild adds about 10–12.)
-  - Clickable locally after about 3.5–5.5 days (J2).
-  - Clickable online behind Access after about 4.5–7 days (J3).
+  9. "Under the hood", then the portfolio card.
+- **Tiers** (CLAUDE.md "Change tiers"):
+  - **Fast path:** J1–J4, J7 and J8. Tested locally (lint, type-check, unit and component tests, clicking through in dev), then auto-merged. E2E runs in CI and doesn't block. New packages that jobquest adds for itself count as fast path.
+  - **Full gate:** J5 (sign-in and middleware, and it moves admin's `access.ts`) and J6 (an AI spend guard and pricing). Draft PR, the TESTING.md gate, and Paul merges.
+- **Estimate: 14–20.5 working days over 9 PRs** (unchanged by the reorder; was 15–21 before the profile picker was dropped). (Importing the React UI as is was estimated at 5–9 days; the Vue rebuild adds about 10–12.)
+  - Clickable locally after about 5–7.5 days (J2; was 3.5–5.5 when J2 was the job list alone).
+  - Clickable online behind Access after about 8.5–12.5 days (J5; was 4.5–7 before the reorder). That's the cost of fewer PR rounds and keeping the full-gate work in its own PRs.
 - **Top risks:**
   1. **Workers CPU limit on the agent route.** The tool loop and stream parsing run in the Worker. The Free plan's per-request CPU allowance may be too small; measure it in J7 before building the UI on top.
   2. **AI SDK version split.** jobquest needs `ai` 7 / `@ai-sdk/vue` 4, while the catalog pins `ai` ^6 for admin-portal. Decided (A5.2): jobquest pins its own versions outside the catalog, with a comment saying why; admin-portal upgrades later, separately.
@@ -36,7 +39,7 @@
 | **TanStack Vue Query 5** | Yes | Real server state: 6 resources (the visitor's profile, jobs, skills, taxonomy, search prefs, chats) shared across views, plus mutations. It replaces the whole-array POSTs and the `jobsRef` workaround for saving after async extraction. |
 | **Pinia** | No | Server state lives in Query. The little UI state left (toast, the agent chat, confirm dialogs) fits composables with provide/inject. |
 | **`@ai-sdk/vue` 4** (`Chat`, `useChat`) | Yes, J7 | The Find Jobs chat. Checked in 4.0.141: exports `Chat`, `useChat`, `useObject`, `useCompletion`. |
-| **vue-echarts** (tree-shaken `echarts/core`: Radar, Treemap, SVG renderer, aria) | Yes, J5, lazy route | The only option with both a radar and a treemap. Alternatives: d3-hierarchy + hand-made SVG (smaller, about 1 more day) or Chart.js (no treemap). |
+| **vue-echarts** (tree-shaken `echarts/core`: Radar, Treemap, SVG renderer, aria) | Yes, J3, lazy route | The only option with both a radar and a treemap. Alternatives: d3-hierarchy + hand-made SVG (smaller, about 1 more day) or Chart.js (no treemap). |
 | **`@heroicons/vue`** | Yes | The same icon set as the React UI, so no redesign. |
 | **markdown-it** (`html: false`) | Yes, J7 | Replaces `react-markdown` for agent replies. Raw HTML stays off, so it's safe under the CSP. |
 | zod 4 | Yes | Shared schemas: Hono validators and form checks use the same definitions. |
@@ -51,11 +54,11 @@
 | `App.tsx` shell + sidebar `NAV_ITEMS` | root layout, `<RouterView>`; `/` redirects | `me` (`GET /api/me`), `jobs`, `skills`, `taxonomy` prefetched in the guard | `/` redirects to the first unfinished step (no skills → `/skills`, no jobs → `/find`, else `/analytics`), as `App.tsx` does after loading. |
 | `GapAnalysis` + `SkillBuilder` | `/skills` | `skills` (+ `jobs`, `taxonomy` for demand) | Add/edit/remove skill forms; AI "generate for role" arrives in J6. |
 | `JobSearchAgent` + `JobResultsPanel` + `SearchPreferencesBar` | `/find` | `chats`, `searchPrefs` | See "Agent chat" below. |
-| `DataEntryUI` | `/jobs/new` | `createJob` mutation | Manual form in J4; paste-and-extract in J6. |
+| `DataEntryUI` | `/jobs/new` | `createJob` mutation | Manual form in J2; paste-and-extract in J6. |
 | `JobListView` | `/jobs` | `jobs`, `updateJob`, `deleteJob` | Filter, sort and search state in the URL query; inline edit; `InlineDeleteConfirm`; "Re-analyse all" in J6. |
 | `JobDetailView` (`selectedJobId` state + `onBack`) | `/jobs/:jobId` | `job` (seeded from the `jobs` cache) | Match % from `useSkillMatch`; the browser's Back button works. |
 | `SkillDashboard` (Recharts) | `/analytics` (lazy) | `jobs`, `taxonomy` | Radar + treemap + a "Show as table" toggle. |
-| `TaxonomyManager` | `/taxonomy` | `taxonomy`, `saveTaxonomy` | Merge and rename in J5; AI generation in J6. |
+| `TaxonomyManager` | `/taxonomy` | `taxonomy`, `saveTaxonomy` | Merge and rename in J3; AI generation in J6. |
 | `Toast`, `ConfirmDialog`, `ProgressModal` | Components + `useToast()` / `useConfirm()` (provide/inject) | — | Native `<dialog>` + `showModal()` for focus trapping. |
 
 ### Composables
@@ -123,31 +126,32 @@ Each form has one zod schema in `apps/jobquest/shared/`, used by both the Hono v
 
 ## A4. PR list (one PR per row, each branched from `main` after the previous merges)
 
-| PR | Title | Changes | Acceptance | Size (days) |
-|---|---|---|---|---|
-| **J0** | `refactor(website): move the Tailwind theme into @repo/tailwind-theme` | CSS-only package (`./theme.css`: `@theme` tokens, base body, focus ring, reduced-motion rule; print rules stay in the website). The website imports it. Token names allow per-app overrides. | The website's built CSS is unchanged (diff `dist/client/assets/*.css`); website E2E + axe green | S (0.5–1) |
-| **J1** | `feat(jobquest): scaffold the Vue 3 app and Hono Worker on D1` | `apps/jobquest`: Vue 3.5 + Vite 8 + Vue Router + Vue Query; Hono Worker (`server/`), D1 binding, Drizzle schema (profiles keyed by identity email, jobs, skills, taxonomy, search_prefs, chats, usage) with SQL migrations applied by `wrangler d1 migrations apply`. Pure `skillMatcher` + shared types/zod ported, with unit tests. Targets: `dev` (Vite 3000 + wrangler 3006; 3002 stays with the LAN service until J9), `build`, `lint`, `check-types`, `test`, `deploy`, `deploy:dry-run`. CLAUDE.md, apps table and ports updated. | `nx run jobquest:{lint,check-types,test,build}` green; `wrangler deploy --dry-run`; migrations apply locally; required checks green. Hono route tests against a local D1 through wrangler's `getPlatformProxy()` with plain Vitest (decided 2026-10-16: `@cloudflare/vitest-pool-workers` 0.23.0 needs Vitest ^4.1, and the repo is on Vitest 5 after PR #17) | M (1.5–2) |
-| **J2** | `feat(jobquest): the job list` | **First clickable milestone (local).** `GET /api/me`: the server resolves the profile from the identity, `DEV_ACCESS_IDENTITY` locally (Access verification comes in J3); no picker, no `:profileId` in URLs. Root layout with sidebar (unbuilt tabs hidden); `/jobs` (filter, sort, search in the URL query, inline edit, delete) and `/jobs/:jobId`; per-row job endpoints scoped to the resolved profile. A local dev profile for `DEV_ACCESS_IDENTITY`, seeded with fictional pre-extracted jobs (SQL seed, never Paul's data). Playwright + axe harness against `wrangler dev` + seeded local D1 (desktop + Pixel 7); the website's `a11y.ts` moved to a small shared package; CI E2E filter widened. | Unit + component tests for list filtering and edit; API test: a job id from another profile returns 404; E2E: open `/jobs` → edit → delete → detail → Back; axe 0 serious/critical; "Website E2E (Playwright + axe)" covers jobquest | M (1.5–2.5) |
-| **J3** | `feat(jobquest): deploy behind Cloudflare Access` | **Clickable online.** Access middleware (admin's `access.ts` reused; extract to `packages/access-auth` now there are two users, with admin's tests passing) replaces J2's dev-only identity lookup; one profile per Access email, created and seeded on the visitor's first request (D1 batch, same fictional seed as J2's dev profile); `DEV_ACCESS_IDENTITY` stays for local and is refused in production; deploy step in CI with its own affected check and D1 migrations before `wrangler deploy`. **Paul:** create the D1 database, the Access app and the custom domain. | Without an Access JWT the API returns 401; with a forged email header still 401; two identities see only their own jobs; a second first request doesn't seed twice; deep link 200 with CSP; a manual CI run deploys. **Check:** whether the CI token can apply D1 migrations (may need D1 edit permission) | M (1–1.5) |
-| **J4** | `feat(jobquest): skills, gap analysis and adding jobs` | Skills API; My Skills & Gaps (add/edit/remove, demand via `countSkillDemand`, matched/missing); manual Add Job form; match % on job detail; landing-redirect guard. | Component tests for each form and the guard; E2E: an identity with no skills lands on `/skills` → add skill → add job → match % shows | M (1.5–2) |
-| **J5** | `feat(jobquest): analytics and taxonomy` | Lazy analytics route with vue-echarts (radar + treemap, `aria` on) and a "Show as table" toggle; Taxonomy manager (merge, rename, groups) feeding `useSkillMatch`. | Unit tests: a taxonomy merge changes the skill counts; axe on analytics in both chart and table mode; analytics chunk size recorded | M–L (2–3) |
-| **J6** | `feat(jobquest): server-side AI with spend caps` | Hono routes for extraction, taxonomy generation and skills-for-role (AI SDK 7 structured output, zod); OpenAI demo key as the only Worker secret (`gpt-4.1-nano`, provider hard limit; no Gemini in production, A5.5; Gemini/Ollama stay local-only options); per-user rate limit + daily spend caps in D1 (port admin's `guard.ts` / `pricing.ts` ideas); a mock provider (`ai/test`) for tests and E2E. Vue: paste-and-extract on Add Job, SkillBuilder generate, taxonomy generate, "Re-analyse all" with progress + cancel. | A test fails if the built bundle contains a key-shaped string; caps tested (429 with the reason → toast); E2E with the mock provider; real-key smoke test by hand | M–L (2–3) |
-| **J7** | `feat(jobquest): Find Jobs agent on Workers` | Port `jobAgent` + `jobSources` to TS; `createAgentUIStreamResponse` (in `ai` 7.0.141) from Hono; save the chat on finish through `executionCtx.waitUntil`, and abort on `request.signal`; Adzuna + Jooble only in the hosted demo (JSearch off, A5.6; it stays usable locally with a key); chats list/history/delete; search prefs form; Vue `Chat` in the layout composable; results panel; save a job from the results (extraction → `createJob`, so no whole-array race). **Starts with a measurement:** CPU time of one real agent turn (`wrangler tail` / observability). **Report the numbers to Paul before deciding on Workers Paid** (A5.7). | Unit tests for source parsing (mocked `fetch`) and `collectKnownJobs`; E2E with a mocked stream: send → chips → results tab → switch tab and back while streaming → saved in History; axe on chat and results | L (3–4) |
-| **J8** | `feat(jobquest): onboarding and help pages` | "How it works" (on the landing view, no picker), Help, Under the hood (rewritten for Vue + Hono + D1 + Access). **Copy needs Paul's approval.** | axe on each page; the tab labels come from one list (no more keeping three copies in sync) | S (0.5–1) |
-| **J9** | `feat(website): add the jobquest card and app README` | `projects.ts` card (copy for approval); `apps/jobquest/README.md`: problem → solution → impact, "React → Vue: what changed and why", architecture, test numbers. Afterwards: archive `pabloplico/jobquest`, stop the `jobquest` systemd unit, rotate the old Gemini/OpenAI keys ("Before and after" below). | Website E2E + axe green; links resolve | S (0.5) |
+Fast-path PRs are tested locally and auto-merged; full-gate PRs follow TESTING.md "Full-gate changes" and wait for Paul (A1 "Tiers").
 
-**Total: 14–20.5 days.** Sum of the ranges: J0 0.5–1, J1 1.5–2, J2 1.5–2.5, J3 1–1.5, J4 1.5–2, J5 2–3, J6 2–3, J7 3–4, J8 0.5–1, J9 0.5.
+| PR | Tier | Title | Changes | Acceptance | Size (days) |
+|---|---|---|---|---|---|
+| **J0** | Done (#14) | `refactor(website): move the Tailwind theme into @repo/tailwind-theme` | CSS-only package (`./theme.css`: `@theme` tokens, base body, focus ring, reduced-motion rule; print rules stay in the website). The website imports it. Token names allow per-app overrides. | The website's built CSS is unchanged (diff `dist/client/assets/*.css`); website E2E + axe green | S (0.5–1) |
+| **J1** | Fast | `feat(jobquest): scaffold the Vue 3 app and Hono Worker on D1` | `apps/jobquest`: Vue 3.5 + Vite 8 + Vue Router + Vue Query; Hono Worker (`server/`), D1 binding, Drizzle schema (profiles keyed by identity email, jobs, skills, taxonomy, search_prefs, chats, usage) with SQL migrations applied by `wrangler d1 migrations apply`. Adds jobquest's own packages (fast path). Pure `skillMatcher` + shared types/zod ported, with unit tests. Targets: `dev` (Vite 3000 + wrangler 3006; 3002 stays with the LAN service until J8), `build`, `lint`, `check-types`, `test`, `deploy`, `deploy:dry-run`. CLAUDE.md, apps table and ports updated. | `nx run jobquest:{lint,check-types,test,build}` green; `wrangler deploy --dry-run`; migrations apply locally; required checks green. Hono route tests against a local D1 through wrangler's `getPlatformProxy()` with plain Vitest (decided 2026-10-16: `@cloudflare/vitest-pool-workers` 0.23.0 needs Vitest ^4.1, and the repo is on Vitest 5 after PR #17) | M (1.5–2) |
+| **J2** | Fast | `feat(jobquest): jobs and skills` | **First clickable milestone (local).** `GET /api/me`: the server resolves the profile from the identity, `DEV_ACCESS_IDENTITY` locally (Access verification comes in J5); no picker, no `:profileId` in URLs. Root layout with sidebar (unbuilt tabs hidden); `/jobs` (filter, sort, search in the URL query, inline edit, delete) and `/jobs/:jobId` with match %; per-row job and skill endpoints scoped to the resolved profile. My Skills & Gaps (add/edit/remove, demand via `countSkillDemand`, matched/missing); manual Add Job form; landing-redirect guard. A local dev profile for `DEV_ACCESS_IDENTITY`, seeded with fictional pre-extracted jobs (SQL seed, never Paul's data). Playwright + axe harness against `wrangler dev` + seeded local D1 (desktop + Pixel 7); the website's `a11y.ts` moved to a small shared package; CI E2E filter widened. | Unit + component tests for list filtering, edit, each form and the guard; API test: a job or skill id from another profile returns 404; E2E: open `/jobs` → edit → delete → detail → Back, and an identity with no skills lands on `/skills` → add skill → add job → match % shows; axe 0 serious/critical; "Website E2E (Playwright + axe)" covers jobquest | L (3–4.5) |
+| **J3** | Fast | `feat(jobquest): analytics and taxonomy` | Lazy analytics route with vue-echarts (radar + treemap, `aria` on) and a "Show as table" toggle; Taxonomy manager (merge, rename, groups) feeding `useSkillMatch`. | Unit tests: a taxonomy merge changes the skill counts; axe on analytics in both chart and table mode; analytics chunk size recorded | M–L (2–3) |
+| **J4** | Fast | `feat(jobquest): help and how it works` | "How it works" (on the landing view, no picker) and Help, covering the features built so far (J6 and J7 add their own Help sections). **Copy needs Paul's approval.** | axe on each page; the tab labels come from one list (no more keeping three copies in sync) | S (0.5) |
+| **J5** | **Full gate** (sign-in, middleware; moves admin's `access.ts`) | `feat(jobquest): deploy behind Cloudflare Access` | **Clickable online.** Access middleware (admin's `access.ts` reused; extract to `packages/access-auth` now there are two users, with admin's tests passing) replaces J2's dev-only identity lookup; one profile per Access email, created and seeded on the visitor's first request (D1 batch, same fictional seed as J2's dev profile); `DEV_ACCESS_IDENTITY` stays for local and is refused in production; deploy step in CI with its own affected check and D1 migrations before `wrangler deploy`. **Paul:** create the D1 database, the Access app and the custom domain. | Without an Access JWT the API returns 401; with a forged email header still 401; two identities see only their own jobs; a second first request doesn't seed twice; deep link 200 with CSP; a manual CI run deploys. **Check:** whether the CI token can apply D1 migrations (may need D1 edit permission) | M (1–1.5) |
+| **J6** | **Full gate** (AI spend guard and pricing) | `feat(jobquest): server-side AI with spend caps` | Hono routes for extraction, taxonomy generation and skills-for-role (AI SDK 7 structured output, zod); OpenAI demo key as the only Worker secret (`gpt-4.1-nano`, provider hard limit; no Gemini in production, A5.5; Gemini/Ollama stay local-only options); per-user rate limit + daily spend caps in D1 (port admin's `guard.ts` / `pricing.ts` ideas); a test that every jobquest route that can start AI work goes through the guard (as admin's `allowance-coverage.test.ts` does), added to TESTING.md "Protected tests" with the cap tests; a mock provider (`ai/test`) for tests and E2E. Vue: paste-and-extract on Add Job, SkillBuilder generate, taxonomy generate, "Re-analyse all" with progress + cancel. | A test fails if the built bundle contains a key-shaped string; caps tested (429 with the reason → toast); the coverage test fails for a route that skips the guard; E2E with the mock provider; real-key smoke test by hand | M–L (2–3) |
+| **J7** | Fast (J6's coverage test checks its route; the guard doesn't change) | `feat(jobquest): Find Jobs agent on Workers` | Port `jobAgent` + `jobSources` to TS; `createAgentUIStreamResponse` (in `ai` 7.0.141) from Hono; save the chat on finish through `executionCtx.waitUntil`, and abort on `request.signal`; Adzuna + Jooble only in the hosted demo (JSearch off, A5.6; it stays usable locally with a key); chats list/history/delete; search prefs form; Vue `Chat` in the layout composable; results panel; save a job from the results (extraction → `createJob`, so no whole-array race). **Starts with a measurement:** CPU time of one real agent turn (`wrangler tail` / observability). **Report the numbers to Paul before deciding on Workers Paid** (A5.7). | Unit tests for source parsing (mocked `fetch`) and `collectKnownJobs`; E2E with a mocked stream: send → chips → results tab → switch tab and back while streaming → saved in History; axe on chat and results | L (3–4) |
+| **J8** | Fast | `feat: jobquest under the hood, portfolio card and README` | "Under the hood" (rewritten for Vue + Hono + D1 + Access); the website's `projects.ts` card; `apps/jobquest/README.md`: problem → solution → impact, "React → Vue: what changed and why", architecture, test numbers. **Copy needs Paul's approval.** Afterwards: archive `pabloplico/jobquest`, stop the `jobquest` systemd unit, rotate the old Gemini/OpenAI keys ("Before and after" below). | axe on Under the hood; website E2E + axe green; links resolve | S (0.5–1) |
+
+**Total: 14–20.5 days.** Sum of the ranges: J0 0.5–1, J1 1.5–2, J2 3–4.5, J3 2–3, J4 0.5, J5 1–1.5, J6 2–3, J7 3–4, J8 0.5–1.
 
 **Dropped from the original React-import plan:**
-- J1 (React import), J2 (strict TS for the React code) and J5 (Tailwind v3 → v4 for the React UI) no longer apply.
+- The React import, strict TS for the React code and Tailwind v3 → v4 for the React UI no longer apply.
 - Importing jobquest's git history is moot for the front end: it's new code. Import commit messages still name `pabloplico/jobquest@<sha>` for the ported pure files.
 
 ## A5. Decisions (Paul, 2026-10-15; were questions)
 
 1. **Theme:** (b) keep jobquest's light indigo look through token overrides on `@repo/tailwind-theme`. J0's token names must allow that.
 2. **AI SDK version:** (a) jobquest pins `ai` ^7 / `@ai-sdk/*` ^4 outside the catalog, with a comment explaining why. admin-portal's upgrade comes later, as its own PR.
-3. **Profiles under Access:** (b) one profile per visitor, seeded on first sign-in. No profile picker and no `:profileId` in URLs; the server resolves the profile from the Access identity (`DEV_ACCESS_IDENTITY` locally). A2 and J2–J4 are revised to match.
-4. **Your own data:** never import `data/`. The LAN version keeps running until J9.
+3. **Profiles under Access:** (b) one profile per visitor, seeded on first sign-in. No profile picker and no `:profileId` in URLs; the server resolves the profile from the Access identity (`DEV_ACCESS_IDENTITY` locally). A2 and the J-rows are revised to match.
+4. **Your own data:** never import `data/`. The LAN version keeps running until J8.
 5. **Providers in production:** the OpenAI demo key only, with a hard limit. No Gemini in production (removed from J6's Worker secrets).
 6. **Job sources in the hosted demo:** JSearch off; Adzuna and Jooble only.
 7. **Workers plan:** decide after J7's CPU measurement. Report the numbers first.
@@ -178,12 +182,12 @@ CLAUDE.md is the full reference; these are the ones an imported app trips on.
 - **Lint and format:** Biome 2.4.4 extending `@repo/biome-config`, not ESLint; a11y rules on (as the website has).
 - **Styling:** Tailwind v4 CSS-first, importing `@repo/tailwind-theme/theme.css`, with token overrides in a later `@theme` block.
 - **Tests:** Vitest; Playwright + `@axe-core/playwright` E2E, desktop + Pixel 7, and the CI E2E filter widened to include the app.
-- **Ports:** 3000 (Vite) and 3006 (wrangler) for jobquest dev. 3002 belongs to the LAN `jobquest` systemd unit until J9 (decided 2026-10-17).
+- **Ports:** 3000 (Vite) and 3006 (wrangler) for jobquest dev. 3002 belongs to the LAN `jobquest` systemd unit until J8 (decided 2026-10-17).
 
 ## Before and after
 
 - **Before J1:** ~~push jobquest's local commits~~ (done).
 - **Credentials (after J6, when keys are server-side):** rotate the old `GEMINI_API_KEY` and `OPENAI_API_KEY` (they've been in LAN bundles); fix `RAPIDAI_KEY` → `RAPIDAPI_KEY` for local use.
-- **Shared code:** extract a package only when jobquest actually consumes it (Access verification in J3; the AI guard ideas in J6). `@repo/ui` doesn't fit jobquest's look; don't force it.
-- **After J9:** archive `pabloplico/jobquest` on GitHub (private, read-only) with a README pointing at `apps/jobquest`; don't delete it, it's the history record. Stop and remove the `jobquest` systemd unit. Update CLAUDE.md, README and STATUS for the new app (ports, targets, CI jobs).
+- **Shared code:** extract a package only when jobquest actually consumes it (Access verification in J5; the AI guard ideas in J6). `@repo/ui` doesn't fit jobquest's look; don't force it.
+- **After J8:** archive `pabloplico/jobquest` on GitHub (private, read-only) with a README pointing at `apps/jobquest`; don't delete it, it's the history record. Stop and remove the `jobquest` systemd unit. Update CLAUDE.md, README and STATUS for the new app (ports, targets, CI jobs).
 - **Lockfile changes mark every project affected,** so each jobquest PR that touches dependencies also redeploys the website on merge (harmless, expected).
