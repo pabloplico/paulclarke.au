@@ -1,6 +1,6 @@
 # Import plan: jobquest into the NX monorepo as Vue 3 + Hono + D1
 
-> **Status (2026-10-16).** Plan decided on 2026-10-15 (A5). J0 is merged (#14); J1 is next. Trimmed on 2026-10-16: the original morning analysis (old Part B: React import, pet-local, the `nx import` spike) was superseded or dropped and is gone, except the jobquest facts and follow-ups kept in "Background" at the end. pet-local was dropped on 2026-10-15 (too tied to Next.js, Vercel and Supabase); its repo stays private and unchanged. A test password leaked in its private history: change it anywhere it's reused.
+> **Status (2026-10-17).** Plan decided on 2026-10-15 (A5). J0 is merged (#14); J1 is next. Refreshed on 2026-10-17: catalog versions (Vite 8, Tailwind 4.3), jobquest dev ports moved to 3000 + 3006 (the LAN `jobquest` service keeps 3002 until J9), and the form count. Trimmed on 2026-10-16: the original morning analysis (old Part B: React import, pet-local, the `nx import` spike) was superseded or dropped and is gone, except the jobquest facts and follow-ups kept in "Background" at the end. pet-local was dropped on 2026-10-15 (too tied to Next.js, Vercel and Supabase); its repo stays private and unchanged. A test password leaked in its private history: change it anywhere it's reused.
 
 ## A1. Summary
 
@@ -40,7 +40,7 @@
 | **`@heroicons/vue`** | Yes | The same icon set as the React UI, so no redesign. |
 | **markdown-it** (`html: false`) | Yes, J7 | Replaces `react-markdown` for agent replies. Raw HTML stays off, so it's safe under the CSP. |
 | zod 4 | Yes | Shared schemas: Hono validators and form checks use the same definitions. |
-| Form library | No | `v-model` / `defineModel` + zod is enough for these 8 forms. |
+| Form library | No | `v-model` / `defineModel` + zod is enough for these 7 forms. |
 
 ### Routes and views
 
@@ -118,7 +118,7 @@ Each form has one zod schema in `apps/jobquest/shared/`, used by both the Hono v
   - Deep links fall back to `index.html` (verified). `public/_headers` copies the website's CSP; Vue's runtime build ran under `script-src 'self'` with no errors (verified).
   - On a subdomain, `jobquest.paulclarke.au`: path hosting can't do deep links (verified).
 - **`@repo/tailwind-theme`:** exists since J0 (#14); jobquest overrides its tokens (A5.1).
-- **Versions:** catalog-aligned (Vite 6.4, Vitest 5 since PR #17 (was 3.2.4), TS 5.9.3, Tailwind 4.2, Biome 2.4.4), except the AI SDK: `ai` ^7 / `@ai-sdk/*` ^4 pinned in `apps/jobquest/package.json` outside the catalog, with a comment saying why (A5.2).
+- **Versions:** catalog-aligned (Vite 8 since #31, Vitest 5 since #17, TS 5.9.3, Tailwind 4.3 since #45, Biome 2.4.4). Checked 2026-10-17: `@vitejs/plugin-vue` 6.0.10 and `vue-router` 5.4.0 both accept Vite 8. The exception is the AI SDK: `ai` ^7 / `@ai-sdk/*` ^4 pinned in `apps/jobquest/package.json` outside the catalog, with a comment saying why (A5.2).
 - **CI:** the E2E job's `--exclude='*,!website'` filter must add `jobquest`. `deploy-website` only deploys the website, so jobquest needs its own step with its own affected check.
 
 ## A4. PR list (one PR per row, each branched from `main` after the previous merges)
@@ -126,7 +126,7 @@ Each form has one zod schema in `apps/jobquest/shared/`, used by both the Hono v
 | PR | Title | Changes | Acceptance | Size (days) |
 |---|---|---|---|---|
 | **J0** | `refactor(website): move the Tailwind theme into @repo/tailwind-theme` | CSS-only package (`./theme.css`: `@theme` tokens, base body, focus ring, reduced-motion rule; print rules stay in the website). The website imports it. Token names allow per-app overrides. | The website's built CSS is unchanged (diff `dist/client/assets/*.css`); website E2E + axe green | S (0.5–1) |
-| **J1** | `feat(jobquest): scaffold the Vue 3 app and Hono Worker on D1` | `apps/jobquest`: Vue 3.5 + Vite 6 + Vue Router + Vue Query; Hono Worker (`server/`), D1 binding, Drizzle schema (profiles keyed by identity email, jobs, skills, taxonomy, search_prefs, chats, usage) with SQL migrations applied by `wrangler d1 migrations apply`. Pure `skillMatcher` + shared types/zod ported, with unit tests. Targets: `dev` (Vite 3000 + wrangler 3002, the ports already reserved for jobquest), `build`, `lint`, `check-types`, `test`, `deploy`, `deploy:dry-run`. CLAUDE.md, apps table and ports updated. | `nx run jobquest:{lint,check-types,test,build}` green; `wrangler deploy --dry-run`; migrations apply locally; required checks green. Hono route tests against a local D1 through wrangler's `getPlatformProxy()` with plain Vitest (decided 2026-10-16: `@cloudflare/vitest-pool-workers` 0.23.0 needs Vitest ^4.1, and the repo is on Vitest 5 after PR #17) | M (1.5–2) |
+| **J1** | `feat(jobquest): scaffold the Vue 3 app and Hono Worker on D1` | `apps/jobquest`: Vue 3.5 + Vite 8 + Vue Router + Vue Query; Hono Worker (`server/`), D1 binding, Drizzle schema (profiles keyed by identity email, jobs, skills, taxonomy, search_prefs, chats, usage) with SQL migrations applied by `wrangler d1 migrations apply`. Pure `skillMatcher` + shared types/zod ported, with unit tests. Targets: `dev` (Vite 3000 + wrangler 3006; 3002 stays with the LAN service until J9), `build`, `lint`, `check-types`, `test`, `deploy`, `deploy:dry-run`. CLAUDE.md, apps table and ports updated. | `nx run jobquest:{lint,check-types,test,build}` green; `wrangler deploy --dry-run`; migrations apply locally; required checks green. Hono route tests against a local D1 through wrangler's `getPlatformProxy()` with plain Vitest (decided 2026-10-16: `@cloudflare/vitest-pool-workers` 0.23.0 needs Vitest ^4.1, and the repo is on Vitest 5 after PR #17) | M (1.5–2) |
 | **J2** | `feat(jobquest): the job list` | **First clickable milestone (local).** `GET /api/me`: the server resolves the profile from the identity, `DEV_ACCESS_IDENTITY` locally (Access verification comes in J3); no picker, no `:profileId` in URLs. Root layout with sidebar (unbuilt tabs hidden); `/jobs` (filter, sort, search in the URL query, inline edit, delete) and `/jobs/:jobId`; per-row job endpoints scoped to the resolved profile. A local dev profile for `DEV_ACCESS_IDENTITY`, seeded with fictional pre-extracted jobs (SQL seed, never Paul's data). Playwright + axe harness against `wrangler dev` + seeded local D1 (desktop + Pixel 7); the website's `a11y.ts` moved to a small shared package; CI E2E filter widened. | Unit + component tests for list filtering and edit; API test: a job id from another profile returns 404; E2E: open `/jobs` → edit → delete → detail → Back; axe 0 serious/critical; "Website E2E (Playwright + axe)" covers jobquest | M (1.5–2.5) |
 | **J3** | `feat(jobquest): deploy behind Cloudflare Access` | **Clickable online.** Access middleware (admin's `access.ts` reused; extract to `packages/access-auth` now there are two users, with admin's tests passing) replaces J2's dev-only identity lookup; one profile per Access email, created and seeded on the visitor's first request (D1 batch, same fictional seed as J2's dev profile); `DEV_ACCESS_IDENTITY` stays for local and is refused in production; deploy step in CI with its own affected check and D1 migrations before `wrangler deploy`. **Paul:** create the D1 database, the Access app and the custom domain. | Without an Access JWT the API returns 401; with a forged email header still 401; two identities see only their own jobs; a second first request doesn't seed twice; deep link 200 with CSP; a manual CI run deploys. **Check:** whether the CI token can apply D1 migrations (may need D1 edit permission) | M (1–1.5) |
 | **J4** | `feat(jobquest): skills, gap analysis and adding jobs` | Skills API; My Skills & Gaps (add/edit/remove, demand via `countSkillDemand`, matched/missing); manual Add Job form; match % on job detail; landing-redirect guard. | Component tests for each form and the guard; E2E: an identity with no skills lands on `/skills` → add skill → add job → match % shows | M (1.5–2) |
@@ -178,7 +178,7 @@ CLAUDE.md is the full reference; these are the ones an imported app trips on.
 - **Lint and format:** Biome 2.4.4 extending `@repo/biome-config`, not ESLint; a11y rules on (as the website has).
 - **Styling:** Tailwind v4 CSS-first, importing `@repo/tailwind-theme/theme.css`, with token overrides in a later `@theme` block.
 - **Tests:** Vitest; Playwright + `@axe-core/playwright` E2E, desktop + Pixel 7, and the CI E2E filter widened to include the app.
-- **Ports:** 3000 (Vite) and 3002 (wrangler) are reserved for jobquest.
+- **Ports:** 3000 (Vite) and 3006 (wrangler) for jobquest dev. 3002 belongs to the LAN `jobquest` systemd unit until J9 (decided 2026-10-17).
 
 ## Before and after
 
