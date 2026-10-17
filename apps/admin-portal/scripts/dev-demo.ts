@@ -3,7 +3,7 @@
  *
  *   OPENAI_API_KEY=… pnpm nx run admin-portal:dev:demo     (or pnpm dev:demo here)
  *
- * Next.js on 127.0.0.1:3003, beside dev:lite or dev:full (3001) and jobquest (3002).
+ * Next.js on 127.0.0.1:3003, beside dev:lite or dev:full (3001) and jobquest (3000 and 3006).
  *
  * - DEMO_MODE=true, signed in as DEV_ACCESS_IDENTITY (default
  *   visitor@example.com), which stands in for the Access identity. Set it to
