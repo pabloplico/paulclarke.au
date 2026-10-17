@@ -23,6 +23,8 @@ async function open(target: Job) {
   serverErrors.value = undefined;
   await nextTick();
   dialog.value?.showModal();
+  // Start on the first field, not the scrollable box Chrome would otherwise focus
+  dialog.value?.querySelector<HTMLElement>('[name="title"]')?.focus();
 }
 
 function close() {

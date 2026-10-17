@@ -71,7 +71,7 @@ const formatDate = (iso: string) =>
         <div class="min-w-0 flex-1 space-y-3">
           <div class="flex flex-wrap items-center gap-3">
             <h1 :id="headingId" tabindex="-1" class="text-3xl font-bold outline-none">{{ job.title }}</h1>
-            <span class="rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">
+            <span class="rounded-full bg-indigo-900 px-3 py-1 text-sm font-semibold">
               {{ SENIORITY_LABELS[job.seniorityLevel] }}
             </span>
           </div>
