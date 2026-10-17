@@ -73,10 +73,13 @@ export const skillPatchSchema = z
   .partial();
 export type SkillPatch = z.input<typeof skillPatchSchema>;
 
-/** Splits a comma- or line-separated list typed into a form, dropping blanks and repeats. */
-export function parseList(text: string): string[] {
+/**
+ * Splits a list typed into a form, dropping blanks and repeats: by commas and lines
+ * for skills and software, by lines only for requirements (which are sentences).
+ */
+export function parseList(text: string, separator: RegExp = /[,\n]/): string[] {
   const items = text
-    .split(/[,\n]/)
+    .split(separator)
     .map((item) => item.trim())
     .filter(Boolean);
   return [...new Set(items)];

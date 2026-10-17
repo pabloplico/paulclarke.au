@@ -16,8 +16,11 @@
     "db:migrate:local": "wrangler d1 migrations apply jobquest --local"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "catalog:",
+    "@heroicons/vue": "^2.2.0",
     "@repo/tailwind-theme": "workspace:*",
     "@tanstack/vue-query": "^5.104.3",
+    "@tanstack/vue-table": "^9.3.1",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "vue": "^3.5.44",
@@ -28,6 +31,8 @@
     "@cloudflare/workers-types": "^5.20261016.1",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/vite": "catalog:",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/user-event": "catalog:",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",
