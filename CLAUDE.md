@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **`apps/website`** — Stateless Vite SPA + Hono Worker. No database. Deployed to **Cloudflare Workers** with the Static Assets binding. Domain: `paulclarke.au`.
 - **`apps/admin-portal`** — Next.js + Postgres (or embedded PGlite), single-instance with in-process job queues. Deployed via Docker. Optional Playwright for URL scraping.
-- **`apps/jobquest`** — Vue 3 SPA + Hono Worker on D1, being imported from `pabloplico/jobquest` (`docs/audit/IMPORT_PLAN.md`). Not deployed yet: the Access-protected deploy comes in J5. Its `wrangler.jsonc` turns off `workers_dev` and preview URLs and holds a placeholder D1 id until then.
+- **`apps/jobquest`** — Vue 3 SPA + Hono Worker on D1, being imported from `pabloplico/jobquest` (`docs/audit/IMPORT_PLAN.md`). Deployed to **Cloudflare Workers** at `jobquest.paulclarke.au`, behind **Cloudflare Access** (team `paulclarke.cloudflareaccess.com`); `workers_dev` and preview URLs are off, so the custom domain is the only way in.
 
 ## Production Builds
 
@@ -31,6 +31,10 @@ Custom domain (`paulclarke.au`) is bound via the Cloudflare dashboard:
 DNS must be on Cloudflare; the dashboard provisions the cert automatically.
 
 Blog posts in `apps/website/content/posts/*.md` are bundled into the Worker at build time by `scripts/build-posts.mjs` (emits `server/posts.generated.ts`, gitignored).
+
+### jobquest (Cloudflare Workers)
+
+One Worker serving the Vue app (Static Assets) and its Hono API on D1 (database `jobquest`), at `jobquest.paulclarke.au` behind Cloudflare Access. **CI deploys it:** the `deploy-jobquest` job runs on pushes to `main` after "Lint, type-check, test and build" and jobquest's E2E pass, when NX says jobquest changed (a manual run always deploys). It applies the D1 migrations (`wrangler d1 migrations apply jobquest --remote`; the token needs **D1 Edit**), runs `pnpm run deploy` (which attaches the custom domain from `wrangler.jsonc`), then `scripts/live-check.sh`: signed-out requests to `/` and `/api/me` must go to the Access login, never get a 200. The Access application (team `paulclarke.cloudflareaccess.com`) must cover `jobquest.paulclarke.au`; its AUD is in `wrangler.jsonc`. By hand, from `apps/jobquest/`: migrations as above, then `pnpm run deploy`.
 
 ### Admin Portal (Docker)
 
@@ -209,6 +213,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 - **`@repo/ui`** — Shared React components (Button, Card, Badge, Input, etc.). Uses direct path exports: `import { Button } from '@repo/ui/button'` (no barrel file).
 - **`@repo/tailwind-theme`** — CSS-only Tailwind v4 theme (`@repo/tailwind-theme/theme.css`): the `@theme` tokens, base body styles, the `:focus-visible` ring and the reduced-motion rule. Apps `@import` it right after `tailwindcss` and keep their own `@source` lines and app-specific CSS (the website's print stylesheet stays in `globals.css`). An app restyles itself by redefining tokens in a later `@theme` block.
+- **`@repo/access-auth`** — Cloudflare Access JWT verification (`verifyAccessJwt`: RS256, issuer, audience, expiry, an email required), shared by admin-portal's demo and jobquest. Config comes in as arguments: no `process.env`, runs on Node and Workers.
 - **`@repo/playwright-a11y`** — `expectNoSeriousA11yViolations(page)`: axe (WCAG 2.0/2.1 A and AA) for the website's and jobquest's E2E tests; fails on serious or critical violations. TypeScript source, no build.
 - **`@repo/typescript-config`** — Shared tsconfig bases (base, vite, nextjs, react-library)
 - **`@repo/biome-config`** — Shared Biome linting/formatting rules
@@ -227,7 +232,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Being imported** — the plan, PR by PR, is `docs/audit/IMPORT_PLAN.md` (J0–J8). The React UI is rebuilt in Vue 3; pure code is ported from `pabloplico/jobquest`, with commit messages naming the source sha.
 - **Layout** — `src/` (Vue app: Vue Router, TanStack Vue Query), `server/` (Hono Worker, Drizzle schema in `server/db/schema.ts`), `shared/` (zod schemas and pure code both sides use, such as `skillMatcher.ts`, which takes the taxonomy as an argument), `drizzle/` (SQL migrations).
 - **Type-checking** — four tsconfigs: `tsconfig.app.json` (vue-tsc), `tsconfig.worker.json` (Workers types only, no DOM or Node), `tsconfig.node.json` (tool configs and the route tests) and `tsconfig.e2e.json` (Playwright, with the DOM for `page.evaluate`). TS 6 includes no `@types` unless listed, so each sets `types`.
-- **Identity and profiles** — until Access verification (J5), identity exists only when `ENVIRONMENT` is `development`: the `jq-dev-identity` cookie (each E2E test sets its own), then `DEV_ACCESS_IDENTITY`, then `dev@localhost.test`. Under production vars every `/api` request is a 401 (a protected test). A plain email header is never trusted. A profile is created on its first request with the sample jobs (`server/seed.ts`, all fictional), no skills and the built-in taxonomy, in one D1 batch (`server/profiles.ts`).
+- **Identity and profiles** — in development: the `jq-dev-identity` cookie (each E2E test sets its own), then `DEV_ACCESS_IDENTITY`, then `dev@localhost.test`. Everywhere else only a Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`), verified by `@repo/access-auth` for this application's AUD (`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` in `wrangler.jsonc`); without that config every `/api` request is a 401 and logged. A plain email header is never trusted (protected tests). A profile is created on its first request with the sample jobs (`server/seed.ts`, all fictional), no skills and the built-in taxonomy, in one D1 batch (`server/profiles.ts`).
 - **API** — per-row `/api/jobs` and `/api/skills`, plus `/api/me` and `/api/taxonomy`. Every by-id query has the profile in its WHERE (another visitor's id is a 404, a protected test); bodies go through the shared form schemas in `shared/forms.ts`.
 - **Route tests** — `server/test/platform.ts` gives each suite wrangler's `getPlatformProxy()` with an in-memory D1 and the migrations applied, and the vars passed in (it never reads `.dev.vars`). Plain Vitest in Node; `@cloudflare/vitest-pool-workers` needs Vitest 4.
 - **Component tests** render the whole app (`src/test/renderApp.ts`) against an in-memory fake of `/api` (`src/test/fakeApi.ts`). **E2E** runs on port 8790 with a fresh local D1; the axe helper is `@repo/playwright-a11y`, shared with the website.

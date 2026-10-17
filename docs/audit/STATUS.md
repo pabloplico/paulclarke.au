@@ -10,7 +10,8 @@ Frontend first (Paul, 2026-10-16): the repo is a portfolio for a frontend role. 
 
 ## In flight
 
-- **jobquest J5** (`IMPORT_PLAN.md`): next, deploy behind Cloudflare Access (full gate). **Paul:** create the D1 database, the Access app and the custom domain. J1–J4 are done: scaffold, jobs and skills, analytics and taxonomy, help. Vue 3 rebuild, with TanStack Query and Table since J2.
+- **jobquest J5** (`IMPORT_PLAN.md`): draft PR, full gate, waits for Paul. Before merging: the Access app must cover `jobquest.paulclarke.au`, and the CI token needs D1 Edit (migrations). J1–J4 are done. Vue 3 rebuild, with TanStack Query and Table since J2.
+- **Later (Paul to assess what to share and unify):** jobquest's `/api` middleware has no `Sec-Fetch-Site` check like admin's demo middleware. The J5 security review found it not exploitable (cross-site forms send no JSON; other writes need a CORS preflight); add it in its own PR.
 - **Dependencies:** done for now. `pnpm audit --prod` is 0 critical, 0 high, 1 moderate (`sprintf-js` via `mammoth` → `argparse`, mammoth's command-line tool, not used; no fix exists), 0 low. Remaining majors (AI SDK 7, Biome 2.5, TypeScript 7, `lucide-react` 1, pdf-parse 2, `diff` 9) wait for a reason or for Renovate.
 
 ## Decisions (Paul)

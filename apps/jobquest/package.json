@@ -19,6 +19,7 @@
   "dependencies": {
     "@fontsource-variable/inter": "catalog:",
     "@heroicons/vue": "^2.2.0",
+    "@repo/access-auth": "workspace:*",
     "@repo/tailwind-theme": "workspace:*",
     "@tanstack/vue-query": "^5.104.3",
     "@tanstack/vue-table": "^9.3.1",
@@ -44,6 +45,7 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "concurrently": "catalog:",
     "drizzle-kit": "catalog:",
+    "jose": "catalog:",
     "jsdom": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",

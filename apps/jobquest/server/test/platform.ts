@@ -60,6 +60,23 @@ export function apiAs(env: Env, identity?: string) {
     );
 }
 
+/** Calls the API with exactly these headers (no development identity cookie). */
+export function apiWithHeaders(env: Env, headers: Record<string, string>) {
+  return (method: string, url: string, body?: unknown) =>
+    app.request(
+      url,
+      {
+        method,
+        headers: {
+          ...headers,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      env
+    );
+}
+
 /** Runs drizzle/*.sql in order, as `wrangler d1 migrations apply` does. */
 async function applyMigrations(db: D1Database) {
   const dir = path.join(appRoot, 'drizzle');

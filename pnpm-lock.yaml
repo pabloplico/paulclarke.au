@@ -72,6 +72,9 @@ catalogs:
     hono:
       specifier: ^4.13.13
       version: 4.13.13
+    jose:
+      specifier: ^6.2.12
+      version: 6.2.12
     jsdom:
       specifier: ^30.1.3
       version: 30.1.3
@@ -167,6 +170,9 @@ importers:
       '@electric-sql/pglite-pgvector':
         specifier: 0.0.11
         version: 0.0.11(@electric-sql/pglite@0.5.10)
+      '@repo/access-auth':
+        specifier: workspace:*
+        version: link:../../packages/access-auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -189,7 +195,7 @@ importers:
         specifier: 'catalog:'
         version: 0.45.4(@cloudflare/workers-types@5.20261016.1)(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(postgres@3.4.9)
       jose:
-        specifier: ^6.2.12
+        specifier: 'catalog:'
         version: 6.2.12
       js-tiktoken:
         specifier: ^1.0.21
@@ -291,6 +297,9 @@ importers:
       '@heroicons/vue':
         specifier: ^2.2.0
         version: 2.2.0(vue@3.5.44(typescript@6.0.3))
+      '@repo/access-auth':
+        specifier: workspace:*
+        version: link:../../packages/access-auth
       '@repo/tailwind-theme':
         specifier: workspace:*
         version: link:../../packages/tailwind-theme
@@ -361,6 +370,9 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.11
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       jsdom:
         specifier: 'catalog:'
         version: 30.1.3
@@ -500,6 +512,12 @@ importers:
       wrangler:
         specifier: 'catalog:'
         version: 4.151.0(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2)
+
+  packages/access-auth:
+    dependencies:
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
 
   packages/biome-config:
     dependencies:

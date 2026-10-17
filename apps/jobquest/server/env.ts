@@ -6,6 +6,10 @@ export interface Env {
   ENVIRONMENT?: string;
   /** Stands in for the Cloudflare Access identity locally. Ignored unless ENVIRONMENT is 'development'. */
   DEV_ACCESS_IDENTITY?: string;
+  /** The Access team, `<team>.cloudflareaccess.com`: the JWT's issuer (wrangler.jsonc). */
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  /** The Access application's AUD tag: the JWT's audience (wrangler.jsonc). */
+  CF_ACCESS_AUD?: string;
 }
 
 export interface Profile {

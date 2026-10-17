@@ -1,3 +1,4 @@
+import { ACCESS_JWT_HEADER } from '@repo/access-auth';
 import { count } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
@@ -26,9 +27,13 @@ app.get('/api/health', async (c) => {
   }
 });
 
-// Everything else under /api acts for one visitor: no identity, no access
+// Everything else under /api acts for one visitor: no identity, no access. In
+// production the identity is a verified Cloudflare Access JWT (server/identity.ts)
 app.use('/api/*', async (c, next) => {
-  const email = resolveIdentity(c.env, getCookie(c, DEV_IDENTITY_COOKIE));
+  const email = await resolveIdentity(c.env, {
+    devCookie: getCookie(c, DEV_IDENTITY_COOKIE),
+    accessJwt: c.req.header(ACCESS_JWT_HEADER),
+  });
   if (!email) return c.json({ error: 'Sign in to use JobQuest.' }, 401);
   const db = drizzle(c.env.DB);
   c.set('db', db);

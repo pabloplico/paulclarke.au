@@ -1,0 +1,15 @@
+{
+  "name": "@repo/access-auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "biome check ."
+  },
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "jose": "catalog:"
+  }
+}
