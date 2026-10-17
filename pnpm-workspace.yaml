@@ -7,7 +7,7 @@ catalog:
   '@ai-sdk/google': ^3.0.134
   '@ai-sdk/openai': ^3.0.129
   '@axe-core/playwright': ^4.14.0
-  '@biomejs/biome': ^2.4.4
+  '@biomejs/biome': ^2.5.15
   '@playwright/test': ^1.64.1
   '@tailwindcss/postcss': ^4.3.3
   '@types/node': ^24.19.2
