@@ -7,7 +7,7 @@
 | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Every page and the edit dialog, WCAG 2.1 A/AA                                                    | Button and link names only (`e2e/accessibility.spec.ts`)                 |
 | Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | Includes the a11y rule group, Vue templates too                                                  | a11y rules off (planned)                                                 |
 
-CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus three parallel jobs: the website and jobquest E2E suites (one job), the admin E2E suite (on `dev:lite`, with no services), and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`).
+CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus four parallel jobs: the website E2E suite, the jobquest E2E suite, the admin E2E suite (on `dev:lite`, with no services), and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`).
 
 ## Quick start
 

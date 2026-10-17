@@ -6,11 +6,12 @@ const { toasts, dismiss } = useToast();
 </script>
 
 <template>
-  <!-- Always in the page, so screen readers announce toasts as they're added -->
+  <!-- Always in the page, so screen readers announce toasts as they're added. At the
+       bottom on phones, where a full-width toast at the top would cover the page -->
   <div
     role="status"
     aria-live="polite"
-    class="pointer-events-none fixed top-4 right-4 left-4 z-50 flex flex-col items-end gap-2 sm:left-auto"
+    class="pointer-events-none fixed right-4 bottom-4 left-4 z-50 flex flex-col items-end gap-2 sm:top-4 sm:bottom-auto sm:left-auto"
   >
     <div
       v-for="toast in toasts"
