@@ -4,6 +4,7 @@
   "compilerOptions": {
     // TS 6 includes no @types packages unless they're listed
     "types": ["vite/client"],
+    "noUnusedLocals": true,
     "paths": {
       "@/*": ["./src/*"]
     }
