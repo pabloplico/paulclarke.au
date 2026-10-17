@@ -10,7 +10,7 @@ Frontend first (Paul, 2026-10-16): the repo is a portfolio for a frontend role. 
 
 ## In flight
 
-- **jobquest J2** (`IMPORT_PLAN.md`): next, jobs and skills (the first clickable milestone). J1, the scaffold, is done. Vue 3 rebuild; plan TanStack Query and Table for Vue into it.
+- **jobquest J3** (`IMPORT_PLAN.md`): next, analytics and taxonomy. J1 (scaffold) and J2 (jobs and skills, the first clickable milestone) are done. Vue 3 rebuild, with TanStack Query and Table since J2.
 - **Dependencies:** done for now. `pnpm audit --prod` is 0 critical, 0 high, 1 moderate (`sprintf-js` via `mammoth` → `argparse`, mammoth's command-line tool, not used; no fix exists), 0 low. Remaining majors (AI SDK 7, Biome 2.5, TypeScript 7, `lucide-react` 1, pdf-parse 2, `diff` 9) wait for a reason or for Renovate.
 
 ## Decisions (Paul)

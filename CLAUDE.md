@@ -63,11 +63,10 @@ Vite proxies `/api/*` to the Worker. The Worker only serves the blog API and has
 ### jobquest
 
 ```bash
-cp apps/jobquest/.dev.vars.example apps/jobquest/.dev.vars   # only ENVIRONMENT=development
 pnpm nx run jobquest:dev    # applies the D1 migrations locally, then Vite (3000) + wrangler dev (3006)
 ```
 
-Port 3002 belongs to the old LAN jobquest app (the `jobquest` systemd unit) until the import's last PR, so the dev servers avoid it. The local D1 database lives in `apps/jobquest/.wrangler/state` (gitignored; delete it to start again). After changing `server/db/schema.ts`, run `pnpm --filter jobquest db:generate` and commit the new file in `drizzle/`; `db:migrate:local` (and `dev`) applies it.
+`dev` runs the Worker with `ENVIRONMENT=development`, so it needs no `.dev.vars`; you're `dev@localhost.test` (set `DEV_ACCESS_IDENTITY` in `.dev.vars` to be someone else). Your first request creates your profile with the sample jobs. Port 3002 belongs to the old LAN jobquest app (the `jobquest` systemd unit) until the import's last PR, so the dev servers avoid it. The local D1 database lives in `apps/jobquest/.wrangler/state` (gitignored; delete it to start again). After changing `server/db/schema.ts`, run `pnpm --filter jobquest db:generate` and commit the new file in `drizzle/`; `db:migrate:local` (and `dev`) applies it.
 
 ### Admin portal: daily work (`dev:lite`)
 
@@ -134,6 +133,7 @@ pnpm --filter admin-portal exec vitest run lib/rag/chunker.test.ts
 # admin-portal: no services either: its webServer runs dev:lite with sign-in on,
 # a fresh .pglite/e2e database and AI calls sent to a stub OpenAI server, test/fake-openai)
 pnpm --filter website test:e2e
+pnpm --filter jobquest test:e2e
 pnpm --filter admin-portal test:e2e
 
 # Database (from apps/admin-portal, against the full stack)
@@ -209,6 +209,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 - **`@repo/ui`** — Shared React components (Button, Card, Badge, Input, etc.). Uses direct path exports: `import { Button } from '@repo/ui/button'` (no barrel file).
 - **`@repo/tailwind-theme`** — CSS-only Tailwind v4 theme (`@repo/tailwind-theme/theme.css`): the `@theme` tokens, base body styles, the `:focus-visible` ring and the reduced-motion rule. Apps `@import` it right after `tailwindcss` and keep their own `@source` lines and app-specific CSS (the website's print stylesheet stays in `globals.css`). An app restyles itself by redefining tokens in a later `@theme` block.
+- **`@repo/playwright-a11y`** — `expectNoSeriousA11yViolations(page)`: axe (WCAG 2.0/2.1 A and AA) for the website's and jobquest's E2E tests; fails on serious or critical violations. TypeScript source, no build.
 - **`@repo/typescript-config`** — Shared tsconfig bases (base, vite, nextjs, react-library)
 - **`@repo/biome-config`** — Shared Biome linting/formatting rules
 - **`@repo/prettier-config`** — Shared Prettier config
@@ -225,8 +226,11 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 - **Being imported** — the plan, PR by PR, is `docs/audit/IMPORT_PLAN.md` (J0–J8). The React UI is rebuilt in Vue 3; pure code is ported from `pabloplico/jobquest`, with commit messages naming the source sha.
 - **Layout** — `src/` (Vue app: Vue Router, TanStack Vue Query), `server/` (Hono Worker, Drizzle schema in `server/db/schema.ts`), `shared/` (zod schemas and pure code both sides use, such as `skillMatcher.ts`, which takes the taxonomy as an argument), `drizzle/` (SQL migrations).
-- **Type-checking** — three tsconfigs: `tsconfig.app.json` (vue-tsc), `tsconfig.worker.json` (Workers types only, no DOM or Node) and `tsconfig.node.json` (tool configs and the route tests). TS 6 includes no `@types` unless listed, so each sets `types`.
-- **Route tests** — `server/test/platform.ts` gives each suite wrangler's `getPlatformProxy()` with an in-memory D1 and the migrations applied. Plain Vitest in Node; `@cloudflare/vitest-pool-workers` needs Vitest 4.
+- **Type-checking** — four tsconfigs: `tsconfig.app.json` (vue-tsc), `tsconfig.worker.json` (Workers types only, no DOM or Node), `tsconfig.node.json` (tool configs and the route tests) and `tsconfig.e2e.json` (Playwright, with the DOM for `page.evaluate`). TS 6 includes no `@types` unless listed, so each sets `types`.
+- **Identity and profiles** — until Access verification (J5), identity exists only when `ENVIRONMENT` is `development`: the `jq-dev-identity` cookie (each E2E test sets its own), then `DEV_ACCESS_IDENTITY`, then `dev@localhost.test`. Under production vars every `/api` request is a 401 (a protected test). A plain email header is never trusted. A profile is created on its first request with the sample jobs (`server/seed.ts`, all fictional), no skills and the built-in taxonomy, in one D1 batch (`server/profiles.ts`).
+- **API** — per-row `/api/jobs` and `/api/skills`, plus `/api/me` and `/api/taxonomy`. Every by-id query has the profile in its WHERE (another visitor's id is a 404, a protected test); bodies go through the shared form schemas in `shared/forms.ts`.
+- **Route tests** — `server/test/platform.ts` gives each suite wrangler's `getPlatformProxy()` with an in-memory D1 and the migrations applied, and the vars passed in (it never reads `.dev.vars`). Plain Vitest in Node; `@cloudflare/vitest-pool-workers` needs Vitest 4.
+- **Component tests** render the whole app (`src/test/renderApp.ts`) against an in-memory fake of `/api` (`src/test/fakeApi.ts`). **E2E** runs on port 8790 with a fresh local D1; the axe helper is `@repo/playwright-a11y`, shared with the website.
 - **Look** — light indigo, by redefining `@repo/tailwind-theme` tokens in `src/styles.css`.
 
 ### Admin Portal Key Systems
