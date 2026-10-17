@@ -1,0 +1,6 @@
+# Applied by Cloudflare Workers Static Assets to every asset response, including the
+# index.html served for SPA deep links (those navigations never reach the Worker script).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

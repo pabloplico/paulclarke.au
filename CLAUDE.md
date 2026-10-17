@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **`apps/website`** — Stateless Vite SPA + Hono Worker. No database. Deployed to **Cloudflare Workers** with the Static Assets binding. Domain: `paulclarke.au`.
 - **`apps/admin-portal`** — Next.js + Postgres (or embedded PGlite), single-instance with in-process job queues. Deployed via Docker. Optional Playwright for URL scraping.
+- **`apps/jobquest`** — Vue 3 SPA + Hono Worker on D1, being imported from `pabloplico/jobquest` (`docs/audit/IMPORT_PLAN.md`). Not deployed yet: the Access-protected deploy comes in J5. Its `wrangler.jsonc` turns off `workers_dev` and preview URLs and holds a placeholder D1 id until then.
 
 ## Production Builds
 
@@ -46,9 +47,9 @@ Next.js uses `output: 'standalone'` — the prod image contains only traced depe
 
 Everything runs on the host: Node 22 and pnpm (`corepack enable`). Docker is optional and only provides Postgres and Ollama for the admin portal's full stack. There is no app container. Run commands from the repo root unless noted.
 
-A fresh clone needs one command after `pnpm install`: `pnpm dev` runs `website:dev` and `admin-portal:dev`, which is `dev:lite`.
+A fresh clone needs one command after `pnpm install`: `pnpm dev` runs `website:dev`, `jobquest:dev` and `admin-portal:dev`, which is `dev:lite`.
 
-**Network access.** The website's dev servers listen on all interfaces. The admin dev servers (`dev`, `dev:lite`, `dev:full`, `dev:demo`) listen on 127.0.0.1 only, unless `DEV_HOST` says otherwise. To open them from a phone or another computer, set `DEV_HOST=0.0.0.0` and list the device's IP in `ALLOWED_DEV_ORIGINS`, or Next.js blocks its dev assets. `DEV_HOST` comes from the shell only, never `.env.docker`. `ALLOWED_DEV_ORIGINS` reaches `dev:full` from `.env.docker`; `dev:lite` and `dev:demo` need it from the shell. For example: `DEV_HOST=0.0.0.0 ALLOWED_DEV_ORIGINS=192.168.0.20 pnpm dev`. Export both in your shell profile to make that the default.
+**Network access.** The website's and jobquest's dev servers listen on all interfaces. The admin dev servers (`dev`, `dev:lite`, `dev:full`, `dev:demo`) listen on 127.0.0.1 only, unless `DEV_HOST` says otherwise. To open them from a phone or another computer, set `DEV_HOST=0.0.0.0` and list the device's IP in `ALLOWED_DEV_ORIGINS`, or Next.js blocks its dev assets. `DEV_HOST` comes from the shell only, never `.env.docker`. `ALLOWED_DEV_ORIGINS` reaches `dev:full` from `.env.docker`; `dev:lite` and `dev:demo` need it from the shell. For example: `DEV_HOST=0.0.0.0 ALLOWED_DEV_ORIGINS=192.168.0.20 pnpm dev`. Export both in your shell profile to make that the default.
 
 ### Website
 
@@ -58,6 +59,15 @@ pnpm nx run website:dev    # generates the blog posts, then Vite (3004) + wrangl
 ```
 
 Vite proxies `/api/*` to the Worker. The Worker only serves the blog API and has no secrets. `wrangler dev` runs `workerd`, which ships glibc-only binaries, so it doesn't work on musl (Alpine) hosts.
+
+### jobquest
+
+```bash
+cp apps/jobquest/.dev.vars.example apps/jobquest/.dev.vars   # only ENVIRONMENT=development
+pnpm nx run jobquest:dev    # applies the D1 migrations locally, then Vite (3000) + wrangler dev (3006)
+```
+
+Port 3002 belongs to the old LAN jobquest app (the `jobquest` systemd unit) until the import's last PR, so the dev servers avoid it. The local D1 database lives in `apps/jobquest/.wrangler/state` (gitignored; delete it to start again). After changing `server/db/schema.ts`, run `pnpm --filter jobquest db:generate` and commit the new file in `drizzle/`; `db:migrate:local` (and `dev`) applies it.
 
 ### Admin portal: daily work (`dev:lite`)
 
@@ -100,13 +110,14 @@ Host requirements for the full stack: `pnpm exec playwright install chromium` (o
 pnpm lint
 pnpm lint:fix
 
-# Type checking — NX runs `tsc --noEmit` in admin-portal, website and @repo/ui
+# Type checking — NX runs `tsc --noEmit` in admin-portal, website and @repo/ui, and in
+# jobquest `vue-tsc` for the app plus `tsc` for its Worker and Node configs
 # (the website's check-types depends on prebuild:posts, which NX runs first;
 # admin-portal's runs `next typegen` first, which writes the gitignored
 # next-env.d.ts and the .next/types route types without a build)
 pnpm check-types
 
-pnpm test     # Vitest in admin-portal and website
+pnpm test     # Vitest in admin-portal, website and jobquest
 pnpm build
 
 # One target in one project, and NX inspection commands
@@ -165,6 +176,9 @@ Key vars (see `.env.docker.example` for full list):
 | Website (dev, wrangler Worker) | website | host | 3005 |
 | Admin Portal (`dev`/`dev:lite` or `dev:full`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3001 |
 | Admin Portal (demo mode, `dev:demo`) | admin-portal | host (127.0.0.1 unless `DEV_HOST`) | 3003 |
+| jobquest (dev, Vite SPA) | jobquest | host | 3000 |
+| jobquest (dev, wrangler Worker) | jobquest | host | 3006 |
+| Old jobquest (LAN, until the import's last PR) | `jobquest` systemd unit | host | 3002 |
 | PostgreSQL 15 (pgvector) | admin-portal | `admin-portal-dev-postgres` | 5432 |
 | Ollama (optional, `--profile ai`) | admin-portal | `admin-portal-dev-ollama` | 11434 |
 
@@ -189,6 +203,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 |-----|-----------|-----------|-----|------|
 | `apps/website` | Vite SPA + Hono Worker | Cloudflare Workers (paulclarke.au) | Host (Vite 3004, wrangler 3005) | Developer portfolio: projects, assessment demo, writing |
 | `apps/admin-portal` | Next.js 16 | Docker | Host (port 3001); Postgres optionally in Docker | Internal: workspace knowledge management, document processing, inbox routing, gap analysis |
+| `apps/jobquest` | Vue 3 SPA + Hono Worker + D1 | Cloudflare Workers behind Access (from J5) | Host (Vite 3000, wrangler 3006) | Job market analyser: saved jobs, skills and gaps, an AI job-search agent (being imported) |
 
 ### Packages
 
@@ -206,6 +221,14 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 - **Blog (Writing)** — Markdown posts in `content/posts/*.md`, bundled into the Worker at build time via `scripts/build-posts.mjs`; fetched with TanStack Query (`src/lib/api/posts.ts`).
 - **Contact form** — Builds a `mailto:` URL on submit and opens the visitor's email client. No backend, no captcha, no SMTP. Contact email is the `CONTACT_EMAIL` constant in `src/lib/mailto.ts`.
 
+### jobquest
+
+- **Being imported** — the plan, PR by PR, is `docs/audit/IMPORT_PLAN.md` (J0–J8). The React UI is rebuilt in Vue 3; pure code is ported from `pabloplico/jobquest`, with commit messages naming the source sha.
+- **Layout** — `src/` (Vue app: Vue Router, TanStack Vue Query), `server/` (Hono Worker, Drizzle schema in `server/db/schema.ts`), `shared/` (zod schemas and pure code both sides use, such as `skillMatcher.ts`, which takes the taxonomy as an argument), `drizzle/` (SQL migrations).
+- **Type-checking** — three tsconfigs: `tsconfig.app.json` (vue-tsc), `tsconfig.worker.json` (Workers types only, no DOM or Node) and `tsconfig.node.json` (tool configs and the route tests). TS 6 includes no `@types` unless listed, so each sets `types`.
+- **Route tests** — `server/test/platform.ts` gives each suite wrangler's `getPlatformProxy()` with an in-memory D1 and the migrations applied. Plain Vitest in Node; `@cloudflare/vitest-pool-workers` needs Vitest 4.
+- **Look** — light indigo, by redefining `@repo/tailwind-theme` tokens in `src/styles.css`.
+
 ### Admin Portal Key Systems
 
 - **Auth** — JWT-based session auth with bcryptjs password hashing. Middleware protects all routes except `/login`, `/signup`, and `/api/auth/*`. Tables: `admin_users`, `admin_sessions`. All major tables have `userId` foreign key. New accounts are `member`s; the only admin comes from `pnpm db:seed-admin` (needs `ADMIN_EMAIL`; no default password). Global settings need an admin. Auth helpers in `lib/auth/` — `requireAuth()` for pages, `requireAuthApi()` for API routes.
@@ -222,7 +245,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 ### Infrastructure
 
-- **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal. `DB_DRIVER=pglite` swaps in PGlite (Postgres compiled to WASM, with pgvector) for the single-instance demo; `lib/db/index.ts` is the one place the client is created, lazily, so `next build` never connects.
+- **Database**: PostgreSQL 15 with pgvector extension, Drizzle ORM. Used by admin-portal. jobquest uses Cloudflare D1 (SQLite) through Drizzle. `DB_DRIVER=pglite` swaps in PGlite (Postgres compiled to WASM, with pgvector) for the single-instance demo; `lib/db/index.ts` is the one place the client is created, lazily, so `next build` never connects.
 - **Queue**: in-process. Document processing, workspace routing and the three research-agent queues (`lib/agents/queue/`) use the `JobQueue` interface (`lib/queue/`), whose one implementation is `InProcessQueue`; the interface stays as the test seam (`lib/queue/contract.test.ts`). Rate limits are in memory too (`lib/rate-limit/`). The app is single-instance by design: queued jobs are lost on restart, and boot recovery (`lib/queue/recover.ts`) re-queues documents and inbox items and fails interrupted agent runs. Redis, BullMQ, feeds, backups, agent cron schedules and the live run-log stream were removed (the full version is at the `full-stack-v1` tag); the feed tables (`admin_feeds`, `admin_feed_items`) and the `'feed'` document source stay for existing databases.
 - **AI**: Vercel AI SDK (`ai@^6`, 6.0.x installed) with configurable provider (Anthropic, OpenAI, Gemini or Ollama) for admin-portal. The research agents (`lib/agents/`) run on the AI SDK's own tool loop (`ToolLoopAgent`, tools built with `defineTool`, which validates input); Mastra was replaced in 2026-10. The folder is still `lib/agents/mastra/`, because a protected test imports from it.
 - **Storage**: Local filesystem (`./uploads/`) via `StorageProvider` abstraction (admin-portal only).
@@ -233,7 +256,7 @@ DB user: `business_portal` (admin-portal). Password set via `POSTGRES_PASSWORD` 
 
 - **Biome 2.5.15** for linting and formatting. Single quotes, semicolons, 2-space indent, 100-char line width, ES5 trailing commas.
 - **Tailwind v4** — Uses CSS `@import "tailwindcss"` syntax. No plugin system. Apps include `@source` directive to scan `@repo/ui`. Shared tokens come from `@repo/tailwind-theme`. Dark theme with lime green accent.
-- **Drizzle schema** uses `admin_` table prefix and camelCase column names in PostgreSQL (Drizzle maps JS prop names directly).
+- **Drizzle schema** uses camelCase column names (Drizzle maps JS prop names directly): admin-portal's tables have the `admin_` prefix in PostgreSQL; jobquest's D1 tables have none.
 - **No pre-commit hooks** — there is no Husky or lint-staged setup. Run `pnpm lint` before committing.
 - Dependency versions managed via pnpm catalog in `pnpm-workspace.yaml`.
 

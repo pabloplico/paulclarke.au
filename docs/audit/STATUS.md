@@ -2,7 +2,7 @@
 
 **Last checked at #50** (2026-10-16). One snapshot of where things stand, not a log: git history and the PRs hold the history. CLAUDE.md wins on how the repo works; TESTING.md holds the protected tests and the full-gate rules.
 
-**Other files:** `IMPORT_PLAN.md` (jobquest J0–J9) and `../decisions.md` (design decisions, linked from the README). Local only, gitignored: `*.local.md` (interview notes, role fit).
+**Other files:** `IMPORT_PLAN.md` (jobquest J0–J8) and `../decisions.md` (design decisions, linked from the README). Local only, gitignored: `*.local.md` (interview notes, role fit).
 
 ## Priority
 
@@ -10,7 +10,7 @@ Frontend first (Paul, 2026-10-16): the repo is a portfolio for a frontend role. 
 
 ## In flight
 
-- **jobquest J1** (`IMPORT_PLAN.md`): next. Vue 3 rebuild; plan TanStack Query and Table for Vue into it.
+- **jobquest J2** (`IMPORT_PLAN.md`): next, jobs and skills (the first clickable milestone). J1, the scaffold, is done. Vue 3 rebuild; plan TanStack Query and Table for Vue into it.
 - **Dependencies:** done for now. `pnpm audit --prod` is 0 critical, 0 high, 1 moderate (`sprintf-js` via `mammoth` → `argparse`, mammoth's command-line tool, not used; no fix exists), 0 low. Remaining majors (AI SDK 7, Biome 2.5, TypeScript 7, `lucide-react` 1, pdf-parse 2, `diff` 9) wait for a reason or for Renovate.
 
 ## Decisions (Paul)

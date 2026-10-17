@@ -10,6 +10,7 @@ A pnpm + NX monorepo in TypeScript: Paul Clarke's portfolio site and a document 
 | ---------------------------- | ---------------------------------------------------------------------------------- | ------------------ |
 | `apps/website`               | Developer portfolio: projects, an AI readiness assessment, writing and contact     | React (Vite), Hono |
 | `apps/admin-portal`          | Document workspace app: upload, parse and route documents, edit sections with AI   | Next.js            |
+| `apps/jobquest`              | Job market analyser, being rebuilt in Vue 3 on a Cloudflare Worker with D1         | Vue 3, Hono, D1    |
 | `packages/ui`                | Shared React components (`@repo/ui/button`, …)                                     | React              |
 | `packages/tailwind-theme`    | Shared Tailwind theme: design tokens, base body styles, focus ring, reduced motion | Tailwind CSS       |
 | `packages/typescript-config` | Shared `tsconfig` presets: `base` (strict), `vite`, `nextjs`, `react-library`      | TypeScript         |
@@ -27,7 +28,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts the website and the admin portal. The admin portal runs on an embedded database (PGlite) with sign-in off, so it needs no other services. To run it against Postgres instead (`admin-portal:dev:full`), see [CLAUDE.md](CLAUDE.md).
+`pnpm dev` starts the website, jobquest and the admin portal. The admin portal runs on an embedded database (PGlite) with sign-in off, so it needs no other services. To run it against Postgres instead (`admin-portal:dev:full`), see [CLAUDE.md](CLAUDE.md).
 
 The website needs no environment variables. The admin portal's settings are listed in [`.env.docker.example`](.env.docker.example).
 

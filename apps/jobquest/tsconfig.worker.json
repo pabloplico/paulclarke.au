@@ -1,0 +1,18 @@
+{
+  // The Hono Worker. Workers types only: no DOM and no Node, so browser-only or
+  // Node-only APIs fail here instead of at runtime
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "lib": ["es2022"],
+    "types": ["@cloudflare/workers-types"],
+    "noUnusedLocals": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true
+  },
+  "include": ["server/**/*.ts", "shared/**/*.ts"],
+  // The route tests run in Node (wrangler's getPlatformProxy), so tsconfig.node.json checks them
+  "exclude": ["server/**/*.test.ts", "server/test/**"]
+}

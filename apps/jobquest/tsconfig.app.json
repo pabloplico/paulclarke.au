@@ -1,0 +1,13 @@
+{
+  // The Vue app (browser). Checked by vue-tsc, which also reads the .vue files
+  "extends": "@repo/typescript-config/vite.json",
+  "compilerOptions": {
+    // TS 6 includes no @types packages unless they're listed
+    "types": ["vite/client"],
+    "noUnusedLocals": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "shared/**/*.ts"]
+}
