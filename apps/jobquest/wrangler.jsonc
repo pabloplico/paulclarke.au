@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jobquest",
+  "main": "server/index.ts",
+  "compatibility_date": "2026-04-01",
+  // No *.workers.dev or preview URLs: once deployed (IMPORT_PLAN J5), the only way in is
+  // the custom domain behind Cloudflare Access
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    // Deep links get index.html and Vue Router takes over; /api/* always runs the Worker
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jobquest",
+      // Placeholder until the real database is created in J5; local dev and tests don't need it
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "dev": {
+    "port": 3006
+  },
+  "vars": {
+    "ENVIRONMENT": "production"
+  }
+}

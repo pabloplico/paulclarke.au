@@ -1,0 +1,9 @@
+{
+  // For editors only: each part has its own config (see check-types in package.json)
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.worker.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

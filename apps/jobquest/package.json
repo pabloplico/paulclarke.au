@@ -1,0 +1,44 @@
+{
+  "name": "jobquest",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm db:migrate:local && concurrently -n vite,worker -c cyan,green \"vite --host=0.0.0.0\" \"wrangler dev --ip 0.0.0.0\"",
+    "build": "vite build",
+    "deploy": "nx run jobquest:build && wrangler deploy",
+    "deploy:dry-run": "nx run jobquest:build && wrangler deploy --dry-run",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check-types": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.node.json",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply jobquest --local"
+  },
+  "dependencies": {
+    "@repo/tailwind-theme": "workspace:*",
+    "@tanstack/vue-query": "^5.104.3",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "@repo/typescript-config": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@testing-library/vue": "^8.1.0",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "concurrently": "catalog:",
+    "drizzle-kit": "catalog:",
+    "jsdom": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "^3.3.13",
+    "wrangler": "catalog:"
+  }
+}
