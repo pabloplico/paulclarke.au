@@ -25,6 +25,10 @@ if (typeof window !== 'undefined' && typeof globalThis.ResizeObserver === 'undef
   } as unknown as typeof globalThis.ResizeObserver;
 }
 
+// jsdom doesn't scroll (it reports window.scrollTo as not implemented); the router's
+// scroll behaviour calls it on every navigation
+if (typeof window !== 'undefined') window.scrollTo = () => {};
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

@@ -6,6 +6,7 @@ import { fieldErrors, skillInputSchema } from '../../shared/forms';
 import { PROFICIENCY_LABELS, type Proficiency, type UserSkill } from '../../shared/types';
 import { ApiError } from '../api/client';
 import FormField from '../components/FormField.vue';
+import HowItWorks from '../components/HowItWorks.vue';
 import InlineDeleteConfirm from '../components/InlineDeleteConfirm.vue';
 import { skillsResource, useJobs, useSkills } from '../composables/resources';
 import { useSkillMatch } from '../composables/useSkillMatch';
@@ -87,6 +88,9 @@ const jobsLabel = (count: number) => (count === 1 ? '1 job' : `${count} jobs`);
         Compare your skills with what the jobs you've saved ask for.
       </p>
     </div>
+
+    <!-- A new visitor lands here: the steps, until they've added a skill -->
+    <HowItWorks v-if="skills.isSuccess.value && skills.data.value?.length === 0" />
 
     <p v-if="skills.isError.value" role="alert" class="text-destructive">
       Couldn't load your skills: {{ skills.error.value?.message }}
