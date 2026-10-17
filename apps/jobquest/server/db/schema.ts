@@ -9,7 +9,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
-import type { SeniorityLevel, TaxonomyCategory } from '../../shared/types';
+import type { SeniorityLevel, SkillGroup } from '../../shared/types';
 import { SENIORITY_LEVELS } from '../../shared/types';
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
@@ -69,7 +69,8 @@ export const taxonomy = sqliteTable('taxonomy', {
   profileId: text()
     .primaryKey()
     .references(() => profiles.id, { onDelete: 'cascade' }),
-  categories: text({ mode: 'json' }).$type<TaxonomyCategory[]>().notNull().default(sql`'[]'`),
+  // The skill groups (named as in the old app's taxonomy.json)
+  categories: text({ mode: 'json' }).$type<SkillGroup[]>().notNull().default(sql`'[]'`),
   canonicalMap: text({ mode: 'json' }).$type<Record<string, string>>().notNull().default(sql`'{}'`),
   skillGroups: text({ mode: 'json' })
     .$type<Record<string, string[]>>()

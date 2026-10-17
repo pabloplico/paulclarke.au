@@ -4,7 +4,7 @@
 // Pure functions: the taxonomy is an argument, not module state. In the React
 // app, configureTaxonomy() set it globally, which is why <App> needed a key per
 // profile; here each caller passes the profile's taxonomy (useSkillMatch).
-import type { Taxonomy } from './types';
+import type { SkillGroup, Taxonomy } from './types';
 
 /** The parts of a taxonomy that matching reads. */
 export type SkillTaxonomy = Pick<Taxonomy, 'canonicalMap' | 'skillGroups'>;
@@ -105,6 +105,27 @@ export const DEFAULT_SKILL_GROUPS: Record<string, string[]> = {
   html: ['frontend'],
   css: ['frontend'],
 };
+
+/** Names and colours for the group ids above, so a new profile's groups read well. */
+export const DEFAULT_GROUPS: SkillGroup[] = [
+  { id: 'frontend', name: 'Front end', color: '#4f46e5' },
+  { id: 'backend', name: 'Back end', color: '#0f766e' },
+  { id: 'programming-language', name: 'Programming languages', color: '#7c3aed' },
+  { id: 'framework', name: 'Frameworks', color: '#2563eb' },
+  { id: 'runtime', name: 'Runtimes', color: '#0891b2' },
+  { id: 'database', name: 'Databases', color: '#b45309' },
+  { id: 'sql', name: 'SQL', color: '#c2410c' },
+  { id: 'nosql', name: 'NoSQL', color: '#a16207' },
+  { id: 'api', name: 'APIs', color: '#4d7c0f' },
+  { id: 'cloud', name: 'Cloud', color: '#0369a1' },
+  { id: 'devops', name: 'DevOps', color: '#be123c' },
+  { id: 'ci/cd', name: 'CI/CD', color: '#9d174d' },
+  { id: 'version-control', name: 'Version control', color: '#475569' },
+  { id: 'devtools', name: 'Developer tools', color: '#57534e' },
+  { id: 'quality', name: 'Quality', color: '#15803d' },
+  { id: 'testing', name: 'Testing', color: '#166534' },
+  { id: 'agile', name: 'Agile', color: '#9333ea' },
+];
 
 /** The built-in maps. A profile's own taxonomy replaces them; it isn't merged with them. */
 export const DEFAULT_TAXONOMY: SkillTaxonomy = {
