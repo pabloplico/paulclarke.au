@@ -309,3 +309,73 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-jobquest:
+    name: Deploy jobquest
+    # A red jobquest E2E run skips the deploy, as website-e2e does for the website
+    needs: [check, jobquest-e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://jobquest.paulclarke.au
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # As for the website: NX's project graph decides, and a manual run, or a push
+      # whose previous commit isn't in the history, always deploys
+      - name: Check jobquest changed
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != push ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "jobquest=true" >> "$GITHUB_OUTPUT"
+          elif pnpm exec nx show projects --affected --json --base="$BEFORE" --head="$GITHUB_SHA" | grep -q '"jobquest"'; then
+            echo "jobquest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "jobquest=false" >> "$GITHUB_OUTPUT"
+            echo "jobquest didn't change; nothing to deploy"
+          fi
+
+      # Before the new Worker goes live, so its queries find their tables. wrangler
+      # applies only the migrations D1 hasn't recorded (the token needs D1 Edit)
+      - name: Apply D1 migrations
+        if: steps.changed.outputs.jobquest == 'true'
+        run: pnpm --filter jobquest exec wrangler d1 migrations apply jobquest --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # nx run jobquest:build, then wrangler deploy, which also attaches the
+      # jobquest.paulclarke.au custom domain (wrangler.jsonc)
+      - name: Build and deploy
+        if: steps.changed.outputs.jobquest == 'true'
+        run: pnpm --filter jobquest run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Signed-out requests to / and /api/me must go to the Access login, never get
+      # a 200 from the app. Needs no credentials
+      - name: Live check
+        if: steps.changed.outputs.jobquest == 'true'
+        run: >-
+          apps/jobquest/scripts/live-check.sh
+          https://jobquest.paulclarke.au https://paulclarke.cloudflareaccess.com
