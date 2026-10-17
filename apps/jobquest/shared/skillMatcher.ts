@@ -1,5 +1,13 @@
 // Skill normalisation and matching. Ported from pabloplico/jobquest@a9103e8
 // (utils/skillMatcher.ts) under strict TS and noUncheckedIndexedAccess.
+//
+// Pure functions: the taxonomy is an argument, not module state. In the React
+// app, configureTaxonomy() set it globally, which is why <App> needed a key per
+// profile; here each caller passes the profile's taxonomy (useSkillMatch).
+import type { Taxonomy } from './types';
+
+/** The parts of a taxonomy that matching reads. */
+export type SkillTaxonomy = Pick<Taxonomy, 'canonicalMap' | 'skillGroups'>;
 
 export interface SkillMatch {
   matched: boolean;
@@ -98,39 +106,26 @@ export const DEFAULT_SKILL_GROUPS: Record<string, string[]> = {
   css: ['frontend'],
 };
 
-// Active configuration (starts with defaults)
-let activeCanonicalMap = { ...DEFAULT_SKILL_CANONICAL_MAP };
-let activeSkillGroups = { ...DEFAULT_SKILL_GROUPS };
-
-/**
- * Configure the taxonomy with dynamic data
- */
-export function configureTaxonomy(data: {
-  canonicalMap?: Record<string, string>;
-  skillGroups?: Record<string, string[]>;
-}) {
-  if (data.canonicalMap) {
-    activeCanonicalMap = { ...data.canonicalMap };
-  }
-  if (data.skillGroups) {
-    activeSkillGroups = { ...data.skillGroups };
-  }
-}
+/** The built-in maps. A profile's own taxonomy replaces them; it isn't merged with them. */
+export const DEFAULT_TAXONOMY: SkillTaxonomy = {
+  canonicalMap: DEFAULT_SKILL_CANONICAL_MAP,
+  skillGroups: DEFAULT_SKILL_GROUPS,
+};
 
 /**
  * Normalise a skill name to its canonical form
  */
-export function normalizeSkill(skill: string): string {
+export function normalizeSkill(skill: string, taxonomy: SkillTaxonomy): string {
   const cleaned = skill.toLowerCase().trim();
-  return activeCanonicalMap[cleaned] || cleaned;
+  return taxonomy.canonicalMap[cleaned] || cleaned;
 }
 
 /**
  * Get the groups associated with a skill
  */
-export function getSkillGroups(skill: string): string[] {
-  const canonical = normalizeSkill(skill);
-  return activeSkillGroups[canonical] || [];
+export function getSkillGroups(skill: string, taxonomy: SkillTaxonomy): string[] {
+  const canonical = normalizeSkill(skill, taxonomy);
+  return taxonomy.skillGroups[canonical] || [];
 }
 
 /**
@@ -190,7 +185,11 @@ function containsMatch(skill1: string, skill2: string): boolean {
 /**
  * Match two skills: exact, then normalised, then fuzzy, then contains
  */
-export function matchSkills(userSkill: string, jobSkill: string): SkillMatch {
+export function matchSkills(
+  userSkill: string,
+  jobSkill: string,
+  taxonomy: SkillTaxonomy
+): SkillMatch {
   const user = userSkill.toLowerCase().trim();
   const job = jobSkill.toLowerCase().trim();
 
@@ -200,8 +199,8 @@ export function matchSkills(userSkill: string, jobSkill: string): SkillMatch {
   }
 
   // 2. Normalised match
-  const normalizedUser = normalizeSkill(user);
-  const normalizedJob = normalizeSkill(job);
+  const normalizedUser = normalizeSkill(user, taxonomy);
+  const normalizedJob = normalizeSkill(job, taxonomy);
   if (normalizedUser === normalizedJob) {
     return { matched: true, confidence: 95, method: 'normalized', normalizedSkill: normalizedUser };
   }
@@ -228,11 +227,15 @@ export function matchSkills(userSkill: string, jobSkill: string): SkillMatch {
 /**
  * The best matching user skill for a job skill
  */
-export function findBestMatch(jobSkill: string, userSkills: string[]): SkillMatch | null {
+export function findBestMatch(
+  jobSkill: string,
+  userSkills: string[],
+  taxonomy: SkillTaxonomy
+): SkillMatch | null {
   let bestMatch: SkillMatch | null = null;
 
   for (const userSkill of userSkills) {
-    const match = matchSkills(userSkill, jobSkill);
+    const match = matchSkills(userSkill, jobSkill, taxonomy);
     if (match.matched && (!bestMatch || match.confidence > bestMatch.confidence)) {
       bestMatch = match;
     }
@@ -250,11 +253,15 @@ export type SkillDemand = { name: string; count: number };
  */
 export function countSkillDemand(
   jobs: Array<{ skills: string[]; software: string[] }>,
+  taxonomy: SkillTaxonomy,
   fields: Array<'skills' | 'software'> = ['skills', 'software']
 ): SkillDemand[] {
   const counts: Record<string, number> = {};
   for (const job of jobs) {
-    for (const name of new Set(fields.flatMap((f) => job[f] ?? []).map(normalizeSkill))) {
+    const names = fields
+      .flatMap((f) => job[f] ?? [])
+      .map((skill) => normalizeSkill(skill, taxonomy));
+    for (const name of new Set(names)) {
       counts[name] = (counts[name] ?? 0) + 1;
     }
   }
