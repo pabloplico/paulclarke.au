@@ -2,7 +2,7 @@
 import { count, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DEFAULT_TAXONOMY } from '../shared/skillMatcher';
+import { DEFAULT_GROUPS, DEFAULT_TAXONOMY } from '../shared/skillMatcher';
 import { jobs, profiles, skills } from './db/schema';
 import { getOrCreateProfile } from './profiles';
 import { SEED_JOBS } from './seed';
@@ -25,7 +25,7 @@ describe('getOrCreateProfile', () => {
   const jobCount = async (profileId: string) =>
     (await db().select({ n: count() }).from(jobs).where(eq(jobs.profileId, profileId)).get())?.n;
 
-  it('seeds a new profile with the sample jobs, no skills and the built-in taxonomy', async () => {
+  it('seeds a new profile with the sample jobs, no skills and the built-in taxonomy and groups', async () => {
     const call = apiAs(platform.env, newIdentity());
 
     const jobList = (await (await call('GET', '/api/jobs')).json()) as { title: string }[];
@@ -34,7 +34,7 @@ describe('getOrCreateProfile', () => {
 
     expect(jobList.map((job) => job.title)).toEqual(SEED_JOBS.map((job) => job.title));
     expect(skillList).toEqual([]);
-    expect(taxonomy).toEqual({ categories: [], ...DEFAULT_TAXONOMY });
+    expect(taxonomy).toEqual({ categories: DEFAULT_GROUPS, ...DEFAULT_TAXONOMY });
   });
 
   it('creates one profile, seeded once, when two first requests race', async () => {

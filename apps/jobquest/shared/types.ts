@@ -90,19 +90,82 @@ export const userSkillSchema = z.object({
 });
 export type UserSkill = z.infer<typeof userSkillSchema>;
 
-// The AI's taxonomy output (the same shape from every provider)
+// The AI's market taxonomy (J6): a tree of categories, the same shape from every
+// provider. Shown, not stored.
 export const taxonomyCategorySchema = z.object({
   name: z.string(),
   subcategories: z.array(z.object({ name: z.string(), items: z.array(z.string()) })),
 });
 export type TaxonomyCategory = z.infer<typeof taxonomyCategorySchema>;
 
-/** Synonym → canonical name, and canonical name → its groups. */
-export const taxonomySchema = z.object({
-  categories: z.array(taxonomyCategorySchema),
-  canonicalMap: z.record(z.string(), z.string()),
-  skillGroups: z.record(z.string(), z.array(z.string())),
+/** A group skills can belong to on the Taxonomy page, such as "Front end". */
+export const skillGroupSchema = z.object({
+  id: z.string().min(1).max(60),
+  name: z.string().trim().min(1, 'Enter a group name').max(60),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
 });
+export type SkillGroup = z.infer<typeof skillGroupSchema>;
+
+/** How skill names are stored in a taxonomy: trimmed and lower-case, as normalizeSkill looks them up. */
+export const normaliseSkillName = (name: string) => name.trim().toLowerCase();
+const isNormalised = (name: string) => name.length > 0 && name === normaliseSkillName(name);
+const skillName = z
+  .string()
+  .max(100)
+  .refine(isNormalised, 'Skill names are trimmed and lower-case');
+
+export const MAX_TAXONOMY_ENTRIES = 2000;
+
+/**
+ * A visitor's taxonomy. `canonicalMap` maps a synonym to the name it counts as;
+ * `skillGroups` maps a canonical name to the ids of the groups it's in. The rules
+ * below are what skillMatcher relies on (it looks a name up once), so the API
+ * refuses a taxonomy that breaks them.
+ */
+export const taxonomySchema = z
+  .object({
+    // Stored as "categories" (the D1 column and the old app's name): the skill groups
+    categories: z.array(skillGroupSchema).max(100),
+    canonicalMap: z.record(skillName, skillName),
+    skillGroups: z.record(skillName, z.array(z.string().min(1).max(60)).max(50)),
+  })
+  .superRefine((taxonomy, ctx) => {
+    const synonyms = Object.entries(taxonomy.canonicalMap);
+    if (synonyms.length > MAX_TAXONOMY_ENTRIES) {
+      ctx.addIssue({ code: 'custom', message: 'Too many merged skills', path: ['canonicalMap'] });
+    }
+    if (Object.keys(taxonomy.skillGroups).length > MAX_TAXONOMY_ENTRIES) {
+      ctx.addIssue({ code: 'custom', message: 'Too many grouped skills', path: ['skillGroups'] });
+    }
+    for (const [synonym, canonical] of synonyms) {
+      if (synonym === canonical) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${synonym} counts as itself`,
+          path: ['canonicalMap'],
+        });
+      } else if (canonical in taxonomy.canonicalMap) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${synonym} counts as ${canonical}, which counts as something else`,
+          path: ['canonicalMap'],
+        });
+      }
+    }
+    for (const skill of Object.keys(taxonomy.skillGroups)) {
+      if (skill in taxonomy.canonicalMap) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${skill} counts as another skill, so it can't have groups of its own`,
+          path: ['skillGroups'],
+        });
+      }
+    }
+    const ids = taxonomy.categories.map((group) => group.id);
+    if (new Set(ids).size !== ids.length) {
+      ctx.addIssue({ code: 'custom', message: 'Group ids must be unique', path: ['categories'] });
+    }
+  });
 export type Taxonomy = z.infer<typeof taxonomySchema>;
 
 export const generatedSkillSchema = z.object({

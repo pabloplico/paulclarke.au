@@ -15,8 +15,17 @@ describe('the landing redirect', () => {
     ).toBeVisible();
   });
 
-  it('sends a visitor with skills to their job listings', async () => {
+  it('sends a visitor with skills and jobs to Analytics', async () => {
     installFakeApi({ jobs: [fakeJob()], skills: [fakeSkill('Vue')] });
+
+    const { router } = await renderApp('/');
+
+    expect(router.currentRoute.value.name).toBe('analytics');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Analytics' })).toBeVisible();
+  });
+
+  it('sends a visitor with skills but no jobs to their job listings', async () => {
+    installFakeApi({ jobs: [], skills: [fakeSkill('Vue')] });
 
     const { router } = await renderApp('/');
 

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import { DEFAULT_TAXONOMY } from '../shared/skillMatcher';
+import { DEFAULT_GROUPS, DEFAULT_TAXONOMY } from '../shared/skillMatcher';
 import { jobs, profiles, taxonomy } from './db/schema';
 import type { Profile } from './env';
 import { SEED_JOBS } from './seed';
@@ -35,6 +35,7 @@ export async function getOrCreateProfile(db: DrizzleD1Database, email: string): 
       db.insert(profiles).values({ id, email }),
       db.insert(taxonomy).values({
         profileId: id,
+        categories: DEFAULT_GROUPS,
         canonicalMap: DEFAULT_TAXONOMY.canonicalMap,
         skillGroups: DEFAULT_TAXONOMY.skillGroups,
       }),

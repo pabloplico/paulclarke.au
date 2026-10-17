@@ -2,8 +2,8 @@
 // behind a stubbed fetch, with the same routes and status codes. It records each
 // request so tests can check what the UI sent.
 import { vi } from 'vitest';
-import { DEFAULT_TAXONOMY } from '../../shared/skillMatcher';
-import type { Job, Taxonomy, UserSkill } from '../../shared/types';
+import { DEFAULT_GROUPS, DEFAULT_TAXONOMY } from '../../shared/skillMatcher';
+import { type Job, type Taxonomy, taxonomySchema, type UserSkill } from '../../shared/types';
 
 export interface FakeRequest {
   method: string;
@@ -45,9 +45,13 @@ export function installFakeApi(
   const state = {
     jobs: structuredClone(initial.jobs ?? []),
     skills: structuredClone(initial.skills ?? []),
-    taxonomy: initial.taxonomy ?? { categories: [], ...DEFAULT_TAXONOMY },
+    taxonomy: structuredClone(
+      initial.taxonomy ?? { categories: DEFAULT_GROUPS, ...DEFAULT_TAXONOMY }
+    ),
   };
   const requests: FakeRequest[] = [];
+  // While set, writes wait for it before the server answers (see holdWrites)
+  let gate: Promise<void> | null = null;
 
   const json = (body: unknown, status = 200) => Response.json(body, { status });
   const notFound = () => json({ error: 'Not found' }, 404);
@@ -56,7 +60,14 @@ export function installFakeApi(
     if (initial.signedOut) return json({ error: 'Sign in to use JobQuest.' }, 401);
     const [, , resource, rowId] = path.split('/');
     if (path === '/api/me') return json({ email: 'visitor@example.com' });
-    if (path === '/api/taxonomy') return json(state.taxonomy);
+    if (path === '/api/taxonomy') {
+      if (method === 'PUT') {
+        const parsed = taxonomySchema.safeParse(body);
+        if (!parsed.success) return json({ error: 'Some fields need fixing.' }, 400);
+        state.taxonomy = parsed.data;
+      }
+      return json(state.taxonomy);
+    }
 
     if (resource === 'jobs') {
       if (!rowId && method === 'GET') return json(state.jobs);
@@ -107,6 +118,7 @@ export function installFakeApi(
       const path = new URL(input, 'http://localhost').pathname;
       const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
       requests.push({ method, path, body });
+      if (method !== 'GET' && gate) await gate;
       return handle(method, path, body);
     })
   );
@@ -114,5 +126,17 @@ export function installFakeApi(
   /** Requests other than reads, in order. */
   const writes = () => requests.filter((request) => request.method !== 'GET');
 
-  return { state, requests, writes };
+  /** Keeps writes waiting for an answer until the returned function is called. */
+  function holdWrites() {
+    let release = () => {};
+    gate = new Promise((resolve) => {
+      release = () => {
+        gate = null;
+        resolve();
+      };
+    });
+    return release;
+  }
+
+  return { state, requests, writes, holdWrites };
 }

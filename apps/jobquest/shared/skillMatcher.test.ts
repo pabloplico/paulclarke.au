@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateSimilarity,
   countSkillDemand,
+  DEFAULT_GROUPS,
   DEFAULT_TAXONOMY,
   findBestMatch,
   getSkillGroups,
   matchSkills,
   normalizeSkill,
 } from './skillMatcher';
+import { taxonomySchema } from './types';
 
 const taxonomy = DEFAULT_TAXONOMY;
 
@@ -124,5 +126,15 @@ describe("a profile's own taxonomy", () => {
     expect(countSkillDemand([{ skills: ['k8s', 'Kubernetes'], software: [] }], own)).toEqual([
       { name: 'kubernetes', count: 1 },
     ]);
+  });
+});
+
+describe('the built-in taxonomy', () => {
+  it('follows the taxonomy rules, and every group it uses has a name', () => {
+    expect(
+      taxonomySchema.safeParse({ categories: DEFAULT_GROUPS, ...DEFAULT_TAXONOMY }).success
+    ).toBe(true);
+    const used = new Set(Object.values(DEFAULT_TAXONOMY.skillGroups).flat());
+    expect([...used].filter((id) => !DEFAULT_GROUPS.some((group) => group.id === id))).toEqual([]);
   });
 });

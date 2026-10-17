@@ -33,6 +33,19 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: navLabel('add-job') },
   },
   { path: '/jobs/:jobId', name: 'job', component: JobDetailView, props: true },
+  {
+    path: '/analytics',
+    name: 'analytics',
+    // Lazy, as is Taxonomy: the charts (ECharts) load only when someone opens Analytics
+    component: () => import('./views/AnalyticsView.vue'),
+    meta: { title: navLabel('analytics') },
+  },
+  {
+    path: '/taxonomy',
+    name: 'taxonomy',
+    component: () => import('./views/TaxonomyView.vue'),
+    meta: { title: navLabel('taxonomy') },
+  },
   // The Worker serves index.html for every deep link, so unknown paths land here
   {
     path: '/:pathMatch(.*)*',

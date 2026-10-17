@@ -26,7 +26,8 @@ test('a new visitor starts on their skills, adds one, adds a job and sees their 
   await expect(page.getByText('50%')).toBeVisible();
   await expect(page.getByText('1 of 2 skills')).toBeVisible();
 
-  // Now that there are skills, / goes to the job list
+  // Now that there are skills and jobs, / goes to Analytics
   await page.goto('/');
-  await expect(page).toHaveURL(/\/jobs$/);
+  await expect(page).toHaveURL(/\/analytics$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Analytics' })).toBeVisible();
 });
