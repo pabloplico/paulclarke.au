@@ -46,6 +46,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('./views/TaxonomyView.vue'),
     meta: { title: navLabel('taxonomy') },
   },
+  {
+    path: '/help',
+    name: 'help',
+    component: () => import('./views/HelpView.vue'),
+    meta: { title: navLabel('help') },
+  },
   // The Worker serves index.html for every deep link, so unknown paths land here
   {
     path: '/:pathMatch(.*)*',
@@ -59,7 +65,18 @@ export function createAppRouter(
   queryClient: QueryClient,
   history: RouterHistory = createWebHistory()
 ) {
-  const router = createRouter({ history, routes });
+  const router = createRouter({
+    history,
+    routes,
+    // Back and Forward return to where you were; a link to a section scrolls to it; a
+    // new page starts at the top; a new query on the same page (the job search) stays put
+    scrollBehavior(to, from, savedPosition) {
+      if (savedPosition) return savedPosition;
+      if (to.hash) return { el: to.hash, top: 16 };
+      if (to.path !== from.path) return { top: 0 };
+      return false;
+    },
+  });
 
   router.beforeEach(async (to) => {
     if (to.name !== 'home') return true;

@@ -99,6 +99,29 @@ describe('My Skills & Gaps', () => {
     await waitFor(() => expect(within(gaps).queryByText('css')).not.toBeInTheDocument());
   });
 
+  it('shows a new visitor how it works, until they add a skill', async () => {
+    installFakeApi({ jobs });
+    const { user } = await renderApp('/skills');
+
+    const steps = await screen.findByRole('region', { name: 'How it works' });
+    expect(
+      within(steps)
+        .getAllByRole('heading', { level: 3 })
+        .map((step) => step.textContent)
+    ).toEqual(['Add your skills', 'Collect jobs', 'Spot trends', 'Close the gap']);
+    expect(within(steps).getByRole('link', { name: 'Read the full guide' })).toHaveAttribute(
+      'href',
+      '/help'
+    );
+
+    await user.type(screen.getByRole('textbox', { name: 'Skill' }), 'Vue');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'How it works' })).not.toBeInTheDocument()
+    );
+  });
+
   it('points to Add Job when there are no jobs to compare with', async () => {
     installFakeApi({ jobs: [] });
 
