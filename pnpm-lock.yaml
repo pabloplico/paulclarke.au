@@ -316,9 +316,18 @@ importers:
         specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
+      '@axe-core/playwright':
+        specifier: 'catalog:'
+        version: 4.14.0(playwright-core@1.64.1)
       '@cloudflare/workers-types':
         specifier: ^5.20261016.1
         version: 5.20261016.1
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.64.1
+      '@repo/playwright-a11y':
+        specifier: workspace:*
+        version: link:../../packages/playwright-a11y
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -425,6 +434,9 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.64.1
+      '@repo/playwright-a11y':
+        specifier: workspace:*
+        version: link:../../packages/playwright-a11y
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -488,6 +500,15 @@ importers:
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.5.15
+
+  packages/playwright-a11y:
+    dependencies:
+      '@axe-core/playwright':
+        specifier: 'catalog:'
+        version: 4.14.0(playwright-core@1.64.1)
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.64.1
 
   packages/prettier-config:
     dependencies:

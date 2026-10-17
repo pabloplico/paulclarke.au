@@ -1,0 +1,16 @@
+{
+  "name": "@repo/playwright-a11y",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "biome check ."
+  },
+  "exports": {
+    ".": "./index.ts"
+  },
+  "peerDependencies": {
+    "@axe-core/playwright": "catalog:",
+    "@playwright/test": "catalog:"
+  }
+}

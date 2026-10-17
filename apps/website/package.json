@@ -36,6 +36,7 @@
   "devDependencies": {
     "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
+    "@repo/playwright-a11y": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@tailwindcss/typography": "^0.5.20",

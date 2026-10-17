@@ -150,17 +150,22 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter website exec playwright install --with-deps chromium
 
-      # Playwright builds the site and serves it with wrangler dev (no database
-      # or secrets). On a PR that doesn't affect the website, this does nothing
+      # The website and jobquest: Playwright builds each app and serves it with
+      # wrangler dev (no secrets; jobquest gets a fresh local D1 each run). On a PR
+      # that affects neither, this does nothing. One Chromium install serves both:
+      # they share the catalog's Playwright version
       - name: Run E2E tests
-        run: pnpm exec nx "$NX_RUN" -t test:e2e --exclude='*,!website'
+        run: pnpm exec nx "$NX_RUN" -t test:e2e --exclude='*,!website,!jobquest'
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: website-playwright-report
-          path: apps/website/playwright-report/
+          path: |
+            apps/website/playwright-report/
+            apps/jobquest/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
   admin-e2e:

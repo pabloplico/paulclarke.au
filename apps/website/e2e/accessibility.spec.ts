@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoSeriousA11yViolations } from './a11y';
+import { expectNoSeriousA11yViolations } from '@repo/playwright-a11y';
 
 const ROUTES = ['/', '/projects', '/assessment', '/about', '/writing', '/contact'];
 
