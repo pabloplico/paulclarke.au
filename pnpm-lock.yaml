@@ -297,6 +297,9 @@ importers:
       '@heroicons/vue':
         specifier: ^2.2.0
         version: 2.2.0(vue@3.5.44(typescript@6.0.3))
+      '@repo/access-auth':
+        specifier: workspace:*
+        version: link:../../packages/access-auth
       '@repo/tailwind-theme':
         specifier: workspace:*
         version: link:../../packages/tailwind-theme
@@ -367,6 +370,9 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.11
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       jsdom:
         specifier: 'catalog:'
         version: 30.1.3

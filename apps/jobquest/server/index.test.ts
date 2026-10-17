@@ -1,7 +1,23 @@
 // @vitest-environment node
+import { ACCESS_JWT_HEADER } from '@repo/access-auth';
+import {
+  createLocalJWKSet,
+  exportJWK,
+  generateKeyPair,
+  type JWK,
+  type JWTPayload,
+  SignJWT,
+} from 'jose';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { setAccessKeySetForTests } from './identity';
 import app from './index';
-import { apiAs, createTestPlatform, STARTUP_MS, type TestPlatform } from './test/platform';
+import {
+  apiAs,
+  apiWithHeaders,
+  createTestPlatform,
+  STARTUP_MS,
+  type TestPlatform,
+} from './test/platform';
 
 describe('with the migrations applied', () => {
   let platform: TestPlatform;
@@ -86,5 +102,114 @@ describe('sign-in', () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Not found' });
+  });
+});
+
+describe('Cloudflare Access (production)', () => {
+  const ISSUER = 'https://jobquest-test.cloudflareaccess.com';
+  const AUD = 'jobquest-test-aud';
+  let platform: TestPlatform;
+  let privateKey: CryptoKey;
+  let strangerKey: CryptoKey;
+
+  beforeAll(async () => {
+    const pair = await generateKeyPair('RS256', { extractable: true });
+    privateKey = pair.privateKey;
+    ({ privateKey: strangerKey } = await generateKeyPair('RS256'));
+    const jwk: JWK = { ...(await exportJWK(pair.publicKey)), kid: 'test-key', alg: 'RS256' };
+    // Local keys: no test fetches the real team's
+    setAccessKeySetForTests(createLocalJWKSet({ keys: [jwk] }));
+    platform = await createTestPlatform({
+      vars: {
+        ENVIRONMENT: 'production',
+        CF_ACCESS_TEAM_DOMAIN: 'jobquest-test.cloudflareaccess.com',
+        CF_ACCESS_AUD: AUD,
+        DEV_ACCESS_IDENTITY: 'dev@example.com',
+      },
+    });
+  }, STARTUP_MS);
+  afterAll(async () => {
+    setAccessKeySetForTests(null);
+    await platform?.dispose();
+  });
+
+  function token(
+    claims: JWTPayload = {},
+    { key = privateKey, audience = AUD, issuer = ISSUER, expiresIn = '5m' } = {}
+  ) {
+    return new SignJWT({ email: 'Visitor@Example.com', type: 'app', ...claims })
+      .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
+      .setIssuer(issuer)
+      .setAudience(audience)
+      .setIssuedAt()
+      .setExpirationTime(expiresIn)
+      .sign(key);
+  }
+  const asToken = async (jwt: string) => apiWithHeaders(platform.env, { [ACCESS_JWT_HEADER]: jwt });
+
+  it('lets in a visitor with a valid Access token, by their lower-cased email', async () => {
+    const response = await (await asToken(await token()))('GET', '/api/me');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ email: 'visitor@example.com' });
+  });
+
+  it('refuses a request without a token, or with only a plain email header', async () => {
+    expect((await apiWithHeaders(platform.env, {})('GET', '/api/me')).status).toBe(401);
+    const forged = apiWithHeaders(platform.env, {
+      'cf-access-authenticated-user-email': 'visitor@example.com',
+    });
+    expect((await forged('GET', '/api/me')).status).toBe(401);
+  });
+
+  it('ignores the development identity cookie and variable', async () => {
+    const response = await apiAs(platform.env, 'visitor@example.com')('GET', '/api/me');
+
+    expect(response.status).toBe(401);
+  });
+
+  it('refuses a token for another Access application on the same team', async () => {
+    const response = await (await asToken(await token({}, { audience: 'admin-demo-aud' })))(
+      'GET',
+      '/api/me'
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it('refuses an expired token, a token from another key, and a service token', async () => {
+    const expired = await token({}, { expiresIn: '-1m' });
+    const stranger = await token({}, { key: strangerKey });
+    const service = await token({ email: undefined, common_name: 'ci.access' });
+
+    for (const jwt of [expired, stranger, service]) {
+      expect((await (await asToken(jwt))('GET', '/api/me')).status).toBe(401);
+    }
+  });
+
+  it('keeps each Access visitor to their own jobs', async () => {
+    const owner = await asToken(await token({ email: 'owner@example.com' }));
+    const other = await asToken(await token({ email: 'other@example.com' }));
+    const created = await owner('POST', '/api/jobs', {
+      title: 'Vue Developer',
+      company: 'Example Co',
+    });
+    const job = (await created.json()) as { id: string };
+
+    expect((await other('GET', `/api/jobs/${job.id}`)).status).toBe(404);
+    const list = (await (await other('GET', '/api/jobs')).json()) as { id: string }[];
+    expect(list.map((row) => row.id)).not.toContain(job.id);
+  });
+
+  it('refuses every request, and says why in the log, when the Access config is missing', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const unconfigured = { ...platform.env, CF_ACCESS_AUD: undefined };
+
+    const response = await apiWithHeaders(unconfigured, {
+      [ACCESS_JWT_HEADER]: await token(),
+    })('GET', '/api/me');
+
+    expect(response.status).toBe(401);
+    expect(error.mock.calls.flat().join(' ')).toContain('Cloudflare Access is not configured');
   });
 });
