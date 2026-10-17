@@ -163,6 +163,50 @@ jobs:
           path: apps/website/playwright-report/
           retention-days: 7
 
+  # Its own job, so a red jobquest run never holds up the website's deploy (which
+  # needs website-e2e) and each suite has the timeout to itself. Not a required check
+  jobquest-e2e:
+    name: jobquest E2E (Playwright + axe)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Set base and head for nx affected
+        if: github.event_name == 'pull_request'
+        uses: nrwl/nx-set-shas@v5
+
+      - name: Install Chromium
+        run: pnpm --filter jobquest exec playwright install --with-deps chromium
+
+      # Playwright builds jobquest and serves it with wrangler dev on a fresh local
+      # D1 (no secrets). On a PR that doesn't affect jobquest, this does nothing
+      - name: Run E2E tests
+        run: pnpm exec nx "$NX_RUN" -t test:e2e --exclude='*,!jobquest'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jobquest-playwright-report
+          path: apps/jobquest/playwright-report/
+          retention-days: 7
+
   admin-e2e:
     name: Admin E2E (Playwright)
     runs-on: ubuntu-24.04

@@ -1,13 +1,13 @@
 # Testing
 
-| Layer         | Tool                                                                | Website                                                              | Admin portal                                                             |
-| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 1061 tests (node)                                                        |
-| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 19 spec files, on `dev:lite` (no services), AI from a stub OpenAI server |
-| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Button and link names only (`e2e/accessibility.spec.ts`)                 |
-| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | a11y rules off (planned)                                                 |
+| Layer         | Tool                                                                | Website                                                              | jobquest                                                                                         | Admin portal                                                             |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Unit          | [Vitest](https://vitest.dev/)                                       | 52 tests (jsdom + Testing Library)                                   | 71 tests: components (jsdom + Testing Library), and the Worker's API against wrangler's local D1 | 1061 tests (node)                                                        |
+| E2E           | [Playwright](https://playwright.dev/)                               | 32 tests × 2 viewports (2 mobile-only), against the production build | 8 tests × 2 viewports, against the production build on `wrangler dev` with a fresh local D1      | 19 spec files, on `dev:lite` (no services), AI from a stub OpenAI server |
+| Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) | Every page and key UI state, WCAG 2.1 A/AA                           | Every page and the edit dialog, WCAG 2.1 A/AA                                                    | Button and link names only (`e2e/accessibility.spec.ts`)                 |
+| Lint          | [Biome](https://biomejs.dev/)                                       | Includes the a11y rule group                                         | Includes the a11y rule group, Vue templates too                                                  | a11y rules off (planned)                                                 |
 
-CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus three parallel jobs: the website E2E suite, the admin E2E suite (on `dev:lite`, with no services), and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`).
+CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on every pull request and push to `main`, plus four parallel jobs: the website E2E suite, the jobquest E2E suite, the admin E2E suite (on `dev:lite`, with no services), and **Admin DB**, which builds a fresh PGlite database from the migrations and smoke-tests it (`pnpm db:check-fresh`).
 
 ## Quick start
 
@@ -15,6 +15,8 @@ CI (`.github/workflows/ci.yml`) runs lint, type-check, unit tests and build on e
 pnpm test                               # all unit tests, via NX
 pnpm --filter website test              # website unit tests only
 pnpm --filter website test:e2e          # website E2E + axe (builds, then serves with wrangler dev)
+pnpm --filter jobquest test            # jobquest unit, component and API tests
+pnpm --filter jobquest test:e2e        # jobquest E2E + axe (builds, fresh local D1, wrangler dev on 8790)
 pnpm --filter admin-portal test:e2e     # admin E2E (starts dev:lite itself; no services)
 pnpm exec nx run-many -t test --skip-nx-cache   # ignore the NX cache
 ```
@@ -46,6 +48,39 @@ Run in jsdom (`vitest.config.ts`) so hooks and components can render.
 The `mailto:` hand-off to the operating system can't be observed from a browser test, so the URL's exact contents are covered by the unit test instead.
 
 **Checking the checks:** the axe test was verified by reintroducing a fixed contrast bug (footer links back to `text-white/40`). It failed and named the rule and elements. Removing the star buttons' names also fails, because role-based locators such as `getByRole('button', { name: '3 of 4' })` stop matching.
+
+## jobquest
+
+### Unit, component and API tests (`apps/jobquest/**/*.test.ts`)
+
+Component tests render the whole app (`src/test/renderApp.ts`: router, landing guard, Vue Query) against an in-memory fake of `/api` (`src/test/fakeApi.ts`) and drive it with Testing Library and `user-event`. API tests call the Hono app with wrangler's `getPlatformProxy()` bindings and an in-memory D1 per file (`server/test/platform.ts`), as a fresh visitor per test.
+
+| File                              | What it covers                                                                                                                                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/skillMatcher.test.ts`     | The matcher ported from the React app, pinned to its behaviour: exact, synonym, fuzzy and contains matches, best match, demand counts, a profile's taxonomy replacing the built-in maps       |
+| `src/lib/matching.test.ts`        | Match % per job, matched skills and the top 15 gaps, and which names count as duplicates of a skill                                                                                           |
+| `src/lib/jobListQuery.test.ts`    | The job list's search, filters and sort to and from the URL query                                                                                                                             |
+| `src/router.test.ts`              | `/` goes to the first unfinished step, stays put (no loop) when loading fails, leaves deep links alone; the not-found page                                                                    |
+| `src/views/JobsView.test.ts`      | Search and filters in the URL, sorting with `aria-sort`, editing in the dialog (errors, focus, the request sent), two-step delete and Escape                                                  |
+| `src/views/JobDetailView.test.ts` | Match %, skills to develop, page title, Back to the list as it was, a missing job                                                                                                             |
+| `src/views/AddJobView.test.ts`    | Required fields and focus, a non-web address refused, lists split, the new job opened with its match                                                                                          |
+| `src/views/SkillsView.test.ts`    | Adding at a level, duplicates refused by name, changing level, removing, matched skills and gaps, adding a gap in one click                                                                   |
+| `server/index.test.ts`            | Health without sign-in; every API request refused under production vars; the development identity (variable, cookie, lower-casing, non-emails refused)                                        |
+| `server/profiles.test.ts`         | A new profile's seed (sample jobs, no skills, built-in taxonomy), seeded once when two first requests race, never reseeded                                                                    |
+| `server/routes/jobs.test.ts`      | Listing, creating with defaults (ignoring id, profileId and dateAdded in the body), per-field validation, partial updates, deleting, and another visitor's job answering 404 for every method |
+| `server/routes/skills.test.ts`    | Adding, duplicates in any case (409), levels outside 1 to 5, renaming into a clash, removing, and another visitor's skill answering 404                                                       |
+
+### E2E tests (`apps/jobquest/e2e/*.spec.ts`)
+
+Against the production build on `wrangler dev`, port 8790, with a fresh local D1 each run (`playwright.config.ts`). Every test is its own visitor through the development identity cookie (`e2e/fixtures.ts`), so desktop and Pixel 7 runs never share data.
+
+| File                    | What it covers                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `onboarding.spec.ts`    | A new visitor lands on My Skills & Gaps, adds a skill, adds a job and sees the match; `/` then goes to the job list             |
+| `jobs.spec.ts`          | Edit in the dialog, two-step delete, search in the URL, detail and Back (the app's and the browser's), a deep link with the CSP |
+| `accessibility.spec.ts` | axe on My Skills & Gaps (empty and with a skill), the job list, the edit dialog, a job, Add Job with errors, and the 404        |
+
+**Checking the checks:** the cross-visitor tests were verified by dropping the profile from the job queries' WHERE clause: the test failed.
 
 ## Admin portal
 
@@ -183,12 +218,14 @@ afterEach(() => {
 
 These guard money, data or security. Their assertions change only with Paul's explicit sign-off in the PR, never to get an upgrade or refactor green. A PR that changes an assertion, removes a case, adds a mock or adds a skip in one of them says so in its description and asks for review. Add new money, data-loss or security invariants here when they're written.
 
-| Test                                                                                                          | Guards                                                            |
-| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `apps/admin-portal/lib/ai/allowance-coverage.test.ts`                                                         | Every API route that can start AI work calls `requireAiAllowance` |
-| `apps/admin-portal/lib/ai/guard.test.ts`                                                                      | Token caps and spend accounting                                   |
-| `apps/admin-portal/lib/ai/pricing.test.ts`                                                                    | Cost calculation per model                                        |
-| `db:check-fresh` (`apps/admin-portal/scripts/db/check-fresh-db.ts` + `expected-schema.ts`; CI job "Admin DB") | Migrations build a fresh database and match the schema            |
+| Test                                                                                                          | Guards                                                                                            |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/admin-portal/lib/ai/allowance-coverage.test.ts`                                                         | Every API route that can start AI work calls `requireAiAllowance`                                 |
+| `apps/admin-portal/lib/ai/guard.test.ts`                                                                      | Token caps and spend accounting                                                                   |
+| `apps/admin-portal/lib/ai/pricing.test.ts`                                                                    | Cost calculation per model                                                                        |
+| `apps/jobquest/server/routes/jobs.test.ts` and `skills.test.ts`: "another visitor's job/skill"                | A visitor can't read, change or delete another visitor's jobs or skills                           |
+| `apps/jobquest/server/index.test.ts`: "refuses every API request in production"                               | Outside development there's no way in until Access verification (J5): the dev identity is ignored |
+| `db:check-fresh` (`apps/admin-portal/scripts/db/check-fresh-db.ts` + `expected-schema.ts`; CI job "Admin DB") | Migrations build a fresh database and match the schema                                            |
 
 ## Full-gate changes
 

@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'server/**/*.test.ts'],
+    setupFiles: ['src/test/setup.ts'],
     restoreMocks: true,
     // Its own module cache, not the workspace root's one it would share with the
     // other apps (see apps/admin-portal/vitest.config.ts)

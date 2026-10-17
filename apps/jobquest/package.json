@@ -4,20 +4,24 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm db:migrate:local && concurrently -n vite,worker -c cyan,green \"vite --host=0.0.0.0\" \"wrangler dev --ip 0.0.0.0\"",
+    "dev": "pnpm db:migrate:local && concurrently -n vite,worker -c cyan,green \"vite --host=0.0.0.0\" \"wrangler dev --ip 0.0.0.0 --var ENVIRONMENT:development\"",
     "build": "vite build",
     "deploy": "nx run jobquest:build && wrangler deploy",
     "deploy:dry-run": "nx run jobquest:build && wrangler deploy --dry-run",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "check-types": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.node.json",
+    "check-types": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.e2e.json",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply jobquest --local"
+    "db:migrate:local": "wrangler d1 migrations apply jobquest --local",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "catalog:",
+    "@heroicons/vue": "^2.2.0",
     "@repo/tailwind-theme": "workspace:*",
     "@tanstack/vue-query": "^5.104.3",
+    "@tanstack/vue-table": "^9.3.1",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "vue": "^3.5.44",
@@ -25,9 +29,14 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@cloudflare/workers-types": "^5.20261016.1",
+    "@playwright/test": "catalog:",
+    "@repo/playwright-a11y": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/vite": "catalog:",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/user-event": "catalog:",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",

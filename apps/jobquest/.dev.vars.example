@@ -1,1 +1,4 @@
+# Optional: `pnpm dev` already runs the Worker with ENVIRONMENT=development.
 ENVIRONMENT=development
+# Who you are locally (stands in for Cloudflare Access). Defaults to dev@localhost.test
+# DEV_ACCESS_IDENTITY=you@example.com
