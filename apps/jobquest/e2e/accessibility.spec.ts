@@ -55,6 +55,12 @@ test.describe('accessibility (axe, WCAG 2.1 A and AA)', () => {
     await expectNoSeriousA11yViolations(page);
   });
 
+  test('Help', async ({ page }) => {
+    await page.goto('/help');
+    await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+  });
+
   test('a page that does not exist', async ({ page }) => {
     await page.goto('/no/such/page');
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
