@@ -3,10 +3,11 @@
   "name": "jobquest",
   "main": "server/index.ts",
   "compatibility_date": "2026-04-01",
-  // No *.workers.dev or preview URLs: once deployed (IMPORT_PLAN J5), the only way in is
-  // the custom domain behind Cloudflare Access
+  // No *.workers.dev or preview URLs: the only way in is the custom domain, which
+  // Cloudflare Access covers. wrangler deploy attaches it (and creates its DNS record)
   "workers_dev": false,
   "preview_urls": false,
+  "routes": [{ "pattern": "jobquest.paulclarke.au", "custom_domain": true }],
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",
@@ -18,8 +19,7 @@
     {
       "binding": "DB",
       "database_name": "jobquest",
-      // Placeholder until the real database is created in J5; local dev and tests don't need it
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "12e7d8e4-fc3b-4e18-835a-7bebdf043aa0",
       "migrations_dir": "drizzle"
     }
   ],
@@ -30,6 +30,10 @@
     "port": 3006
   },
   "vars": {
-    "ENVIRONMENT": "production"
+    "ENVIRONMENT": "production",
+    // The Access team and application whose JWTs the Worker accepts (not secrets: the
+    // AUD tag only says which application a token is for)
+    "CF_ACCESS_TEAM_DOMAIN": "paulclarke.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "abe72949b50fcb832cf02090747001d3dc24ccb02b5951dac24ee7f0e2f1101e"
   }
 }
