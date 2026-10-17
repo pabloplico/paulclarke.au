@@ -457,6 +457,6 @@ describe('POST /api/chat', () => {
     const convInsert = insertedValues.find((v) => v._table === 'adminConversations');
     expect(convInsert).toBeDefined();
     expect(typeof convInsert?.title).toBe('string');
-    expect((convInsert?.title as string).length).toBe(100);
+    expect((convInsert!.title as string).length).toBe(100);
   });
 });

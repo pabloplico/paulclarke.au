@@ -190,18 +190,18 @@ describe('AI guard', () => {
       });
     }
 
-    it.each([
-      'project_spend_limit_exceeded',
-      'insufficient_quota',
-    ])('turns a %s 429 into AiBudgetError, with no SDK retries', async (code) => {
-      const raw = failingChatModel(rateLimitError(code));
-      const result = withAiUser(1, () =>
-        generateText({ model: guardLanguageModel(raw), prompt: 'x', maxRetries: 2 })
-      );
-      await expect(result).rejects.toThrow(AiBudgetError);
-      await expect(result).rejects.toSatisfy(isPermanentAiError);
-      expect(raw.doGenerateCalls).toHaveLength(1);
-    });
+    it.each(['project_spend_limit_exceeded', 'insufficient_quota'])(
+      'turns a %s 429 into AiBudgetError, with no SDK retries',
+      async (code) => {
+        const raw = failingChatModel(rateLimitError(code));
+        const result = withAiUser(1, () =>
+          generateText({ model: guardLanguageModel(raw), prompt: 'x', maxRetries: 2 })
+        );
+        await expect(result).rejects.toThrow(AiBudgetError);
+        await expect(result).rejects.toSatisfy(isPermanentAiError);
+        expect(raw.doGenerateCalls).toHaveLength(1);
+      }
+    );
 
     it('reads the code from the response body when the provider gives no parsed data', async () => {
       const error = rateLimitError('insufficient_quota');

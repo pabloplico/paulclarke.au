@@ -80,7 +80,7 @@ describe('scraper tool', () => {
       content: `Where to drink coffee ${article.trim()}`,
     });
     const [, init] = fetchMock.mock.calls[0] ?? [];
-    expect((init?.headers as Record<string, string>)['User-Agent']).toContain('MarketResearchBot');
+    expect((init!.headers as Record<string, string>)['User-Agent']).toContain('MarketResearchBot');
   });
 
   it('cuts the text at 10,000 characters', async () => {
@@ -159,12 +159,12 @@ describe('scraper tool: only public addresses', () => {
     await expectRefused(url, reason);
   });
 
-  it.each([
-    'http://localhost:3001/api/settings',
-    'http://admin.localhost/',
-  ])('refuses localhost by name: %s', async (url) => {
-    await expectRefused(url, /is not public/);
-  });
+  it.each(['http://localhost:3001/api/settings', 'http://admin.localhost/'])(
+    'refuses localhost by name: %s',
+    async (url) => {
+      await expectRefused(url, /is not public/);
+    }
+  );
 
   it.each([
     ['loopback IPv4', 'http://127.0.0.1:5432/'],
