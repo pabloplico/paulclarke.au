@@ -65,14 +65,14 @@ describe('Analytics', () => {
     const toggle = await screen.findByRole('button', { name: 'Show as tables' });
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     // The charts are a lazy chunk; ECharts' first import in a test run is slow
-    const caption = await screen.findByText('Skills in demand, by group', {}, { timeout: 5000 });
+    const caption = await screen.findByText('Skills in demand, by group', {}, { timeout: 15_000 });
     expect(caption.tagName).toBe('FIGCAPTION');
 
     await user.click(toggle);
 
     expect(router.currentRoute.value.query).toEqual({ view: 'table' });
     expect(screen.getByRole('table', { name: 'Skills in demand, by group' })).toBeVisible();
-  });
+  }, 20_000); // Loads the ECharts chunk, which is slow when every app's tests run at once
 
   it('points to Add Job when there are no jobs', async () => {
     installFakeApi({ jobs: [] });

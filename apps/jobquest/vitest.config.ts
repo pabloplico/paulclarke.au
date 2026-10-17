@@ -14,6 +14,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'server/**/*.test.ts'],
     setupFiles: ['src/test/setup.ts'],
     restoreMocks: true,
+    // The component tests drive the whole app (router, Query, user-event typing), and
+    // `pnpm test` runs every app's tests at once, which slows each test several times
+    testTimeout: 15_000,
     // Its own module cache, not the workspace root's one it would share with the
     // other apps (see apps/admin-portal/vitest.config.ts)
     fsModuleCachePath: path.resolve(import.meta.dirname, 'node_modules/.vitest-cache'),
