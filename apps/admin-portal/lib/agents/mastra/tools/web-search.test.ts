@@ -53,7 +53,7 @@ describe('web-search tool', () => {
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(new URL(String(url)).searchParams.get('q')).toBe('cairns coffee');
     expect(new URL(String(url)).searchParams.get('count')).toBe('5');
-    expect((init?.headers as Record<string, string>)['X-Subscription-Token']).toBe('brave-key');
+    expect((init!.headers as Record<string, string>)['X-Subscription-Token']).toBe('brave-key');
   });
 
   it('falls back to DuckDuckGo when Brave answers with an error status', async () => {

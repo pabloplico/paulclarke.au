@@ -80,7 +80,7 @@ describe('scraper tool', () => {
       content: `Where to drink coffee ${article.trim()}`,
     });
     const [, init] = fetchMock.mock.calls[0] ?? [];
-    expect((init?.headers as Record<string, string>)['User-Agent']).toContain('MarketResearchBot');
+    expect((init!.headers as Record<string, string>)['User-Agent']).toContain('MarketResearchBot');
   });
 
   it('cuts the text at 10,000 characters', async () => {
